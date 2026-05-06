@@ -48,8 +48,20 @@ STEAM = "steam"
 GOG = "gog"
 
 # Variants / fan edits
-IFDB = "ifdb"
+# Note: there are two databases historically called "IFDB":
+#   - IFDB.org: the Interactive Fiction Database (Infocom, Inform, Twine)
+#   - Internet Fanedit Database (the fanedit.org community DB)
+# We reserve `ifdb` for interactive fiction (more widely cited externally)
+# and use `fanedit_ifdb` for the fanedit one.
+IFDB = "ifdb"                # Interactive Fiction Database — see also IF block below
+FANEDIT_IFDB = "fanedit_ifdb"
 FANEDIT_ORG = "fanedit_org"
+
+# Interactive fiction
+IFICTION = "ifiction"        # ifiction.org IFiction archive
+ALEXA_SKILL = "alexa_skill"
+GOOGLE_ACTION = "google_action"
+MYCROFT_SKILL = "mycroft_skill"
 
 # Adult
 IAFD = "iafd"
@@ -78,7 +90,8 @@ ALL_KNOWN_KEYS = (
     TUNEIN, RADIO_BROWSER, RDS_PI,
     BIG_FINISH,
     IGDB, MOBYGAMES, STEAM, GOG,
-    IFDB, FANEDIT_ORG,
+    IFDB, FANEDIT_IFDB, FANEDIT_ORG,
+    IFICTION, ALEXA_SKILL, GOOGLE_ACTION, MYCROFT_SKILL,
     IAFD, ADULTFILMDATABASE,
     COMIXOLOGY, ANILIST, MYANIMELIST,
     HOME_ASSISTANT, MQTT_TOPIC,

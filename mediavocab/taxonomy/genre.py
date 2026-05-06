@@ -50,6 +50,16 @@ GENRE_SHORT_STORY = "short_story"
 GENRE_HIP_HOP = "hip_hop"
 GENRE_EDUCATIONAL = "educational"
 
+# Photo / image collections (use with BOOK)
+GENRE_PHOTO_BOOK = "photo_book"
+GENRE_SLIDESHOW = "slideshow"
+
+# Interactive fiction (use with INTERACTIVE_FICTION)
+GENRE_PARSER_IF = "parser_if"
+GENRE_CHOICE_IF = "choice_if"
+GENRE_VOICE_GAME = "voice_game"
+GENRE_BRANCHING = "branching"
+
 # Cross-type
 GENRE_ADULT = "adult"
 GENRE_AI_GENERATED = "ai_generated"

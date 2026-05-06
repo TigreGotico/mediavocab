@@ -22,7 +22,8 @@ spec values flexibility over strictness at consumer boundaries.
 | `color`, `audio_present` | `Optional[bool]` | Objective artefact properties |
 | `content_genres` | `List[str]` | Free; use `GENRE_*` constants when known |
 | `release_status` | `ReleaseStatus` | Defaults to `RELEASED` |
-| `aka` | `List[str]` | Alternative titles; not part of identity hash |
+| `aka` | `List[str]` | Plain alternative titles / spellings; not part of identity hash |
+| `localized_titles` | `List[Tuple[str, str]]` | `(title, ISO 639-1)` for cross-locale matching |
 | `credits` | `List[Credit]` | Who contributed to this Work |
 | `tracklist` | `List[Appearance]` | For albums, anthologies, playlists |
 | `external_ids` | `Dict[str, str]` | `{"imdb": "tt..."}` |
@@ -33,6 +34,36 @@ spec values flexibility over strictness at consumer boundaries.
 A Release has a `work`, a `uri`, and edition/format/region metadata. `variant_kind`
 on Release wins over Work — a director's cut is a Release-level distinction.
 `stream_mode` is on Release, not Work, because looping is a delivery concern.
+
+**Localisation** is three orthogonal axes — do *not* collapse into `VariantKind.REGIONAL`:
+
+- `region` — release market (ISO 3166-1 alpha-2)
+- `audio_language` — primary audio track (ISO 639-1)
+- `subtitle_languages` — available subtitle tracks (`List[str]` of ISO 639-1)
+
+`VariantKind.REGIONAL` is reserved for *editorial* differences (censorship cuts,
+alternate scenes), not language tracks.
+
+**`chapters: List[Chapter]`** — timestamped navigation markers within the Release.
+Audiobook chapters, podcast chapter markers, DVD scene breaks. Chapters are not
+Works; if the unit can stand alone on another Release, model it as `Appearance`
+referencing its own Work instead.
+
+**`accessibility: List[AccessibilityTrack]`** — subtitles, captions, audio
+description, sign-language inserts, lyric files, transcripts. Per-Release because
+the same Work commonly has different accessibility profiles across its Releases.
+
+## `Chapter` — mid-Release marker
+
+`offset` (seconds), `title`, optional `image`, optional `end`. Chapters are
+markers, not Works.
+
+## `AccessibilityTrack` — per-Release accessibility asset
+
+`kind` is a free string ("subtitles", "captions", "audio_description",
+"sign_language", "transcript", "lyrics"). `language` is ISO 639-1. Booleans
+`forced` and `sdh` flag forced subtitles and SDH (subtitles for the deaf and
+hard-of-hearing).
 
 ## `Appearance` — Work in a Release container
 

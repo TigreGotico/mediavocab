@@ -23,6 +23,8 @@ from mediavocab.models import (
     Work,
     Release,
     WorkRelation,
+    Chapter,
+    AccessibilityTrack,
     Entity,
     Conflict,
 )
@@ -45,6 +47,8 @@ __all__ = [
     "Work",
     "Release",
     "WorkRelation",
+    "Chapter",
+    "AccessibilityTrack",
     "Entity",
     "Conflict",
 ]

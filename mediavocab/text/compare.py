@@ -26,8 +26,9 @@ RUNTIME_TOLERANCE_S: Dict[MediaType, float] = {
     MediaType.RADIO:            0.0,
     MediaType.BOOK:             0.0,
     MediaType.COMIC:            0.0,
-    MediaType.GAME:             0.0,
-    MediaType.SOUND_EFFECT:     0.0,
+    MediaType.GAME:                0.0,
+    MediaType.INTERACTIVE_FICTION: 0.0,
+    MediaType.SOUND_EFFECT:        0.0,
     MediaType.AMBIENT_SOUNDS:   0.0,
     MediaType.GENERIC:          5.0,
     MediaType.NOT_MEDIA:        0.0,
@@ -93,7 +94,11 @@ def compare(a: Work, b: Work) -> List[Conflict]:
 
 def score(query: Work, candidate: Work) -> float:
     """[0.0, 1.0] match quality. See spec §7.2."""
-    titles_to_try = [candidate.title] + list(candidate.aka or [])
+    titles_to_try = (
+        [candidate.title]
+        + list(candidate.aka or [])
+        + [t for t, _lang in (candidate.localized_titles or [])]
+    )
     title_score = max(
         (fuzzy_ratio(query.title, t) for t in titles_to_try if t),
         default=0.0,
@@ -133,7 +138,8 @@ def merge(*works: Work) -> Work:
     base = works[0].model_copy(deep=True)
     for w in works[1:]:
         for name, _field in type(w).model_fields.items():
-            if name in ("aka", "content_genres", "credits", "tracklist"):
+            if name in ("aka", "localized_titles", "content_genres",
+                        "credits", "tracklist"):
                 continue
             cur = getattr(base, name)
             new = getattr(w, name)
@@ -144,8 +150,8 @@ def merge(*works: Work) -> Work:
                 merged.update(cur)  # current wins on key conflict
                 setattr(base, name, merged)
 
-        # union aka and content_genres preserving order
-        for list_field in ("aka", "content_genres"):
+        # union list-of-aliases fields preserving order
+        for list_field in ("aka", "localized_titles", "content_genres"):
             seen = set(getattr(base, list_field))
             extra = [x for x in getattr(w, list_field) if x not in seen]
             if extra:

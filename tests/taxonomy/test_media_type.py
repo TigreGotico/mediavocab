@@ -1,8 +1,8 @@
 from mediavocab.taxonomy import MediaType
 
 
-def test_has_15_values():
-    assert len(MediaType) == 15
+def test_has_16_values():
+    assert len(MediaType) == 16
 
 
 def test_str_equality():
@@ -18,3 +18,7 @@ def test_terminal_and_transient_distinct():
 
 def test_sound_effect_present():
     assert MediaType.SOUND_EFFECT.value == "sound_effect"
+
+
+def test_interactive_fiction_present():
+    assert MediaType.INTERACTIVE_FICTION.value == "interactive_fiction"

@@ -4,7 +4,7 @@ All enums inherit `(str, Enum)` so values compare equal to their string
 representation: `MediaType.MOVIE == "movie"`. This makes them safe to use in
 JSON, env vars, and dict keys without conversion.
 
-## `MediaType` (15 values)
+## `MediaType` (16 values)
 
 The top-level classification of a Work. Determines schema, external databases,
 and comparison tolerances.
@@ -22,6 +22,7 @@ and comparison tolerances.
 | `BOOK` | Text-based written works |
 | `COMIC` | Sequential art (singles, GNs, manga, manhwa, manhua, webcomics) |
 | `GAME` | Video games (any platform) |
+| `INTERACTIVE_FICTION` | Text-/voice-driven branching narrative (Inform, Twine, Alexa Skills) |
 | `SOUND_EFFECT` | Short triggered audio clips (one-shots) |
 | `AMBIENT_SOUNDS` | Procedurally generated / looping environment audio |
 | `GENERIC` | Type unknown; further resolution may clarify |

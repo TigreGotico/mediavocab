@@ -16,7 +16,11 @@ Applied modelling examples for each subdomain:
 
 - [Adult media](./patterns/adult-media.md)
 - [Games](./patterns/games.md)
+- [Interactive fiction and voice games](./patterns/interactive-fiction.md)
 - [Soundtracks](./patterns/soundtracks.md)
 - [Motion comics](./patterns/motion-comics.md)
 - [Independent creators / YouTube / AI content](./patterns/independent-creators.md)
+- [Reader-paced and user-paced content](./patterns/reader-paced-content.md)
+- [Accessibility tracks and localisation](./patterns/accessibility.md)
+- [User playlists and live-streamer channels](./patterns/playlists-and-channels.md)
 - [IoT devices](./patterns/iot-devices.md)
