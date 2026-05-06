@@ -1027,6 +1027,11 @@ class Work(BaseModel):
                                            # (instrumental music, non-verbal film). Consumers
                                            # needing the distinction set `extra["language_na"] = True`.
                                            # Not validated at model level (use text.iso).
+    original_languages: List[str] = []     # multi-language originals (Quebec film FR+EN,
+                                           # simulcast anime JP+EN, bilingual hip-hop tracks).
+                                           # `language` remains the primary; `original_languages`
+                                           # carries the full list when the work was authored in
+                                           # several at once. Empty list = single-language Work.
     country: str = ""                      # ISO 3166-1 alpha-2 — origin country. Same conflation
                                            # rule as language. Per-MediaType convention:
                                            #   MOVIE / EPISODIC_SERIES → production country
@@ -1225,6 +1230,12 @@ class Release(BaseModel):
     available_from: Optional[str] = None   # ISO date — when this Release becomes (or became) available
     available_until: Optional[str] = None  # ISO date — when access is scheduled to end (e.g.
                                            # "leaves Netflix on 2026-01-31"). None = no scheduled end.
+    availability_windows: List[Tuple[Optional[str], Optional[str]]] = []
+                                           # Cycled availability ("Disney vault" pattern):
+                                           # ordered list of (from, until) ISO-date pairs. Either
+                                           # side may be None for open-ended bookends. Use only
+                                           # when there are *multiple* windows; the simple single-
+                                           # window case stays in `available_from` / `available_until`.
 
     # Playback
     uri: str = ""                          # stream URL, file path, or platform deep link
@@ -1329,6 +1340,79 @@ class Entity(BaseModel):
 
 ---
 
+### 5.8 `License`
+
+`Release.license: str` is the canonical persisted form for licence
+information — an SPDX-style identifier (`"CC-BY-SA-4.0"`,
+`"all_rights_reserved"`, …) or the empty string for "unknown."
+`License` is the typed companion for callers who want to filter on
+rights without string-matching every variation.
+
+```python
+class License(BaseModel):
+    identifier: str = ""               # SPDX-style or free string
+    name: str = ""
+    url: str = ""
+    attribution: bool = True           # credit required (CC default)
+    share_alike: bool = False          # derivatives must adopt same licence
+    commercial: bool = True            # commercial use permitted
+    derivatives: bool = True           # derivative works permitted
+    is_public_domain: bool = False     # PD / CC0 / PDM
+
+    def is_open(self) -> bool: ...
+    @classmethod
+    def from_spdx(cls, spdx: str) -> "License": ...
+```
+
+`License.from_spdx()` parses the well-known Creative Commons family
+(`CC0-1.0`, `CC-BY`, `CC-BY-SA`, `CC-BY-NC`, `CC-BY-NC-SA`, `CC-BY-ND`,
+`CC-BY-NC-ND`), the public-domain forms (`PDM`, `public_domain`), and
+falls back to a fully-restricted licence for unknown identifiers. The
+returned model is a *view* — `Release.license` stays the source of
+truth.
+
+### 5.9 `Programme` and `Schedule`
+
+Live linear broadcast (`MediaType.TV`, `MediaType.RADIO`) needs a
+schedule model: *what is airing on this channel at what time*. The
+channel-as-Work captures stable channel identity; `Schedule` and
+`Programme` capture the airing axis.
+
+```python
+class Programme(BaseModel):
+    """A single airing of a Work on a broadcast channel."""
+    work: EntityRef                          # the content Work being aired
+    channel: EntityRef                       # the broadcast channel Work / Entity
+    starts_at: str                           # ISO datetime; aired-at start
+    ends_at: Optional[str] = None
+    runtime: Optional[float] = None          # seconds
+    is_live: bool = False
+    is_repeat: bool = False
+    extra: Dict[str, Any] = {}
+
+
+class Schedule(BaseModel):
+    """An ordered list of Programme slots for a single channel."""
+    channel: EntityRef
+    programmes: List[Programme] = []
+    valid_from: Optional[str] = None
+    valid_until: Optional[str] = None
+    source: str = ""                         # "tunein", "tvmaze", "epg.xml", …
+    fetched_at: Optional[str] = None
+    extra: Dict[str, Any] = {}
+```
+
+A `Programme` is a *slot* — it locates a Work in time on a specific
+channel. The same episode airing on two channels yields two Programme
+records, one Work. Schedules are append-only at the model level; to
+refresh, replace the `Schedule` wholesale.
+
+mediavocab does not model "what's on right now" as a function — query
+the schedule for the slot whose `[starts_at, ends_at)` contains the
+consumer's clock.
+
+---
+
 ## 6. Relationships between Works
 
 The `credits` field on `Work` handles entity→work relationships (who made this).
@@ -1353,12 +1437,45 @@ class WorkRelationKind(str, Enum):
     FANEDIT_OF     = "fanedit_of"      # this Work is a fanedit/recut of the target. Use
                                        # alongside `Work.variant_kind` (FANEDIT, TV_TO_MOVIE,
                                        # MOVIE_TO_TV) to tag the kind of recut.
+    DLC_FOR        = "dlc_for"         # game DLC tied to a base game (the DLC ships as its
+                                       # own Work — different external IDs, distinct schema —
+                                       # but is meaningless without the base game).
+    EXPANSION_OF   = "expansion_of"    # standalone expansion of a base game / IF (works
+                                       # without the base, but is the same franchise lineage).
 
 class WorkRelation(BaseModel):
     kind: WorkRelationKind
     target: "Work"
     note: Optional[str] = None
 ```
+
+### 6.1 Release-level relations
+
+Some relationships are *per-edition*, not per-Work: a 2025 Atmos
+remaster supersedes the 2017 stereo remaster of the same album. The
+underlying Work is unchanged, but the Release graph chains through
+the manifestation timeline. Use `ReleaseRelation` for these.
+
+```python
+class ReleaseRelationKind(str, Enum):
+    SUPERSEDES   = "supersedes"        # this Release replaces an earlier one
+    REMASTER_OF  = "remaster_of"       # explicit remaster lineage (newer remaster of older one)
+    REISSUE_OF   = "reissue_of"        # later commercial release of the same edition
+    PORT_OF      = "port_of"           # platform port of a game / IF (same Work, new platform)
+    DERIVED_FROM = "derived_from"      # generic catch-all
+
+class ReleaseRelation(BaseModel):
+    kind: ReleaseRelationKind
+    target: "Release"
+    note: Optional[str] = None
+```
+
+Use sparingly. Most Release-to-Release distinctions are encoded by
+the format / quality / variant fields plus `release_hash` — a 4K
+Blu-ray of the same cut is *already* distinguishable from a DVD.
+`ReleaseRelation` is for explicit *lineage* claims a consumer wants
+to surface ("this remaster supersedes that one and you should hide
+the older record").
 
 **`target` is a forward reference, not a deep embed.** A consumer that
 serialises a graph of related Works must avoid recursive nesting (a

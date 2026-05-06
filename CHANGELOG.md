@@ -1,5 +1,65 @@
 # Changelog
 
+## 0.3.0 — unreleased
+
+Closing the gap list from the post-0.2 audit.
+
+### Models
+
+- **`Programme` + `Schedule`** — first-class EPG / broadcast-schedule
+  models for live linear `MediaType.TV` / `MediaType.RADIO` channels.
+  `Programme` is a slot (Work × channel × time); `Schedule` is the
+  ordered slot list for a single channel over a window. Spec §5.9.
+- **`ReleaseRelation` + `ReleaseRelationKind`** — per-edition lineage
+  parallel to `WorkRelation`. Kinds: `SUPERSEDES`, `REMASTER_OF`,
+  `REISSUE_OF`, `PORT_OF`, `DERIVED_FROM`. Spec §6.1.
+- **`License`** — typed companion to `Release.license: str`. Captures
+  the four orthogonal CC rights (attribution / share_alike /
+  commercial / derivatives) plus a `is_public_domain` flag and an
+  `is_open()` predicate. `License.from_spdx()` parses the well-known
+  CC family + PD/CC0; unknown identifiers stay restricted. Spec §5.8.
+- **`EntityRef.localized_names`** — `List[Tuple[str, str]]` of
+  `(name, ISO 639-1)` for cross-locale credit matching (kanji ↔
+  romaji ↔ English transliteration). Not part of identity.
+- **`Work.original_languages`** — `List[str]` for multi-language
+  originals (Quebec film FR+EN, simulcast anime JP+EN). The singular
+  `Work.language` remains the primary; `original_languages` carries
+  the full list when the work was authored in several at once.
+- **`Release.availability_windows`** — `List[Tuple[from, until]]`
+  for cycled availability ("Disney vault"). The simple single-window
+  case stays in `available_from` / `available_until`.
+- **`Chapter.work_ref`** — optional `EntityRef` pointing at a
+  distinct Work whose region this chapter delineates (podcast
+  episode whose chapters are interview Work + monologue Work). When
+  `None` the chapter is purely a navigation aid.
+
+### Taxonomy
+
+- **`WorkRelationKind.DLC_FOR` / `EXPANSION_OF`** — game-shaped
+  relation kinds. DLC ships as its own Work tied to a base via
+  `DLC_FOR`; standalone expansions use `EXPANSION_OF`.
+
+### Helpers (`mediavocab.helpers.queries`)
+
+- **`episodes_of(series, all_works)`** — episodes belonging to a
+  series, sorted by `(season, episode)`.
+- **`filmography_of(entity_ref, all_works, role=None)`** — Works on
+  which an entity is credited. Match by external-id overlap, fall
+  back to name equality.
+- **`quality_score(release)` / `best_release(*releases)`** — typed
+  preference rules for "play me the highest quality available".
+  Variant preference (DIRECTORS > THEATRICAL, BOOTLEG loses)
+  composes with resolution / HDR / audio channels / sample rate.
+
+### Spec
+
+- Spec §6.1 closes "ReleaseRelation belongs to a future version" —
+  formalised here.
+- Spec §5.5 documents `Work.original_languages` alongside `language`.
+- Spec §5.6 documents `Release.availability_windows`.
+- Spec §5.8 documents `License`.
+- Spec §5.9 documents `Programme` + `Schedule`.
+
 ## 0.2.0 — unreleased
 
 Spec maturation pass. All changes are spec-driven; no published consumers

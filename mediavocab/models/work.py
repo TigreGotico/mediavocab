@@ -12,6 +12,7 @@ from mediavocab.taxonomy import (
     StreamMode,
     WorkRelationKind,
 )
+from mediavocab.taxonomy.relation import ReleaseRelationKind
 from mediavocab.models.entity import Credit, EntityRef
 
 
@@ -43,9 +44,13 @@ class Chapter(BaseModel):
     """A timestamped marker within a Release: audiobook chapter, podcast
     chapter marker, DVD scene break, "skip the intro" point.
 
-    Chapters are NOT separate Works. A chapter is a navigation aid; if the
-    unit can stand alone on another Release, it should be an `Appearance`
-    referencing its own `Work` instead.
+    Chapters are NOT separate Works in their own right. ``work_ref``
+    is an optional pointer for the case where one Release contains
+    *segments* of distinct Works (a podcast episode whose chapters
+    delineate an interview Work + a monologue Work). When set, the
+    chapter is read as "this region of the Release contains *that*
+    Work." When ``None`` the chapter is purely a navigation aid for
+    the parent Release.
     """
 
     model_config = _CFG
@@ -54,6 +59,7 @@ class Chapter(BaseModel):
     title: str = ""
     image: str = ""
     end: Optional[float] = None
+    work_ref: Optional[EntityRef] = None   # see docstring; usually None
 
 
 class AccessibilityTrack(BaseModel):
@@ -89,6 +95,7 @@ class Work(BaseModel):
     year: Optional[int] = None
     runtime: Optional[float] = None
     language: str = ""
+    original_languages: List[str] = Field(default_factory=list)  # multi-language original (Quebec films, simulcast anime)
     country: str = ""
 
     season: Optional[int] = None
@@ -151,10 +158,15 @@ class Release(BaseModel):
 
     # Rights and availability
     license: str = ""
-    region_locked: bool = False
+    region_locked: Optional[bool] = None
     regions_available: List[str] = Field(default_factory=list)
     available_from: Optional[str] = None
     available_until: Optional[str] = None
+    # Cycled availability ("Disney vault" pattern) — list of (from, until)
+    # ISO-date pairs. Either side may be None for open-ended windows.
+    # ``available_from`` / ``available_until`` cover the simple single-window
+    # case; populate ``availability_windows`` only when there are multiple.
+    availability_windows: List[Tuple[Optional[str], Optional[str]]] = Field(default_factory=list)
 
     # Playback
     uri: str = ""
@@ -190,6 +202,72 @@ class WorkRelation(BaseModel):
     note: Optional[str] = None
 
 
-# Resolve forward references in the cycle Work <-> Appearance.
+class ReleaseRelation(BaseModel):
+    """A relation from one Release to another. Spec §6.
+
+    Use for per-edition lineage that ``WorkRelation`` cannot express:
+    a 2025 Atmos remaster ``SUPERSEDES`` the 2017 stereo remaster
+    (same Work; the Release graph chains).
+    """
+
+    model_config = _CFG
+
+    kind: ReleaseRelationKind
+    target: "Release"
+    note: Optional[str] = None
+
+
+class Programme(BaseModel):
+    """A single airing of a Work on a broadcast channel.
+
+    A ``Programme`` is the show-as-aired-at-time anchor for live
+    broadcast (``MediaType.TV``, ``MediaType.RADIO``). It points at
+    the *content* Work being aired (typically an
+    ``EPISODIC_SERIES`` episode, a ``MOVIE``, an ``AUDIO_DRAMA``
+    instalment, …) and locates it in time on a specific channel.
+
+    Distinct from the channel-as-Work itself: a ``Programme`` is a
+    *slot*, not an identity. Two channels broadcasting the same
+    episode at different times yield two ``Programme`` records, one
+    Work.
+    """
+
+    model_config = _CFG
+
+    work: EntityRef                          # the content Work being aired (resolve via external_ids / title+year)
+    channel: EntityRef                       # the broadcast channel Work / Entity
+    starts_at: str                           # ISO datetime; aired-at start
+    ends_at: Optional[str] = None            # ISO datetime; aired-at end (omit when only duration is known)
+    runtime: Optional[float] = None          # seconds; programme length on the schedule
+    is_live: bool = False                    # True for live broadcasts (sport, news, talk)
+    is_repeat: bool = False                  # True when this airing is a re-broadcast
+    extra: Dict[str, Any] = Field(default_factory=dict)
+
+
+class Schedule(BaseModel):
+    """An ordered list of ``Programme`` slots for a single broadcast
+    channel over a window of time.
+
+    Use for EPG / TV-listings / radio-schedule data. mediavocab
+    deliberately does not model "what's on right now" — query the
+    schedule for the slot whose ``[starts_at, ends_at)`` contains the
+    consumer's clock. Schedules are append-only at the model level;
+    consumers can replace a stale ``Schedule`` wholesale to refresh.
+    """
+
+    model_config = _CFG
+
+    channel: EntityRef                       # the broadcast channel
+    programmes: List[Programme] = Field(default_factory=list)
+    valid_from: Optional[str] = None         # ISO datetime; start of the schedule window
+    valid_until: Optional[str] = None        # ISO datetime; end of the schedule window
+    source: str = ""                         # provider hint: "tunein", "tvmaze", "epg.xml", …
+    fetched_at: Optional[str] = None         # when the schedule was retrieved (for staleness)
+    extra: Dict[str, Any] = Field(default_factory=dict)
+
+
+# Resolve forward references in the cycle Work <-> Appearance and
+# ReleaseRelation -> Release.
 Appearance.model_rebuild()
 Work.model_rebuild()
+ReleaseRelation.model_rebuild()

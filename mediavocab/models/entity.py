@@ -1,5 +1,5 @@
 """Entity, EntityRef, Membership, Credit. Spec §5.1, §5.2, §5.3, §5.7."""
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 from pydantic import BaseModel, ConfigDict, Field
 
 from mediavocab.taxonomy import (
@@ -14,13 +14,20 @@ _CFG = ConfigDict(extra="ignore", populate_by_name=True)
 
 
 class EntityRef(BaseModel):
-    """Lightweight reference to an entity. Pointer, not a full record."""
+    """Lightweight reference to an entity. Pointer, not a full record.
+
+    ``localized_names`` carries language-tagged alternative spellings
+    of the entity's name for cross-locale matching — a Japanese voice
+    actor's name in kanji, romaji, and English transliteration. Each
+    tuple is ``(name, ISO 639-1)``. Not part of the identity hash.
+    """
 
     model_config = _CFG
 
     name: str
     kind: EntityKind
     external_ids: Dict[str, str] = Field(default_factory=dict)
+    localized_names: List[Tuple[str, str]] = Field(default_factory=list)
 
 
 class Membership(BaseModel):

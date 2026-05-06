@@ -61,3 +61,20 @@ class WorkRelationKind(str, Enum):
     SOUNDTRACK_FOR = "soundtrack_for"
     BONUS_FOR = "bonus_for"
     FANEDIT_OF = "fanedit_of"
+    DLC_FOR = "dlc_for"             # game DLC tied to a base game
+    EXPANSION_OF = "expansion_of"    # standalone expansion (still a separate Work)
+
+
+class ReleaseRelationKind(str, Enum):
+    """How one Release relates to another. Spec §6.
+
+    Parallel to ``WorkRelationKind`` but for Release-level lineage:
+    remasters supersede prior remasters, ports / DLC / re-issues
+    chain through release time.
+    """
+
+    SUPERSEDES = "supersedes"        # this Release replaces an earlier one (e.g. newer remaster)
+    REMASTER_OF = "remaster_of"      # explicit remaster lineage
+    REISSUE_OF = "reissue_of"        # later commercial release of the same edition
+    PORT_OF = "port_of"              # platform port of the same base game / IF
+    DERIVED_FROM = "derived_from"    # generic "this Release is derived from that one"

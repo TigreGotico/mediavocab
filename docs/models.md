@@ -115,6 +115,29 @@ side entity store before treating as authoritative.
 
 `date_to=None` does NOT mean current — combine with `status` to interpret.
 
+## Helpers — `mediavocab.helpers.queries`
+
+Non-normative convenience functions on top of the model surface.
+
+```python
+episodes_of(series_work, all_works) -> List[Work]
+    # Episodes belonging to a series, sorted (season, episode).
+    # Match by series_title.
+
+filmography_of(entity_ref, all_works, relation_role=None) -> List[Work]
+    # Works on which the entity is credited. Optional role filter.
+    # Matches by external_ids overlap; falls back to name equality.
+
+quality_score(release) -> tuple
+    # Sortable tuple: (variant_pref, resolution, hdr, audio_channels,
+    # sample_rate). Higher tuples are better releases.
+
+best_release(*releases) -> Optional[Release]
+    # The highest-quality Release. Bootlegs lose to anything;
+    # director's cuts beat theatrical; 4K beats 1080p; Atmos beats stereo.
+    # List order breaks ties (caller pre-orders by preference).
+```
+
 ## `WorkRelation` — Work→Work links
 
 Wraps `WorkRelationKind` (`COVERS`, `SOUNDTRACK_FOR`, `SEQUEL_TO`,
