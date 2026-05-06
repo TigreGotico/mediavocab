@@ -31,9 +31,24 @@ spec values flexibility over strictness at consumer boundaries.
 
 ## `Release` — a specific manifestation
 
-A Release has a `work`, a `uri`, and edition/format/region metadata. `variant_kind`
-on Release wins over Work — a director's cut is a Release-level distinction.
-`stream_mode` is on Release, not Work, because looping is a delivery concern.
+A Release has a `work`, a `uri`, and four orthogonal blocks of metadata:
+**format**, **quality**, **localisation**, and **rights/availability**.
+
+**Format axes** (replaces the old overloaded `source_format`):
+
+| Field | Carries | Examples |
+|---|---|---|
+| `container` | physical or distribution medium | `"Blu-ray"`, `"Vinyl"`, `"Digital"`, `"Skill"`, `"ROM"`, `"Glulx"` |
+| `codec` | audio/video codec | `"FLAC"`, `"H.264"`, `"AV1"` |
+| `bitrate` | codec parameters | `"320kbps"`, `"24/96"` |
+| `platform` | game / IF runtime target | `"PS4"`, `"SNES"`, `"Alexa Skill"` |
+
+**Quality** — `resolution`, `hdr`, `audio_channels`, `sample_rate`. Enables
+"play me the highest-quality release" without string parsing.
+
+`variant_kind` on Release wins over Work — a director's cut is a Release-level
+distinction. `stream_mode` is on Release, not Work, because looping is a
+delivery concern.
 
 **Localisation** is three orthogonal axes — do *not* collapse into `VariantKind.REGIONAL`:
 
@@ -52,6 +67,16 @@ referencing its own Work instead.
 **`accessibility: List[AccessibilityTrack]`** — subtitles, captions, audio
 description, sign-language inserts, lyric files, transcripts. Per-Release because
 the same Work commonly has different accessibility profiles across its Releases.
+
+**Rights and availability** — `license`, `region_locked`, `regions_available`,
+`available_from`, `available_until`. Typed instead of buried in `extra`. Covers
+public-domain editions, Creative-Commons releases, region-locked streams, and
+"leaves Netflix on 2026-01-31" workflows.
+
+**Box sets / composite Releases** — `contents: List[Appearance]` aggregates
+multiple Works in a single Release without inventing a synthetic container Work.
+Use `tracklist` on Work for canonical track ordering of the work itself; use
+`contents` on Release for box-set packaging of *separate* Works.
 
 ## `Chapter` — mid-Release marker
 
@@ -102,6 +127,9 @@ behaviour, per the spec's deferred-formalisation note.
 |---|---|
 | Same film, different cut? | Same Work, different Release (`variant_kind=DIRECTORS`) |
 | Same song on two albums? | Same Work, two Appearances in two different Release containers |
+| Track 3 in a continuous DJ mix? | `Appearance(work=track, position=3, offset=754.5)` |
+| Three films in a Blu-ray box set? | One Release with `contents=[…]`; no synthetic box Work |
+| Episode in production order vs broadcast order? | One Work, `episode_orderings={"production":1,"broadcast":11}` |
 | BBC Radio 4 primary URL vs backup mirror? | Same Work, two Releases with different URIs |
 | 1986 CD vs 2017 remaster of an album? | Same Work, two Releases (`REMASTERED` on the second) |
 | Cover version of "Hallelujah"? | Different Work; link with `WorkRelation(kind=COVERS)` |

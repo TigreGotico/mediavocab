@@ -16,18 +16,18 @@ def main() -> None:
         work=station,
         uri="http://stream.live.vc.bbcmedia.co.uk/bbc_radio_fourfm",
         stream_mode=StreamMode.CONTINUOUS,
-        source_format="HLS 128k",
+        codec="AAC", bitrate="128kbps", container="HLS",
     )
     backup = Release(
         work=station,
         uri="http://backup.example/bbc4",
         stream_mode=StreamMode.CONTINUOUS,
-        source_format="MP3 96k",
+        codec="MP3", bitrate="96kbps",
     )
 
     print(station.title, "(", station.media_type.value, ")")
     for r in (primary, backup):
-        print(" - URI:", r.uri, "format:", r.source_format)
+        print(" - URI:", r.uri, "codec:", r.codec, r.bitrate)
 
 
 if __name__ == "__main__":

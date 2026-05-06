@@ -9,6 +9,7 @@ class ReleaseStatus(str, Enum):
     ANNOUNCED = "announced"
     IN_PRODUCTION = "in_production"
     CANCELLED = "cancelled"
+    WITHDRAWN = "withdrawn"
     UNKNOWN = "unknown"
 
 

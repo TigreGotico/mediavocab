@@ -31,7 +31,7 @@ remaster = Release(
     variant_kind=VariantKind.REMASTERED,
     release_date="2017-11-10",
     uri="file:///library/master-of-puppets-2017.flac",
-    source_format="FLAC 24/96",
+    container="Digital", codec="FLAC", bitrate="24/96",
 )
 ```
 

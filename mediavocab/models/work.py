@@ -19,13 +19,20 @@ _CFG = ConfigDict(extra="ignore", populate_by_name=True)
 
 
 class Appearance(BaseModel):
-    """Position of a Work within a Release container."""
+    """Position of a Work within a Release container.
+
+    `offset` carries the absolute time-into-the-Release where this member
+    starts. Used by continuous mixes (DJ sets, megamixes, live concerts)
+    where `position` alone is insufficient. None = the parent uses simple
+    ordering and members do not occupy a fixed offset.
+    """
 
     model_config = _CFG
 
     work: "Work"
     position: int
     disc: int = 1
+    offset: Optional[float] = None
     title_override: Optional[str] = None
     length_override: Optional[float] = None
     is_bonus: bool = False
@@ -87,6 +94,7 @@ class Work(BaseModel):
     season: Optional[int] = None
     episode: Optional[int] = None
     series_title: Optional[str] = None
+    episode_orderings: Dict[str, int] = Field(default_factory=dict)
 
     variant_kind: Optional[VariantKind] = None
     edition: str = ""
@@ -115,27 +123,54 @@ class Release(BaseModel):
 
     work: Work
 
+    # Edition
     variant_kind: Optional[VariantKind] = None
     edition: str = ""
     region: str = ""
-    source_format: str = ""
+
+    # Format — three orthogonal axes (replaces overloaded source_format)
+    container: str = ""
+    codec: str = ""
+    bitrate: str = ""
+    platform: str = ""
     stream_mode: StreamMode = StreamMode.ON_DEMAND
 
-    # Localisation — three orthogonal axes; do NOT collapse into VariantKind.REGIONAL
+    # Quality / fidelity
+    resolution: str = ""
+    hdr: str = ""
+    audio_channels: str = ""
+    sample_rate: Optional[int] = None
+
+    # Localisation — dub/sub/market triple; not VariantKind.REGIONAL
     audio_language: str = ""
     subtitle_languages: List[str] = Field(default_factory=list)
 
+    # Lifecycle
     release_status: ReleaseStatus = ReleaseStatus.RELEASED
     release_date: Optional[str] = None
 
+    # Rights and availability
+    license: str = ""
+    region_locked: bool = False
+    regions_available: List[str] = Field(default_factory=list)
+    available_from: Optional[str] = None
+    available_until: Optional[str] = None
+
+    # Playback
     uri: str = ""
     image: str = ""
 
+    # Mid-Release navigation and accessibility
     chapters: List[Chapter] = Field(default_factory=list)
     accessibility: List[AccessibilityTrack] = Field(default_factory=list)
 
+    # Composite / box-set Releases
+    contents: List[Appearance] = Field(default_factory=list)
+
+    # Scoring
     match_confidence: float = 0.0
 
+    # Infrastructure
     label: Optional[EntityRef] = None
     distributor: Optional[EntityRef] = None
 

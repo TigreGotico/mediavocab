@@ -28,6 +28,7 @@ RUNTIME_TOLERANCE_S: Dict[MediaType, float] = {
     MediaType.COMIC:            0.0,
     MediaType.GAME:                0.0,
     MediaType.INTERACTIVE_FICTION: 0.0,
+    MediaType.STAGE:               0.0,
     MediaType.SOUND_EFFECT:        0.0,
     MediaType.AMBIENT_SOUNDS:   0.0,
     MediaType.GENERIC:          5.0,

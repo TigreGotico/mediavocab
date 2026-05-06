@@ -180,6 +180,7 @@ class MediaType(str, Enum):
     COMIC       = "comic"
     GAME                = "game"
     INTERACTIVE_FICTION = "interactive_fiction"
+    STAGE               = "stage"
     SOUND_EFFECT        = "sound_effect"
     AMBIENT_SOUNDS      = "ambient_sounds"
     GENERIC             = "generic"
@@ -307,6 +308,23 @@ The criterion (axiom 1) is the database split: `GAME` records belong on IGDB / M
 Steam; `INTERACTIVE_FICTION` records belong on IFDB.org and ifiction.org. A graphic
 adventure with a parser (Sierra-era titles) is `GAME` — it ships as a platform binary;
 a voice-only narrative skill on Alexa is `INTERACTIVE_FICTION` — it has no binary at all.
+
+**`STAGE`**  
+Live theatrical and performance arts: plays, musicals, opera, ballet, stand-up
+sets *as performed live in a venue* (the recorded release of the same show is
+`MOVIE`/`AUDIO_DRAMA`). Schema: production company, venue, opening night, run
+end, cast, director, writer/composer; external IDs: IBDB (Broadway), Theatricalia,
+Operabase. The Work is the *production* (a specific staging — RSC's 2008 Hamlet
+with David Tennant); the underlying script (Shakespeare's *Hamlet*) is a `BOOK`
+linked via `WorkRelation(kind=ADAPTED_FROM)`. Individual nightly performances
+are `Release`s of the production Work, with `release_date` as the performance
+date and the venue captured in `Release.extra` or as a `RelationRole.PERFORMER`
+credit on the venue Entity.
+
+The criterion (axiom 1) is the database split: theatrical productions live on
+IBDB / Theatricalia / Operabase, not IMDB / TMDB. The credit schema is
+distinct (writer + composer + director + choreographer + producer + lead
+performers per role, often per-cast across the run).
 
 **`SOUND_EFFECT`**  
 A discrete, catalogued audio clip whose primary identity is a *category taxonomy* rather
@@ -675,6 +693,10 @@ class ReleaseStatus(str, Enum):
     ANNOUNCED     = "announced"       # confirmed; release date may be unknown
     IN_PRODUCTION = "in_production"   # filming, recording, or development underway
     CANCELLED     = "cancelled"       # confirmed as not releasing
+    WITHDRAWN     = "withdrawn"       # was released, no longer commercially available
+                                      # (out of print, removed from streaming, rights reverted).
+                                      # Distinct from CANCELLED: the work shipped, then was
+                                      # pulled. The Work is real; the named Release is gone.
     UNKNOWN       = "unknown"         # status cannot be determined
 ```
 
@@ -856,6 +878,12 @@ class Appearance(BaseModel):
     work: "Work"                           # canonical song, chapter, episode
     position: int                          # track/chapter/episode number within container
     disc: int = 1                          # disc number for multi-disc releases
+    offset: Optional[float] = None         # seconds into the parent Release where this
+                                           # member starts. Used by continuous mixes
+                                           # (DJ sets, megamixes, live concerts) where
+                                           # `position` alone is insufficient. None = the
+                                           # parent uses simple ordering and members do not
+                                           # occupy a fixed offset.
     title_override: Optional[str] = None   # if re-titled on this release
     length_override: Optional[float] = None # seconds; None = use work.runtime
     is_bonus: bool = False
@@ -902,14 +930,29 @@ class Work(BaseModel):
                                            # `runtime=None`. Consumers needing it use Release.stream_mode
                                            # (CONTINUOUS implies open-ended) or media_type heuristics
                                            # (BOOK/COMIC/INTERACTIVE_FICTION → indeterminate).
-    language: str = ""                     # ISO 639-1 or 639-2; "" = unknown (not validated at model level)
-    country: str = ""                      # ISO 3166-1 alpha-2 — origin country; "" = unknown
+    language: str = ""                     # ISO 639-1 or 639-2; "" = unknown OR not applicable
+                                           # (e.g. instrumental music, non-verbal film). Mediavocab
+                                           # does NOT distinguish unknown from not-applicable —
+                                           # both use "". Consumers needing the distinction store
+                                           # `extra["language_na"] = True` for the not-applicable
+                                           # case. Not validated at model level (use text.iso).
+    country: str = ""                      # ISO 3166-1 alpha-2 — origin country. "" = unknown OR
+                                           # not applicable (international co-productions with no
+                                           # single origin country). Same conflation rule as language.
 
     # Episode / series structure (TV, podcast, radio programmes)
     season: Optional[int] = None
-    episode: Optional[int] = None
+    episode: Optional[int] = None          # default ordering — broadcast order for TV,
+                                           # release order for film franchises
     series_title: Optional[str] = None     # containing series name, denormalised for convenience;
                                            # if a SERIES Entity exists, its name should match this
+    episode_orderings: Dict[str, int] = {} # alternative orderings keyed by name:
+                                           # {"production": 7, "broadcast": 5,
+                                           #  "chronological": 12, "recommended": 3}.
+                                           # Free string keys — common values are
+                                           # "production", "broadcast", "chronological",
+                                           # "recommended" (Star Wars Machete, anime release
+                                           # vs production). `episode` mirrors the default ordering.
 
     # Edition
     variant_kind: Optional[VariantKind] = None
@@ -1007,21 +1050,36 @@ class Release(BaseModel):
 
     work: Work                             # the canonical work this release manifests
 
-    # Edition and format
+    # Edition
     variant_kind: Optional[VariantKind] = None
     edition: str = ""
     region: str = ""                       # ISO 3166-1 alpha-2 — release market
-    source_format: str = ""               # "4K UHD", "Vinyl", "MP3", "AAC 128k",
-                                          # "SNES ROM", "GBA ROM", "PC", "PS4", "Switch",
-                                          # "Z-machine", "Inform 7", "Twine", "Alexa Skill"
-                                          # For games, source_format encodes the platform.
-                                          # For interactive fiction, source_format encodes
-                                          # the engine/distribution channel.
+
+    # Format — three orthogonal axes; replaces the old overloaded `source_format`
+    container: str = ""                    # physical or distribution medium:
+                                           #   "Blu-ray", "4K UHD", "DVD", "Vinyl", "CD",
+                                           #   "Cassette", "Digital", "Streaming", "Skill",
+                                           #   "ROM", "Z-machine", "Glulx", "Twine", "EPUB"
+    codec: str = ""                        # audio/video codec:
+                                           #   "FLAC", "MP3", "AAC", "Opus",
+                                           #   "H.264", "H.265", "AV1", "ProRes"
+    bitrate: str = ""                      # codec parameters where relevant:
+                                           #   "320kbps", "128kbps", "24/96", "1080p", "2160p"
+    platform: str = ""                     # game / IF runtime target:
+                                           #   "PC", "PS4", "Switch", "SNES", "Alexa Skill",
+                                           #   "Google Action", "Inform 7"
+                                           # Empty for non-game/IF media.
     stream_mode: StreamMode = StreamMode.ON_DEMAND
 
+    # Quality / fidelity — typed fields for "play me the best version" workflows.
+    # All optional; missing means "unknown / not applicable for this medium".
+    resolution: str = ""                   # "480p", "720p", "1080p", "2160p" (4K), "4320p" (8K)
+    hdr: str = ""                          # "", "HDR10", "HDR10+", "Dolby Vision", "HLG"
+    audio_channels: str = ""               # "mono", "stereo", "5.1", "7.1", "Atmos"
+    sample_rate: Optional[int] = None      # Hz — 44100, 48000, 96000, 192000
+
     # Localisation — three orthogonal axes; do NOT collapse into VariantKind.REGIONAL
-    audio_language: str = ""               # ISO 639-1 of the primary audio track ("ja" for
-                                           # a Japanese dub, "" if not applicable / unknown)
+    audio_language: str = ""               # ISO 639-1 of the primary audio track
     subtitle_languages: List[str] = []     # ISO 639-1 codes for available subtitle tracks
     # `region` (above) records the release market. (region, audio_language,
     # subtitle_languages) form the dub/sub/market triple. `VariantKind.REGIONAL` is for
@@ -1031,6 +1089,16 @@ class Release(BaseModel):
     release_status: ReleaseStatus = ReleaseStatus.RELEASED
     release_date: Optional[str] = None    # ISO date or year string
 
+    # Rights and availability — typed instead of buried in extra
+    license: str = ""                      # "all_rights_reserved" (default if commercial),
+                                           # "public_domain", "cc_by", "cc_by_sa", "cc0", etc.
+    region_locked: bool = False            # True if access is restricted by region; the allowed
+                                           # regions are listed in `regions_available` (when known)
+    regions_available: List[str] = []      # ISO 3166-1 alpha-2; empty = unknown or worldwide
+    available_from: Optional[str] = None   # ISO date — when this Release becomes (or became) available
+    available_until: Optional[str] = None  # ISO date — when access is scheduled to end (e.g.
+                                           # "leaves Netflix on 2026-01-31"). None = no scheduled end.
+
     # Playback
     uri: str = ""                          # stream URL, file path, or platform deep link
     image: str = ""                        # cover art URL
@@ -1038,6 +1106,13 @@ class Release(BaseModel):
     # Mid-Release navigation and accessibility
     chapters: List[Chapter] = []           # ordered by `offset`; empty = no chapter info
     accessibility: List[AccessibilityTrack] = []
+
+    # Composite Releases (box sets, anthology Blu-rays). A box set is a single Release
+    # that aggregates several Works WITHOUT a synthetic container Work. `contents` lists
+    # the constituent Works as Appearances. `work` of the Release should be set to the
+    # principal Work (the headline title of the set) or to a dedicated "set" Work when
+    # the contents have no headline. Empty = ordinary single-Work Release.
+    contents: List[Appearance] = []
 
     # Scoring
     match_confidence: float = 0.0         # [0.0, 1.0]; set by resolver, not by data entry
@@ -1187,6 +1262,7 @@ RUNTIME_TOLERANCE_S: Dict[MediaType, float] = {
     MediaType.COMIC:         0.0,
     MediaType.GAME:                0.0,
     MediaType.INTERACTIVE_FICTION: 0.0,   # session-based, user-paced
+    MediaType.STAGE:               0.0,   # nightly performances vary; no tolerance applies
     MediaType.SOUND_EFFECT:        0.0,   # clips are exactly timed; no tolerance
     MediaType.AMBIENT_SOUNDS: 0.0,   # generative/looping; runtime is undefined
     MediaType.GENERIC:        5.0,
@@ -1915,6 +1991,158 @@ new VOD Release.
 branching choices that ships as a binary (Telltale, Detroit: Become Human):
 `GAME + GENRE_BRANCHING`. The MediaType follows the distribution channel
 (axiom 10), not the narrative structure.
+
+---
+
+### 8.16 Stage productions
+
+`MediaType.STAGE` is a *production* — a specific staging of a script or score
+by a specific director and cast in a specific venue. The script ("Hamlet" by
+Shakespeare) is a `BOOK` Work; the production ("RSC's 2008 Hamlet with David
+Tennant") is a `STAGE` Work linked via `WorkRelation(kind=ADAPTED_FROM)`.
+
+```python
+hamlet_script = Work(title="Hamlet", media_type=MediaType.BOOK, year=1603,
+                     credits=[author_credit("William Shakespeare")])
+rsc_hamlet = Work(
+    title="Hamlet",
+    media_type=MediaType.STAGE,
+    year=2008,
+    series_title="Royal Shakespeare Company",
+    credits=[
+        director_credit("Gregory Doran"),
+        Credit(entity=david_tennant_ref, role="Hamlet",
+               relation_role=RelationRole.ACTOR),
+    ],
+    external_ids={"theatricalia": "..."},
+)
+```
+
+Each performance night is a `Release` of the production:
+
+```python
+nightly = Release(
+    work=rsc_hamlet,
+    release_date="2008-08-12",
+    container="Live",
+    extra={"venue": "Royal Shakespeare Theatre, Stratford"},
+)
+```
+
+When a production is filmed (NT Live, Met Opera HD) the filmed version is a
+separate `MOVIE` Work with `WorkRelation(kind=ADAPTED_FROM, target=production)`.
+When archival footage of a production is later released as video, it follows
+the same pattern. The `STAGE` Work always represents the live production
+itself, regardless of whether any recording exists.
+
+External-ID keys: `ibdb` (Broadway), `theatricalia`, `operabase`.
+
+---
+
+### 8.17 Box sets and composite Releases
+
+A box set is a packaging decision, not a creative work. `Release.contents`
+lets a Release directly aggregate Works without inventing a synthetic
+container Work:
+
+```python
+trilogy = Release(
+    work=fellowship_of_the_ring,            # principal / headline title
+    edition="Extended Edition Trilogy Box Set",
+    container="Blu-ray",
+    contents=[
+        Appearance(work=fellowship_of_the_ring, position=1, disc=1),
+        Appearance(work=two_towers,             position=2, disc=2),
+        Appearance(work=return_of_the_king,     position=3, disc=3),
+    ],
+)
+```
+
+When the box has no headline (a true anthology — three unrelated short films,
+a label sampler), create a single Work to act as the headline:
+
+```python
+sampler_work = Work(title="Indie Label Sampler 2024",
+                    media_type=MediaType.MUSIC, year=2024,
+                    variant_kind=VariantKind.COMPILATION)
+sampler = Release(work=sampler_work, contents=[...])
+```
+
+`tracklist` on `Work` and `contents` on `Release` solve different problems:
+
+| Use case | Where it lives |
+|---|---|
+| Album tracklist (canonical track order on the work) | `Work.tracklist` |
+| DJ mix track ordering with `offset`s (single continuous Release) | `Work.tracklist` with `Appearance.offset` |
+| Box set aggregating *separate* Works (films, albums, novels) | `Release.contents` |
+| Anthology Release with no canonical "host" Work | `Release.contents` + a synthetic anthology Work |
+
+---
+
+### 8.18 Format, quality, rights, and availability
+
+The Release fields split into four orthogonal blocks:
+
+**Format axes** (`container`, `codec`, `bitrate`, `platform`) — what physically
+or digitally ships. Replaces the old overloaded `source_format`. A Blu-ray of
+a film is `container="Blu-ray", codec="H.264"`. A FLAC rip is
+`container="Digital", codec="FLAC", bitrate="24/96"`. A SNES ROM is
+`container="ROM", platform="SNES"`. An Alexa Skill is
+`container="Skill", platform="Alexa Skill"`.
+
+**Quality axes** (`resolution`, `hdr`, `audio_channels`, `sample_rate`) —
+fidelity. Enables "play me the highest-quality release" without string-parsing
+container or bitrate.
+
+**Localisation** (`region`, `audio_language`, `subtitle_languages`) — the
+dub/sub/market triple. Distinct from `VariantKind.REGIONAL` (editorial
+differences only).
+
+**Rights and availability** (`license`, `region_locked`, `regions_available`,
+`available_from`, `available_until`) — typed rather than buried in `extra`.
+Covers public-domain editions, Creative-Commons releases, region-locked
+streams, and "leaves Netflix on 2026-01-31" workflows.
+
+`license` is a free string with conventional values
+(`"all_rights_reserved"`, `"public_domain"`, `"cc_by"`, `"cc_by_sa"`,
+`"cc0"`, `"cc_by_nc"`, `"gpl"`, etc.). A typed enum is rejected because the
+license catalogue is too large and consumer-specific to lock down.
+
+---
+
+### 8.19 Multiple episode orderings
+
+A single TV season often has several legitimate episode orderings:
+
+- *Production* order — the order episodes were filmed
+- *Broadcast* order — the order they aired (often shuffled by the network)
+- *Chronological* order — the order events happen in-universe
+- *Recommended* viewing order — fan or creator-suggested (Star Wars
+  "Machete order")
+
+`Work.episode` is the single default ordering. `Work.episode_orderings: Dict[str, int]`
+carries alternatives:
+
+```python
+ep = Work(
+    title="Firefly: Serenity",
+    media_type=MediaType.TV,
+    series_title="Firefly",
+    season=1,
+    episode=11,                            # Fox broadcast order
+    episode_orderings={
+        "broadcast": 11,
+        "production": 1,                   # was actually the pilot
+        "chronological": 1,
+        "recommended": 1,                  # creator-recommended viewing order
+    },
+)
+```
+
+The keys are free strings. The `episode` field always mirrors one of the
+orderings — the consumer's default. Separate Works are not created for
+alternative orderings; the Work is the same episode regardless of where it
+sits in a viewing list.
 
 ---
 

@@ -20,9 +20,9 @@ def test_parser_if_work():
         )],
         external_ids={eid.IFDB: "lr40jhwqgyx9rzfr"},
     )
-    r = Release(work=w, source_format="Glulx", uri="https://x")
+    r = Release(work=w, container="Glulx", uri="https://x")
     assert w.media_type == MediaType.INTERACTIVE_FICTION
-    assert r.source_format == "Glulx"
+    assert r.container == "Glulx"
     # Sessions are user-paced, so runtime is None
     assert w.runtime is None
 
@@ -35,7 +35,8 @@ def test_voice_game_release():
     )
     r = Release(
         work=w,
-        source_format="Alexa Skill",
+        container="Skill",
+        platform="Alexa Skill",
         external_ids={eid.ALEXA_SKILL: "amzn1.ask.skill.deadbeef"},
     )
     assert r.external_ids[eid.ALEXA_SKILL].startswith("amzn1.ask.skill.")

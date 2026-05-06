@@ -4,7 +4,7 @@ All enums inherit `(str, Enum)` so values compare equal to their string
 representation: `MediaType.MOVIE == "movie"`. This makes them safe to use in
 JSON, env vars, and dict keys without conversion.
 
-## `MediaType` (16 values)
+## `MediaType` (17 values)
 
 The top-level classification of a Work. Determines schema, external databases,
 and comparison tolerances.
@@ -23,6 +23,7 @@ and comparison tolerances.
 | `COMIC` | Sequential art (singles, GNs, manga, manhwa, manhua, webcomics) |
 | `GAME` | Video games (any platform) |
 | `INTERACTIVE_FICTION` | Text-/voice-driven branching narrative (Inform, Twine, Alexa Skills) |
+| `STAGE` | Live theatrical productions (plays, musicals, opera, ballet) |
 | `SOUND_EFFECT` | Short triggered audio clips (one-shots) |
 | `AMBIENT_SOUNDS` | Procedurally generated / looping environment audio |
 | `GENERIC` | Type unknown; further resolution may clarify |
@@ -78,7 +79,10 @@ mean "current"** — check `status` (a defunct band's last member has
 
 ## `ReleaseStatus`
 
-`RELEASED`, `ANNOUNCED`, `IN_PRODUCTION`, `CANCELLED`, `UNKNOWN`.
+`RELEASED`, `ANNOUNCED`, `IN_PRODUCTION`, `CANCELLED`, `WITHDRAWN`, `UNKNOWN`.
+
+`WITHDRAWN` is the "shipped, then pulled" state — out of print, removed from
+streaming, rights reverted. Distinct from `CANCELLED` (never shipped).
 
 ## `StreamMode`
 

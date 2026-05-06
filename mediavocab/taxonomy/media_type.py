@@ -21,6 +21,7 @@ class MediaType(str, Enum):
     COMIC = "comic"
     GAME = "game"
     INTERACTIVE_FICTION = "interactive_fiction"
+    STAGE = "stage"
     SOUND_EFFECT = "sound_effect"
     AMBIENT_SOUNDS = "ambient_sounds"
     GENERIC = "generic"

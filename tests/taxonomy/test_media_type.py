@@ -1,8 +1,8 @@
 from mediavocab.taxonomy import MediaType
 
 
-def test_has_16_values():
-    assert len(MediaType) == 16
+def test_has_17_values():
+    assert len(MediaType) == 17
 
 
 def test_str_equality():

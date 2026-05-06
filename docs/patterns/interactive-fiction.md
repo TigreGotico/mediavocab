@@ -14,7 +14,7 @@ Interactive Fiction Database) and ifiction.org. The schemas diverge:
 |---|---|---|
 | Principal credit | developer / studio | author |
 | Distribution | platform binary (Steam, PSN) | story file or skill ID |
-| `source_format` | `"PC"`, `"PS4"`, `"Switch"` | `"Z-machine"`, `"Glulx"`, `"Twine"`, `"Alexa Skill"` |
+| `container` / `platform` | `container="Steam"`, `platform="PS4"` | `container="Glulx"`, `platform="Alexa Skill"` |
 | External DBs | `igdb`, `mobygames`, `steam` | `ifdb`, `ifiction`, `alexa_skill` |
 
 A graphic adventure with a parser (Sierra-era titles) is `GAME` — it ships as
@@ -42,10 +42,10 @@ work = Work(
     )],
     external_ids={eid.IFDB: "lr40jhwqgyx9rzfr"},
 )
-Release(work=work, source_format="Glulx", uri="https://...")
+Release(work=work, container="Glulx", uri="https://...")
 ```
 
-Voice-game IF: same MediaType, `source_format="Alexa Skill"`,
+Voice-game IF: same MediaType, `container="Skill"`, `platform="Alexa Skill"`,
 `content_genres=[GENRE_VOICE_GAME, GENRE_BRANCHING]`,
 `external_ids={"alexa_skill": "amzn1.ask.skill.<uuid>"}`.
 

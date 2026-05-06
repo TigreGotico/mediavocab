@@ -16,7 +16,7 @@ def main() -> None:
     bluray = Release(
         work=work,
         region="US",
-        source_format="Blu-ray",
+        container="Blu-ray", codec="H.264", resolution="1080p",
         audio_language="ja",
         subtitle_languages=["en", "es"],
         chapters=[

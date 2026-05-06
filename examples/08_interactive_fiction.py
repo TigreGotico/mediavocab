@@ -28,7 +28,7 @@ def main() -> None:
     )
     parser_release = Release(
         work=parser_work,
-        source_format="Glulx",
+        container="Glulx",
         uri="https://ifdb.org/.../counterfeit-monkey.gblorb",
     )
 
@@ -39,12 +39,14 @@ def main() -> None:
     )
     voice_release = Release(
         work=voice_work,
-        source_format="Alexa Skill",
+        container="Skill",
+        platform="Alexa Skill",
         external_ids={eid.ALEXA_SKILL: "amzn1.ask.skill.example"},
     )
 
     for w, r in ((parser_work, parser_release), (voice_work, voice_release)):
-        print(f"{w.title:30s}  format={r.source_format:14s}  genres={w.content_genres}")
+        fmt = r.platform or r.container
+        print(f"{w.title:30s}  format={fmt:14s}  genres={w.content_genres}")
 
 
 if __name__ == "__main__":
