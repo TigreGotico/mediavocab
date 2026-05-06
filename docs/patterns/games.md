@@ -10,6 +10,11 @@ See spec §8.4 for full discussion. Key patterns:
   credited with `RelationRole.PORTER` for the porting studio.
 - **Romhacks** are different Works (the romhack is its own creative work)
   with a `WorkRelation(kind=ADAPTED_FROM)` pointing to the original.
+- **DLC** (non-standalone) is its own Work linked via
+  `WorkRelation(kind=DLC_FOR)` to the base game — `mediavocab/taxonomy/relation.py:64`.
+- **Standalone expansions** are separate Works linked via
+  `WorkRelation(kind=EXPANSION_OF)` — they ship independently but extend a
+  base Work.
 - **The emulator / player** is the consumer's concern, not modelled.
 
 External-id constants: `igdb`, `mobygames`, `steam`, `gog` in

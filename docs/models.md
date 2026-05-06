@@ -24,6 +24,7 @@ spec values flexibility over strictness at consumer boundaries.
 | `release_status` | `ReleaseStatus` | Defaults to `RELEASED` |
 | `aka` | `List[str]` | Plain alternative titles / spellings; not part of identity hash |
 | `localized_titles` | `List[Tuple[str, str]]` | `(title, ISO 639-1)` for cross-locale matching |
+| `original_languages` | `List[str]` | ISO 639-1 list; for multi-language originals (e.g. Quebec films, simulcast anime) — `mediavocab/models/work.py:98` |
 | `credits` | `List[Credit]` | Who contributed to this Work |
 | `tracklist` | `List[Appearance]` | For albums, anthologies, playlists |
 | `external_ids` | `Dict[str, str]` | `{"imdb": "tt..."}` |
@@ -73,6 +74,11 @@ the same Work commonly has different accessibility profiles across its Releases.
 public-domain editions, Creative-Commons releases, region-locked streams, and
 "leaves Netflix on 2026-01-31" workflows.
 
+`availability_windows: List[Tuple[Optional[str], Optional[str]]]` — list of
+`(available_from, available_until)` ISO datetime pairs for releases with multiple
+availability windows (e.g. a rotating catalogue window). Populate only when a
+single `available_from`/`available_until` pair is insufficient — `mediavocab/models/work.py:169`.
+
 **Box sets / composite Releases** — `contents: List[Appearance]` aggregates
 multiple Works in a single Release without inventing a synthetic container Work.
 Use `tracklist` on Work for canonical track ordering of the work itself; use
@@ -82,6 +88,10 @@ Use `tracklist` on Work for canonical track ordering of the work itself; use
 
 `offset` (seconds), `title`, optional `image`, optional `end`. Chapters are
 markers, not Works.
+
+`work_ref: Optional[EntityRef]` — set only when the chapter content is a
+separately-identifiable Work (e.g. a named short story in an anthology
+audiobook). Usually `None` — `mediavocab/models/work.py:62`.
 
 ## `AccessibilityTrack` — per-Release accessibility asset
 
@@ -111,32 +121,41 @@ the closed `RelationRole` enum for programmatic routing.
 Used inside Work / Release / Credit / Membership. Resolve against a consumer-
 side entity store before treating as authoritative.
 
+`localized_names: List[Tuple[str, str]]` — language-tagged alternative spellings
+of the entity name: `(name, ISO 639-1)`. Distinct from the `name` field (which
+carries the canonical/search spelling) — `mediavocab/models/entity.py:30`.
+
 ## `Membership` — temporal group membership
 
 `date_to=None` does NOT mean current — combine with `status` to interpret.
 
 ## Helpers — `mediavocab.helpers.queries`
 
-Non-normative convenience functions on top of the model surface.
+Non-normative convenience functions on top of the model surface
+(`mediavocab/helpers/queries.py`).
 
 ```python
 episodes_of(series_work, all_works) -> List[Work]
     # Episodes belonging to a series, sorted (season, episode).
-    # Match by series_title.
+    # Match by series_title. — queries.py:60
 
 filmography_of(entity_ref, all_works, relation_role=None) -> List[Work]
-    # Works on which the entity is credited. Optional role filter.
-    # Matches by external_ids overlap; falls back to name equality.
+    # Works on which the entity is credited. Optional RelationRole filter.
+    # Matches by external_ids overlap; falls back to name equality. — queries.py:80
 
 quality_score(release) -> tuple
     # Sortable tuple: (variant_pref, resolution, hdr, audio_channels,
-    # sample_rate). Higher tuples are better releases.
+    # sample_rate). Higher tuples are better releases. — queries.py:141
 
 best_release(*releases) -> Optional[Release]
     # The highest-quality Release. Bootlegs lose to anything;
     # director's cuts beat theatrical; 4K beats 1080p; Atmos beats stereo.
-    # List order breaks ties (caller pre-orders by preference).
+    # List order breaks ties (caller pre-orders by preference). — queries.py:156
 ```
+
+`quality_score` variant preference order (highest first): `directors`, `extended`,
+`preservation`, `remastered`, `upscaled` / `deluxe`, `colorized`, `theatrical` /
+`reissue`, `regional`, `bootleg` (negative).
 
 ## `WorkRelation` — Work→Work links
 
@@ -146,6 +165,94 @@ identity (`title`, `year`, `media_type`, plus an `external_ids` entry)
 to resolve against the consumer's Work store later — avoid embedding
 the full nested target Work, which creates serialisation cycles for
 chains like `COVERS` or `PART_OF`.
+
+Game-shaped relations added in 0.3 — `mediavocab/taxonomy/relation.py:64`:
+
+| Kind | Semantics |
+|---|---|
+| `DLC_FOR` | DLC tied to a specific base game; the DLC is not standalone |
+| `EXPANSION_OF` | Standalone expansion that ships independently but extends a base Work |
+
+## `ReleaseRelation` — Release→Release links
+
+Per-edition lineage parallel to `WorkRelation` — use when the relationship
+exists at the *manifestation* level rather than the *creative work* level
+(`mediavocab/models/work.py:205`, `mediavocab/taxonomy/relation.py:68`).
+
+| `ReleaseRelationKind` | Semantics |
+|---|---|
+| `SUPERSEDES` | Newer release replaces an earlier one (e.g. newer remaster) |
+| `REMASTER_OF` | Explicit remaster lineage |
+| `REISSUE_OF` | Later commercial release of the same edition |
+| `PORT_OF` | Platform port of the same base game or IF work |
+| `DERIVED_FROM` | Generic "this Release is derived from that one" |
+
+Example: a 2025 Atmos remaster `SUPERSEDES` the 2017 stereo remaster of the
+same Work. `WorkRelation` cannot express this because both Releases share the
+same Work.
+
+## `Programme` — broadcast slot
+
+A single airing of a Work on a broadcast channel (`mediavocab/models/work.py:220`).
+Points at the *content* Work being aired and locates it in time on a specific
+channel. Two channels broadcasting the same episode at different times yield two
+`Programme` records and one Work.
+
+| Field | Type | Notes |
+|---|---|---|
+| `work` | `EntityRef` | Content Work being aired |
+| `channel` | `EntityRef` | Broadcast channel Work or Entity |
+| `starts_at` | `str` | ISO datetime; aired-at start |
+| `ends_at` | `Optional[str]` | ISO datetime; aired-at end |
+| `runtime` | `Optional[float]` | Seconds; programme length on the schedule |
+| `is_live` | `bool` | `True` for live broadcasts (sport, news, talk) |
+| `is_repeat` | `bool` | `True` for re-broadcasts |
+
+## `Schedule` — EPG window for a channel
+
+An ordered list of `Programme` slots for a single broadcast channel over a
+time window (`mediavocab/models/work.py:247`). Use for EPG / TV-listings /
+radio-schedule data.
+
+| Field | Type | Notes |
+|---|---|---|
+| `channel` | `EntityRef` | The broadcast channel |
+| `programmes` | `List[Programme]` | Ordered slots |
+| `valid_from` | `Optional[str]` | ISO datetime; start of the schedule window |
+| `valid_until` | `Optional[str]` | ISO datetime; end of the schedule window |
+| `source` | `str` | Provider hint (`"tunein"`, `"tvmaze"`, `"epg.xml"`) |
+| `fetched_at` | `Optional[str]` | When the schedule was retrieved (staleness check) |
+
+Query the schedule for the slot whose `[starts_at, ends_at)` contains the
+consumer's clock. Schedules are append-only at the model level; replace a
+stale `Schedule` wholesale to refresh.
+
+## `License` — typed rights overlay
+
+`mediavocab.models.license.License` is a typed companion to the free-form
+`Release.license: str` field (`mediavocab/models/license.py`). The string
+stays canonical for persistence; `License` is an ergonomic overlay for
+callers that want to filter on rights without string-matching.
+
+```python
+from mediavocab.models.license import License
+
+lic = License.from_spdx("CC-BY-SA-4.0")
+lic.commercial      # False (NC not set → True; SA set → still commercial)
+lic.share_alike     # True
+lic.is_open()       # True — any CC-* or public-domain licence is open
+```
+
+`License.from_spdx(spdx: str) -> License` — `mediavocab/models/license.py:68`
+— parses an SPDX-style identifier, a `CC-BY-*` variant, `"public_domain"`,
+`"CC0"`, or `"all_rights_reserved"`. Unknown strings default to fully
+restricted (preserving the raw identifier). Round-trip via the `identifier`
+field.
+
+`License.is_open() -> bool` — `mediavocab/models/license.py:55` — `True` iff
+the licence permits at least non-commercial, no-derivative redistribution. All
+CC-* and public-domain/CC0 licences qualify; `all_rights_reserved` and empty
+do not.
 
 ## `ExternalIds` — typed external identifiers
 

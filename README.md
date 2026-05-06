@@ -46,7 +46,7 @@ band lineups, radio stations, IoT device routing, work comparison, and the
 | Module | Contents |
 |---|---|
 | `mediavocab.taxonomy` | `MediaType`, `VariantKind`, `EntityKind`, `RelationRole`, `CreditSection`, `MembershipStatus`, `ReleaseStatus`, `StreamMode`, `WorkRelationKind`, plus `GENRE_*` string constants. Zero deps. |
-| `mediavocab.models` | `Work`, `Release`, `Appearance`, `WorkRelation`, `Entity`, `EntityRef`, `Membership`, `Credit`, `Conflict`. Pydantic v2. |
+| `mediavocab.models` | `Work`, `Release`, `Appearance`, `WorkRelation`, `ReleaseRelation`, `Entity`, `EntityRef`, `Membership`, `Credit`, `Programme`, `Schedule`, `License`. Pydantic v2. |
 | `mediavocab.text` | Normalisation, fuzzy matching, work comparison/scoring, ISO 639/3166 helpers. Stdlib only. |
 | `mediavocab.helpers` | Convenience builders and classifier predicates. Non-normative. |
 

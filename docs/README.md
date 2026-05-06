@@ -27,3 +27,4 @@ Applied modelling examples for each subdomain:
 - [Format, quality, rights, and availability](./patterns/quality-rights-availability.md)
 - [User playlists and live-streamer channels](./patterns/playlists-and-channels.md)
 - [IoT devices](./patterns/iot-devices.md)
+- [Broadcast scheduling (EPG)](./patterns/scheduling.md)
