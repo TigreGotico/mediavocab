@@ -14,6 +14,7 @@ from mediavocab.taxonomy import (
 )
 from mediavocab.taxonomy.relation import ReleaseRelationKind
 from mediavocab.models.entity import Credit, EntityRef
+from mediavocab._iso_date import IsoDate
 
 
 _CFG = ConfigDict(extra="ignore", populate_by_name=True)
@@ -154,19 +155,19 @@ class Release(BaseModel):
 
     # Lifecycle
     release_status: ReleaseStatus = ReleaseStatus.RELEASED
-    release_date: Optional[str] = None
+    release_date: Optional[IsoDate] = None
 
     # Rights and availability
     license: str = ""
     region_locked: Optional[bool] = None
     regions_available: List[str] = Field(default_factory=list)
-    available_from: Optional[str] = None
-    available_until: Optional[str] = None
+    available_from: Optional[IsoDate] = None
+    available_until: Optional[IsoDate] = None
     # Cycled availability ("Disney vault" pattern) — list of (from, until)
     # ISO-date pairs. Either side may be None for open-ended windows.
     # ``available_from`` / ``available_until`` cover the simple single-window
     # case; populate ``availability_windows`` only when there are multiple.
-    availability_windows: List[Tuple[Optional[str], Optional[str]]] = Field(default_factory=list)
+    availability_windows: List[Tuple[Optional[IsoDate], Optional[IsoDate]]] = Field(default_factory=list)
 
     # Playback
     uri: str = ""
@@ -236,8 +237,8 @@ class Programme(BaseModel):
 
     work: EntityRef                          # the content Work being aired (resolve via external_ids / title+year)
     channel: EntityRef                       # the broadcast channel Work / Entity
-    starts_at: str                           # ISO datetime; aired-at start
-    ends_at: Optional[str] = None            # ISO datetime; aired-at end (omit when only duration is known)
+    starts_at: IsoDate                       # aired-at start
+    ends_at: Optional[IsoDate] = None        # aired-at end (omit when only duration is known)
     runtime: Optional[float] = None          # seconds; programme length on the schedule
     is_live: bool = False                    # True for live broadcasts (sport, news, talk)
     is_repeat: bool = False                  # True when this airing is a re-broadcast
@@ -259,10 +260,10 @@ class Schedule(BaseModel):
 
     channel: EntityRef                       # the broadcast channel
     programmes: List[Programme] = Field(default_factory=list)
-    valid_from: Optional[str] = None         # ISO datetime; start of the schedule window
-    valid_until: Optional[str] = None        # ISO datetime; end of the schedule window
+    valid_from: Optional[IsoDate] = None     # start of the schedule window
+    valid_until: Optional[IsoDate] = None    # end of the schedule window
     source: str = ""                         # provider hint: "tunein", "tvmaze", "epg.xml", …
-    fetched_at: Optional[str] = None         # when the schedule was retrieved (for staleness)
+    fetched_at: Optional[IsoDate] = None     # when the schedule was retrieved (for staleness)
     extra: Dict[str, Any] = Field(default_factory=dict)
 
 

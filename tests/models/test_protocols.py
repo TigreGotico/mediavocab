@@ -9,10 +9,10 @@ from mediavocab.models.protocols import provider_matches
 
 
 # ---------------------------------------------------------------------------
-# Concrete providers — exercise the Protocol surface without inheritance
+# Concrete providers — subclass the ABC.
 # ---------------------------------------------------------------------------
 
-class _AnimeOnlyProvider:
+class _AnimeOnlyProvider(MetadataProvider):
     name: ClassVar[str] = "anime_only"
     media: ClassVar[Set[MediaType]] = {MediaType.EPISODIC_SERIES, MediaType.MOVIE}
     genre_filter: ClassVar[Set[str]] = {"anime"}
@@ -24,14 +24,9 @@ class _AnimeOnlyProvider:
         return ProviderMatch(provider=self.name, confidence=1.0,
                              signals=signals)
 
-    def matches(self, signals: Signals) -> bool:
-        return provider_matches(self, signals)
 
-
-class _UniversalProvider:
+class _UniversalProvider(MetadataProvider):
     name: ClassVar[str] = "universal"
-    media: ClassVar[Set[MediaType]] = set()
-    genre_filter: ClassVar[Set[str]] = set()
 
     def is_available(self) -> bool:
         return True
@@ -39,18 +34,27 @@ class _UniversalProvider:
     def lookup(self, signals: Signals) -> Optional[ProviderMatch]:
         return None
 
-    def matches(self, signals: Signals) -> bool:
-        return provider_matches(self, signals)
-
 
 # ---------------------------------------------------------------------------
-# runtime_checkable Protocol
+# ABC enforcement
 # ---------------------------------------------------------------------------
 
 def test_concrete_provider_is_metadata_provider():
-    """No inheritance required — duck typing via Protocol."""
+    """Subclassing the ABC is the canonical way."""
     assert isinstance(_AnimeOnlyProvider(), MetadataProvider)
     assert isinstance(_UniversalProvider(), MetadataProvider)
+
+
+def test_abc_blocks_unimplemented_subclass():
+    """Forgetting an abstract method raises at instantiation."""
+    import pytest
+
+    class _Broken(MetadataProvider):
+        name = "broken"
+        # Intentionally missing is_available + lookup.
+
+    with pytest.raises(TypeError):
+        _Broken()
 
 
 def test_provider_match_default_factory():
@@ -68,43 +72,51 @@ def test_provider_match_confidence_bounds():
 
 
 # ---------------------------------------------------------------------------
-# provider_matches — reference dispatcher gate
+# matches() — default two-axis routing
 # ---------------------------------------------------------------------------
 
 def test_universal_matches_anything():
     p = _UniversalProvider()
-    assert provider_matches(p, Signals(medium=MediaType.MOVIE)) is True
-    assert provider_matches(p, Signals(medium=MediaType.MUSIC)) is True
-    assert provider_matches(p, Signals()) is True
+    assert p.matches(Signals(medium=MediaType.MOVIE)) is True
+    assert p.matches(Signals(medium=MediaType.MUSIC)) is True
+    assert p.matches(Signals()) is True
 
 
 def test_anime_provider_requires_genre():
     p = _AnimeOnlyProvider()
     # Right media + right genre → match.
-    assert provider_matches(p, Signals(
+    assert p.matches(Signals(
         medium=MediaType.EPISODIC_SERIES, content_genres=["anime"])) is True
     # Right media but no genre tag → no match.
-    assert provider_matches(p, Signals(
+    assert p.matches(Signals(
         medium=MediaType.EPISODIC_SERIES)) is False
+    # MOVIE is in the media set; needs the genre tag too.
+    assert p.matches(Signals(
+        medium=MediaType.MOVIE, content_genres=["anime"])) is True
     # Wrong media → no match.
-    assert provider_matches(p, Signals(
-        medium=MediaType.MOVIE, content_genres=["anime"])) is True   # MOVIE is in media set
-    assert provider_matches(p, Signals(
+    assert p.matches(Signals(
         medium=MediaType.MUSIC, content_genres=["anime"])) is False
 
 
 def test_unknown_medium_passes_media_gate():
     """When ``signals.medium`` is None the media gate is skipped."""
     p = _AnimeOnlyProvider()
-    assert provider_matches(p, Signals(content_genres=["anime"])) is True
+    assert p.matches(Signals(content_genres=["anime"])) is True
 
 
 def test_genre_filter_with_partial_overlap():
     """Any tag in the filter present in content_genres → match."""
     p = _AnimeOnlyProvider()
-    assert provider_matches(p, Signals(
+    assert p.matches(Signals(
         medium=MediaType.MOVIE,
         content_genres=["anime", "horror"])) is True
+
+
+def test_provider_matches_alias():
+    """``provider_matches(p, sig)`` aliases ``p.matches(sig)``."""
+    p = _AnimeOnlyProvider()
+    sig = Signals(medium=MediaType.MOVIE, content_genres=["anime"])
+    assert provider_matches(p, sig) == p.matches(sig)
 
 
 # ---------------------------------------------------------------------------
