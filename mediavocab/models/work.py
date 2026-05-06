@@ -157,7 +157,8 @@ class Release(BaseModel):
     release_status: ReleaseStatus = ReleaseStatus.RELEASED
     release_date: Optional[IsoDate] = None
 
-    # Rights and availability
+    # Rights and availability — license carries the SPDX-style string for
+    # persistence; use ``parsed_license`` for the typed view.
     license: str = ""
     region_locked: Optional[bool] = None
     regions_available: List[str] = Field(default_factory=list)
@@ -191,6 +192,26 @@ class Release(BaseModel):
 
     external_ids: Dict[str, str] = Field(default_factory=dict)
     extra: Dict[str, Any] = Field(default_factory=dict)
+
+    @property
+    def parsed_license(self) -> "License":
+        """Typed view of :attr:`license`.
+
+        ``license`` is the canonical persisted form (SPDX identifier or
+        free string); ``parsed_license`` is the typed overlay parsed
+        via :meth:`License.from_spdx`. Use it to filter on rights
+        (open / commercial / share-alike) without string-matching every
+        SPDX variant.
+
+        Round-trips: ``Release.parsed_license.identifier == Release.license``
+        for any string the parser recognises; unknown strings round-trip
+        too but :meth:`License.is_open` returns ``False``.
+        """
+        # Local import: avoid circular dep on License (which imports nothing
+        # from this module) at module-load time, and avoid forcing every
+        # Release consumer to import License.
+        from mediavocab.models.license import License
+        return License.from_spdx(self.license)
 
 
 class WorkRelation(BaseModel):
@@ -242,7 +263,9 @@ class Programme(BaseModel):
     runtime: Optional[float] = None          # seconds; programme length on the schedule
     is_live: bool = False                    # True for live broadcasts (sport, news, talk)
     is_repeat: bool = False                  # True when this airing is a re-broadcast
-    extra: Dict[str, Any] = Field(default_factory=dict)
+    extra: Dict[str, str] = Field(default_factory=dict)
+    """Provider-specific tags that don't yet warrant a typed field.
+    String values only — see §10.2 escape-hatch contract."""
 
 
 class Schedule(BaseModel):
@@ -264,7 +287,9 @@ class Schedule(BaseModel):
     valid_until: Optional[IsoDate] = None    # end of the schedule window
     source: str = ""                         # provider hint: "tunein", "tvmaze", "epg.xml", …
     fetched_at: Optional[IsoDate] = None     # when the schedule was retrieved (for staleness)
-    extra: Dict[str, Any] = Field(default_factory=dict)
+    extra: Dict[str, str] = Field(default_factory=dict)
+    """Provider-specific tags that don't yet warrant a typed field.
+    String values only — see §10.2 escape-hatch contract."""
 
 
 # Resolve forward references in the cycle Work <-> Appearance and

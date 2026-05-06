@@ -403,13 +403,29 @@ this decision tree in order — first match wins:
 
 **`PLAYLIST`**  
 A user-curated cross-media-type collection: Spotify playlists, YouTube playlists,
-M3U files, OPML podcast bundles. The playlist's identity is the *selection and
-ordering*; the constituent Works keep their own MediaType. Schema: `tracklist`
-of `Appearance`s, `Credit` for the curator with `relation_role =
-RelationRole.CURATOR`, mutable membership over time, distinct external databases
-(Spotify Playlist API, YouTube Playlist API). A single-media-type *published*
-compilation (a mixtape, a "best of" album) stays at the underlying media type
-with `variant_kind = COMPILATION` — the schema is the same as a regular release.
+M3U files, OPML podcast bundles. The constituent Works keep their own MediaType.
+Schema: `tracklist` of `Appearance`s, `Credit` for the curator with `relation_role =
+RelationRole.CURATOR`, distinct external databases (Spotify Playlist API,
+YouTube Playlist API).
+
+Identity is anchored at the **source** — the `external_ids` entry that points
+at the upstream playlist record (e.g. `spotify_playlist_id`, `youtube_playlist_id`).
+The same playlist may be reordered, have tracks added, or have tracks removed
+without becoming a different Work; the source-side ID is stable across those
+edits. This is consistent with §10.1: `tracklist` is in the *mutable* set;
+the playlist's identity is its `external_ids` + `title` + `media_type`, not
+its membership.
+
+A single-media-type *published* compilation (a mixtape, a "best of" album)
+stays at the underlying media type with `variant_kind = COMPILATION` — the
+schema is the same as a regular release.
+
+A standalone playlist with no upstream source (a hand-curated `.m3u`)
+inherits its identity from the file path / URI; consumers that need
+content-based dedup should hash `(title, [appearance.work.external_ids
+for appearance in tracklist])` themselves — that hash is non-normative
+and not part of `work_hash`.
+
 See `docs/patterns/playlists-and-channels.md`.
 
 **`GENERIC`**  
@@ -1761,8 +1777,53 @@ provider supplying additional values is *enrichment*, not a conflict:
 - `aka`, `localized_titles`, `content_genres`, `credits`, `tracklist`,
   `external_ids`, `extra`, `release_status`
 
+**`tracklist` on a `PLAYLIST` Work** is mutable in the §10.1 sense even
+though "what tracks are in the playlist" is the playlist's reason to
+exist. A reordered or membership-edited Spotify playlist is *the same
+playlist* in source-side terms (same `spotify_playlist_id`); the hash
+agrees by design. Consumers that need to detect "the playlist contents
+changed" should compare `tracklist` directly against a snapshot, not
+infer it from `work_hash`.
+
 A consumer rescanning a source and finding a *different* immutable value
 should treat the new record as a separate Work and resolve the conflict
 upstream (typically by retiring the older record). The hash contract in §7.2
 guarantees that future spec versions will not retroactively invalidate
 existing hashes.
+
+### 10.2 The `extra` escape hatch — what it is, what it isn't
+
+Every model that surfaces external metadata carries an `extra` dict
+(`Work.extra`, `Release.extra`, `Entity.extra`, `Programme.extra`,
+`Schedule.extra`, `ExternalIds.extra`). This is an explicit landfill
+for *provider-specific values that have not yet earned a typed field*.
+
+**The contract**
+
+1. **Strings preferred, lists / numbers tolerated.** New code should
+   write strings only. `Programme.extra`, `Schedule.extra`, and
+   `ExternalIds.extra` are typed `Dict[str, str]` — the validator will
+   reject non-string values. `Work.extra`, `Release.extra`, and
+   `Entity.extra` keep `Dict[str, Any]` for backwards compatibility
+   with existing consumers that store lists (genre tags, stream URL
+   arrays); new fields written here SHOULD still be strings.
+
+2. **Promotion is the goal.** A key that appears across two or more
+   providers, or that downstream consumers branch on, is a candidate
+   for promotion to a typed field on the next minor release. The
+   `extra` is a staging area, not a final destination.
+
+3. **Identity-irrelevant.** No `extra` key participates in `work_hash`
+   or `release_hash`. If you need a value to anchor identity, it is
+   not an `extra` entry — promote it to a typed field first.
+
+4. **Provider-namespaced when ambiguous.** Two providers writing the
+   same key (`url`, `image`, `source`) collide silently. Prefix with
+   the provider when the key is not universally well-defined:
+   `bandcamp_band_id`, `audiodb_artist_id`. The same convention used
+   for typed fields in `ExternalIds`.
+
+5. **No mediavocab-internal use.** mediavocab itself never *reads*
+   `extra` values. Consumers are free to read and write; the spec
+   makes no assertion about what's in there. Anything mediavocab
+   ships normative behaviour around must be a typed field.
