@@ -37,8 +37,16 @@ those are not part of canonical identity. The same Work record produced by
 two providers with different credit completeness should hash the same.
 
 `score` halves on year mismatch beyond `YEAR_WINDOW`, halves on `MediaType`
-mismatch (with `GENERIC` permissive on either side), and adds small bonuses
-for matching `variant_kind` and overlapping `content_genres`.
+mismatch (with `GENERIC` permissive on either side), halves on `country` and
+`language` mismatch (when both sides specify them), and — for episodic media
+(TV / PODCAST / RADIO / AUDIO_DRAMA / STAGE) — additionally halves on
+`series_title` mismatch and on differing `season` / `episode`. It adds small
+bonuses for matching `variant_kind` and overlapping `content_genres`.
+
+`work_hash` includes `series_title` in the identity tuple, alongside
+`title`, `year`, `country`, `runtime`, `media_type`, `language`, `season`,
+`episode`, `variant_kind`, `edition`, and `source_format`. This prevents
+S01E01 collisions across different shows.
 
 ## `mediavocab.text.iso`
 

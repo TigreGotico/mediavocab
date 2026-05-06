@@ -38,10 +38,21 @@ RUNTIME_TOLERANCE_S: Dict[MediaType, float] = {
 
 # Identity fields used by work_hash and `compare`. Order is part of the
 # stable hash contract — do not reorder without a major version bump.
+# `series_title` is included to prevent S01E01 cross-show collisions —
+# omitting it produces colliding hashes for TV / PODCAST / RADIO /
+# AUDIO_DRAMA / STAGE works that share season+episode+title.
 _IDENTITY_FIELDS = (
     "title", "year", "country", "runtime", "media_type", "language",
-    "season", "episode", "variant_kind", "edition", "source_format",
+    "season", "episode", "series_title",
+    "variant_kind", "edition", "source_format",
 )
+
+
+# Media types where `series_title` is a primary identity signal.
+_EPISODIC_MEDIA = frozenset({
+    MediaType.TV, MediaType.PODCAST, MediaType.RADIO,
+    MediaType.AUDIO_DRAMA, MediaType.STAGE,
+})
 
 
 def _both_set(a: Any, b: Any) -> bool:
@@ -116,6 +127,30 @@ def score(query: Work, candidate: Work) -> float:
         if (query.media_type != candidate.media_type
                 and query.media_type != MediaType.GENERIC
                 and candidate.media_type != MediaType.GENERIC):
+            s *= 0.5
+
+    # Episodic-media discriminators: series_title and season/episode
+    is_episodic = (query.media_type in _EPISODIC_MEDIA
+                   or candidate.media_type in _EPISODIC_MEDIA)
+    if is_episodic:
+        if _both_set(query.series_title, candidate.series_title):
+            if fuzzy_ratio(query.series_title, candidate.series_title) < TITLE_MIN:
+                s *= 0.5
+        if _both_set(query.season, candidate.season):
+            if int(query.season) != int(candidate.season):
+                s *= 0.5
+        if _both_set(query.episode, candidate.episode):
+            if int(query.episode) != int(candidate.episode):
+                s *= 0.5
+
+    # Country mismatch halves (when both sides specify it)
+    if _both_set(query.country, candidate.country):
+        if query.country != candidate.country:
+            s *= 0.5
+
+    # Language mismatch halves (when both sides specify it)
+    if _both_set(query.language, candidate.language):
+        if query.language != candidate.language:
             s *= 0.5
 
     # Bonuses (cap at 1.0)

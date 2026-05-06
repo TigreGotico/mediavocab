@@ -529,6 +529,14 @@ class EntityKind(str, Enum):
                                    # smart plug connected to legacy hardware, set-top box,
                                    # media player (Kodi, Plex), game console as delivery device
 
+    EVENT        = "event"         # bounded real-world grouping above the production:
+                                   # tour, festival, convention, season-of-screenings.
+                                   # Has start/end dates, optional venues, member productions
+                                   # or performances referenced from `Release.extra`/`Entity.part_of`.
+                                   # Examples: "Pink Floyd 1980 The Wall Tour",
+                                   # "Cannes 2024", "EVO 2023". Distinct from `SERIES` (a
+                                   # cataloguing container without a real-world date range).
+
     OTHER        = "other"
 ```
 
@@ -789,6 +797,49 @@ GENRE_CHOICE_IF      = "choice_if"      # choice-based, e.g. Twine / ChoiceScrip
 GENRE_VOICE_GAME     = "voice_game"     # voice-driven IF (Alexa Skill, Google Action)
 GENRE_BRANCHING      = "branching"      # branching narrative; applies across IF/BOOK/GAME
 
+# Canonical narrative genres (apply to MOVIE / TV / BOOK / COMIC / GAME / IF / STAGE)
+GENRE_HORROR         = "horror"
+GENRE_COMEDY         = "comedy"
+GENRE_DRAMA          = "drama"
+GENRE_THRILLER       = "thriller"
+GENRE_SCI_FI         = "sci_fi"
+GENRE_FANTASY        = "fantasy"
+GENRE_ROMANCE        = "romance"
+GENRE_WESTERN        = "western"
+GENRE_MYSTERY        = "mystery"
+GENRE_ACTION         = "action"
+GENRE_ADVENTURE      = "adventure"
+GENRE_CRIME          = "crime"
+GENRE_WAR            = "war"
+GENRE_HISTORICAL     = "historical"
+GENRE_BIOGRAPHY      = "biography"
+GENRE_MUSICAL        = "musical"        # film/stage with sung musical numbers as primary form
+GENRE_FAMILY         = "family"         # broad-appeal child + adult; not strictly children's
+
+# Canonical music genres
+GENRE_ROCK           = "rock"
+GENRE_POP            = "pop"
+GENRE_JAZZ           = "jazz"
+GENRE_CLASSICAL      = "classical"
+GENRE_ELECTRONIC     = "electronic"
+GENRE_METAL          = "metal"
+GENRE_PUNK           = "punk"
+GENRE_FOLK           = "folk"
+GENRE_BLUES          = "blues"
+GENRE_COUNTRY        = "country"
+GENRE_INDIE          = "indie"
+GENRE_REGGAE         = "reggae"
+GENRE_LATIN          = "latin"
+GENRE_RNB            = "rnb"
+GENRE_SOUL           = "soul"
+GENRE_FUNK           = "funk"
+GENRE_DISCO          = "disco"
+GENRE_HOUSE          = "house"
+GENRE_TECHNO         = "techno"
+GENRE_TRANCE         = "trance"
+GENRE_DUBSTEP        = "dubstep"
+GENRE_DRUM_AND_BASS  = "drum_and_bass"
+
 # Cross-type
 GENRE_ADULT          = "adult"          # explicit sexual content; applies to any MediaType
 GENRE_AI_GENERATED   = "ai_generated"   # primary creative content produced by an AI system
@@ -854,6 +905,11 @@ class Credit(BaseModel):
     role: str                             # free text from source: "Electric Guitar", "Mix Engineer"
     relation_role: RelationRole           # typed role for programmatic routing (e.g. provider selection)
     section: CreditSection = CreditSection.PRINCIPAL
+    position: Optional[int] = None        # editorial credit ordering (1-based) within (section,
+                                          # relation_role). None = unspecified. Film opening titles,
+                                          # liner notes, and book co-author orderings are
+                                          # editorially significant; List ordering alone is not
+                                          # reliable across JSON round-trips.
     note: Optional[str] = None            # "(tracks 1–4 only)", "(R.I.P. 1998)"
 ```
 
@@ -1114,6 +1170,13 @@ class Release(BaseModel):
     # the contents have no headline. Empty = ordinary single-Work Release.
     contents: List[Appearance] = []
 
+    # Release-level credits. Used when a credit applies to THIS specific Release but
+    # not to the Work at large: a featured artist on a remix or radio edit, a
+    # remastering engineer, a session musician on a deluxe-edition bonus track,
+    # a translator credited on a localised edition. Work-level credits remain on
+    # `Work.credits`; Release credits supplement them.
+    credits: List[Credit] = []
+
     # Scoring
     match_confidence: float = 0.0         # [0.0, 1.0]; set by resolver, not by data entry
 
@@ -1190,6 +1253,9 @@ class WorkRelationKind(str, Enum):
     LIVE_VERSION   = "live_version"    # live recording of a studio track
     REMIX_OF       = "remix_of"
     SOUNDTRACK_FOR = "soundtrack_for"  # this album is the OST for that film
+    PROMOTES       = "promotes"        # this work promotes another (trailer, teaser, ad)
+    BONUS_FOR      = "bonus_for"       # behind-the-scenes featurette, gag reel, commentary
+    DELETED_SCENE  = "deleted_scene"   # scene cut from another work; not in the canonical edit
 
 class WorkRelation(BaseModel):
     kind: WorkRelationKind
@@ -1285,11 +1351,21 @@ def compare(a: Work, b: Work) -> List[Conflict]:
 
 def score(query: Work, candidate: Work) -> float:
     """[0.0, 1.0] match quality.
-    - Title fuzzy ratio is the primary driver; AKA aliases tried as fallback.
+    Hard penalties (multiplicative):
+    - Title fuzzy ratio is the primary driver; AKA aliases and localized_titles
+      are tried as fallbacks.
     - Year mismatch beyond YEAR_WINDOW halves the score.
-    - MediaType mismatch halves the score.
-    - variant_kind agreement adds a small bonus (correct cut > correct film).
-    - content_genres overlap adds a smaller bonus."""
+    - MediaType mismatch halves the score (GENERIC is permissive).
+    - For episodic media (TV/PODCAST/RADIO/AUDIO_DRAMA), `series_title` mismatch
+      halves the score; mismatching season/episode (when both sides specify
+      them) halves it again.
+    - country mismatch halves the score (when both sides specify it).
+    - language mismatch halves the score (when both sides specify it).
+
+    Bonuses (additive, capped at 1.0):
+    - variant_kind agreement adds 0.02 (correct cut > correct film).
+    - content_genres overlap adds 0.01 per overlapping tag.
+    """
 
 def merge(*works: Work) -> Work:
     """First non-empty/non-None value wins per field. aka lists are unioned.
@@ -1297,13 +1373,17 @@ def merge(*works: Work) -> Work:
 
 def work_hash(w: Work) -> str:
     """Stable SHA1 over identity fields: title (normalised), year, country,
-    runtime (rounded), media_type, language, season, episode,
-    variant_kind, edition, region, source_format.
-    credits, aka, and content_genres are excluded — they are not part of canonical identity.
-    Work has no dedicated artist field; artist identity is expressed via RelationRole credits
-    and must be resolved before hashing if needed by the consumer.
-    Used as a seed for canonical IDs; same work from different providers
-    should produce the same hash."""
+    runtime (rounded), media_type, language, season, episode, series_title,
+    variant_kind, edition, source_format.
+    credits, aka, localized_titles, content_genres, and episode_orderings
+    are excluded — they are not part of canonical identity.
+    `series_title` is included because two shows can share season+episode+title
+    (S01E01 'Pilot' is a common collision); excluding it produces hash
+    collisions for TV, PODCAST, RADIO, AUDIO_DRAMA, and STAGE works.
+    Work has no dedicated artist field; artist identity is expressed via
+    RelationRole credits and must be resolved before hashing if needed by the
+    consumer. Used as a seed for canonical IDs; same work from different
+    providers should produce the same hash."""
 ```
 
 ### 7.3 `text.iso`

@@ -13,5 +13,9 @@ def test_series_present():
     assert EntityKind.SERIES.value == "series"
 
 
-def test_six_kinds():
-    assert len(EntityKind) == 6
+def test_seven_kinds():
+    assert len(EntityKind) == 7
+
+
+def test_event_present():
+    assert EntityKind.EVENT.value == "event"

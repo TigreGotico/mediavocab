@@ -58,3 +58,6 @@ class WorkRelationKind(str, Enum):
     LIVE_VERSION = "live_version"
     REMIX_OF = "remix_of"
     SOUNDTRACK_FOR = "soundtrack_for"
+    PROMOTES = "promotes"
+    BONUS_FOR = "bonus_for"
+    DELETED_SCENE = "deleted_scene"

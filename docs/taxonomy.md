@@ -39,7 +39,7 @@ Cuts: `THEATRICAL`, `DIRECTORS`, `EXTENDED`. Fan: `FANEDIT`, `TV_TO_MOVIE`,
 A canonical/default edition uses `variant_kind=None` — `STANDARD` is
 intentionally absent.
 
-## `EntityKind` (6 values)
+## `EntityKind` (7 values)
 
 | Value | Use for |
 |---|---|
@@ -48,6 +48,7 @@ intentionally absent.
 | `ORGANISATION` | Label, publisher, studio, broadcaster, dev studio |
 | `SERIES` | Container: TV franchise, book series, podcast show |
 | `DEVICE` | Physical playback endpoint: smart speaker, smart plug, console |
+| `EVENT` | Bounded real-world grouping: tour, festival, convention |
 | `OTHER` | Catch-all |
 
 `Entity.extra["primary_role"]` records professional identity ("primarily an
@@ -92,10 +93,27 @@ streaming, rights reverted. Distinct from `CANCELLED` (never shipped).
 ## `WorkRelationKind`
 
 `COVERS`, `SAMPLES`, `ADAPTED_FROM`, `SEQUEL_TO`, `PREQUEL_TO`, `PART_OF`,
-`LIVE_VERSION`, `REMIX_OF`, `SOUNDTRACK_FOR`. Used by the optional
-`WorkRelation` model.
+`LIVE_VERSION`, `REMIX_OF`, `SOUNDTRACK_FOR`, `PROMOTES`, `BONUS_FOR`,
+`DELETED_SCENE`. Used by the optional `WorkRelation` model.
+
+`PROMOTES` covers trailers, teasers, and promotional spots. `BONUS_FOR`
+covers behind-the-scenes featurettes, gag reels, and commentary tracks.
+`DELETED_SCENE` covers scenes cut from another work and not present in its
+canonical edit.
 
 ## `genre.py` constants
+
+Canonical lowercase spellings — additive only. The package ships constants for
+the major narrative genres (`HORROR`, `COMEDY`, `DRAMA`, `THRILLER`, `SCI_FI`,
+`FANTASY`, `ROMANCE`, `WESTERN`, `MYSTERY`, `ACTION`, `ADVENTURE`, `CRIME`,
+`WAR`, `HISTORICAL`, `BIOGRAPHY`, `MUSICAL`, `FAMILY`), the major music genres
+(`ROCK`, `POP`, `JAZZ`, `CLASSICAL`, `ELECTRONIC`, `METAL`, `PUNK`, `FOLK`,
+`BLUES`, `COUNTRY`, `INDIE`, `REGGAE`, `LATIN`, `RNB`, `SOUL`, `FUNK`, `DISCO`,
+`HOUSE`, `TECHNO`, `TRANCE`, `DUBSTEP`, `DRUM_AND_BASS`), and niche tags
+(`ASMR`, `AMBIENT`, `MOTION_COMIC`, `VOICE_GAME`, `SFX_NATURE`, etc.).
+Cross-type tags (`ADULT`, `AI_GENERATED`) apply alongside any other.
+
+
 
 Genre is a free `List[str]` on `Work.content_genres`. The `mediavocab.taxonomy.genre`
 module exposes canonical lowercase spellings as constants

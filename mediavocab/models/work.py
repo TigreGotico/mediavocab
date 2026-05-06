@@ -167,6 +167,12 @@ class Release(BaseModel):
     # Composite / box-set Releases
     contents: List[Appearance] = Field(default_factory=list)
 
+    # Release-level credits — supplement Work.credits for credits that apply
+    # only to this Release (featured artist on remix, remastering engineer,
+    # session musician on a deluxe-edition bonus track, translator on a
+    # localised edition).
+    credits: List[Credit] = Field(default_factory=list)
+
     # Scoring
     match_confidence: float = 0.0
 

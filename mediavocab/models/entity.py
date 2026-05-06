@@ -40,7 +40,13 @@ class Membership(BaseModel):
 
 
 class Credit(BaseModel):
-    """An entity's contribution to a specific Work or Release."""
+    """An entity's contribution to a specific Work or Release.
+
+    `position` (1-based) records editorial credit ordering within a
+    `(section, relation_role)` group — film opening titles, music liner
+    notes, book co-author orderings. List ordering alone is not reliable
+    across JSON round-trips and dict-based merges; `position` is.
+    """
 
     model_config = _CFG
 
@@ -48,6 +54,7 @@ class Credit(BaseModel):
     role: str
     relation_role: RelationRole
     section: CreditSection = CreditSection.PRINCIPAL
+    position: Optional[int] = None
     note: Optional[str] = None
 
 

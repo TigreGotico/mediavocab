@@ -12,4 +12,5 @@ class EntityKind(str, Enum):
     ORGANISATION = "organisation"
     SERIES = "series"
     DEVICE = "device"
+    EVENT = "event"
     OTHER = "other"
