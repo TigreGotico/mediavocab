@@ -115,11 +115,85 @@ side entity store before treating as authoritative.
 
 `date_to=None` does NOT mean current — combine with `status` to interpret.
 
-## `WorkRelation` — Work→Work links (optional)
+## `WorkRelation` — Work→Work links
 
-Wraps `WorkRelationKind` and a target Work. Use for `COVERS`, `SOUNDTRACK_FOR`,
-`SEQUEL_TO`, etc. Stored on `Work.extra` until consumers need uniform
-behaviour, per the spec's deferred-formalisation note.
+Wraps `WorkRelationKind` (`COVERS`, `SOUNDTRACK_FOR`, `SEQUEL_TO`,
+`FANEDIT_OF`, …) and a target Work. The `target` field carries enough
+identity (`title`, `year`, `media_type`, plus an `external_ids` entry)
+to resolve against the consumer's Work store later — avoid embedding
+the full nested target Work, which creates serialisation cycles for
+chains like `COVERS` or `PART_OF`.
+
+## `ExternalIds` — typed external identifiers
+
+`mediavocab.ExternalIds` is the typed companion to the free-form
+`Dict[str, str]` `external_ids` field on Work / Release / Entity. ~50
+known fields (musicbrainz_*, tmdb_*, anilist_*, isbn_10, isbn_13,
+fanedit_id, …) plus a `extra: Dict[str, str]` escape hatch for
+unknown providers.
+
+```python
+ids = ExternalIds(isbn_10="0-261-10328-8")
+ids.isbn_13       # auto-paired: "9780261103283"
+ids.merge(other)  # first-writer-wins
+ids.streams       # → List[Stream] expanded from URL/ID keys in `extra`
+ids.to_dict()     # plain Dict[str, str]
+```
+
+## `Stream` — playable media stream
+
+`platform` (e.g. `"youtube"`, `"bandcamp"`, `"radio"`), `url` (fully
+formed), `media_type` (`"track"` / `"album"` / `"video"` /
+`"playlist"` / `"stream"`), and an optional raw `id`. Aggregated by
+`ExternalIds.streams` so player code iterates typed streams instead
+of dict-key spelunking.
+
+## `Signals` — disambiguation bag
+
+`mediavocab.Signals` is the *pre-canonical* metadata bag used by
+resolvers, scrapers, and dedup pipelines before a full `Work` exists.
+~14 fields (`title`, `artist`, `year`, `country`, `runtime`,
+`medium`, `language`, `season`, `episode`, `content_genres`,
+`variant_kind`, `edition`, `region`, `source_format`,
+`fanedit_subtype`, `include_variants`). Distinct from `Work`: no
+nested credits / tracklist, no Release inheritance.
+
+Comparison helpers in `mediavocab.models.signals`:
+
+```python
+compare_signals(a, b) -> List[SignalConflict]   # overlapping disagreements
+merge_signals(*bags)  -> Signals                # first-non-empty wins; genres unioned
+match_quality(local, candidate) -> float        # [0, 1]; year/medium mismatches halve
+signal_hash(s) -> str                           # canonical-id seed
+```
+
+## `MetadataProvider` Protocol
+
+`mediavocab.MetadataProvider` is a `runtime_checkable` `Protocol` —
+the typed contract every cross-source resolver provider implements.
+No inheritance required:
+
+```python
+class MyProvider:
+    name: ClassVar[str] = "my_provider"
+    media: ClassVar[Set[MediaType]] = {MediaType.MOVIE}
+    genre_filter: ClassVar[Set[str]] = set()
+
+    def is_available(self) -> bool: ...
+    def lookup(self, signals: Signals) -> Optional[ProviderMatch]: ...
+    def matches(self, signals: Signals) -> bool:
+        return provider_matches(self, signals)
+
+assert isinstance(MyProvider(), MetadataProvider)   # passes
+```
+
+`provider_matches(provider, signals)` is the reference dispatcher
+gate — combines a media-type check and a genre-filter check.
+`ProviderMatch` carries the provider's typed response;
+`ResolutionConflict` records dropped matches.
+
+The runtime registry / dispatcher / consolidator implementation
+itself lives in downstream packages (e.g. `metadatarr.resolve`).
 
 ## Decision guide: Work vs Release
 
