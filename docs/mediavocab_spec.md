@@ -1368,6 +1368,23 @@ fields needed to resolve identity later — typically `title`, `year`,
 `media_type`, and one entry in `external_ids` — and resolve to a full
 Work record on the consumer side.
 
+**Where do relations live?** mediavocab does not pin
+relations to a specific field on `Work`. The two viable positions:
+
+- **Co-located on Work.** Add `Work.relations: List[WorkRelation] = []`.
+  Cheap to author, fast to read, but every Work record carries the
+  graph edges out of it — splits a `Work.model_dump()` from cleanly
+  representing identity vs. relationship.
+- **External relation table.** Keep `Work` flat; consumers store
+  `WorkRelation` records keyed by `(work_hash, kind)`. This matches
+  how the canonical-Work / sidecar-relation split works in
+  resolver-driven pipelines.
+
+mediavocab itself does **not** include `relations` on `Work` for now —
+the `WorkRelation` model is shipped, the field is consumer choice. If
+a future spec version adds the field, the field shape is fixed
+(`List[WorkRelation]`).
+
 ---
 
 ## 7. Text utilities

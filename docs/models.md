@@ -195,6 +195,14 @@ gate — combines a media-type check and a genre-filter check.
 The runtime registry / dispatcher / consolidator implementation
 itself lives in downstream packages (e.g. `metadatarr.resolve`).
 
+> **Caveat — `runtime_checkable` Protocol evolution.** Adding a new
+> abstract method to the Protocol is a *silent* breakage for existing
+> concrete providers — `isinstance(p, MetadataProvider)` will simply
+> start returning `False` for providers that don't implement the new
+> method, with no error at registration time. Treat additions as
+> breaking changes; ship them in major versions and update every
+> known concrete provider in lockstep.
+
 ## Decision guide: Work vs Release
 
 | Question | Answer |
