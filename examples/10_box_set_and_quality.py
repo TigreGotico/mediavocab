@@ -1,8 +1,8 @@
 """Box set with `Release.contents` plus quality / rights / availability fields.
 
-A 4K HDR Blu-ray trilogy box set with multiple language tracks, an audio
-description track, and a regional restriction. Demonstrates that box sets
-do not need a synthetic container Work.
+A 4K HDR Blu-ray trilogy box set with multiple language tracks and a
+regional restriction. `Release.contents` aggregates the member films
+without inventing a synthetic container Work.
 """
 from mediavocab import (
     Appearance, MediaType, Release, ReleaseStatus, VariantKind, Work,
@@ -18,30 +18,19 @@ def main() -> None:
                        media_type=MediaType.MOVIE, year=2003)
 
     box = Release(
-        work=fellowship,                            # principal headline title
+        work=fellowship,
         edition="Extended Edition Trilogy 4K",
         variant_kind=VariantKind.EXTENDED,
-
-        # Format axes (replaces overloaded source_format)
         container="4K UHD Blu-ray",
         codec="H.265",
-
-        # Quality
         resolution="2160p",
         hdr="Dolby Vision",
         audio_channels="Atmos",
-
-        # Localisation
         region="US",
         audio_language="en",
         subtitle_languages=["en", "es", "fr", "de", "ja"],
-
-        # Rights
         license="all_rights_reserved",
-        region_locked=False,
         regions_available=["US", "CA"],
-
-        # Composite contents
         contents=[
             Appearance(work=fellowship,  position=1, disc=1),
             Appearance(work=two_towers,  position=2, disc=2),
@@ -56,7 +45,6 @@ def main() -> None:
     for a in box.contents:
         print(f"    disc {a.disc}: {a.work.title} ({a.work.year})")
 
-    # Lifecycle: a streaming Release that's about to leave the platform
     netflix = Release(
         work=fellowship,
         container="Streaming",

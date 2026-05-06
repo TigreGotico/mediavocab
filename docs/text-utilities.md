@@ -39,7 +39,7 @@ two providers with different credit completeness should hash the same.
 `score` halves on year mismatch beyond `YEAR_WINDOW`, halves on `MediaType`
 mismatch (with `GENERIC` permissive on either side), halves on `country` and
 `language` mismatch (when both sides specify them), and — for episodic media
-(TV / PODCAST / RADIO / AUDIO_DRAMA / STAGE) — additionally halves on
+(TV / PODCAST / RADIO / AUDIO_DRAMA) — additionally halves on
 `series_title` mismatch and on differing `season` / `episode`. It adds small
 bonuses for matching `variant_kind` and overlapping `content_genres`.
 

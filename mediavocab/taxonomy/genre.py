@@ -60,7 +60,7 @@ GENRE_CHOICE_IF = "choice_if"
 GENRE_VOICE_GAME = "voice_game"
 GENRE_BRANCHING = "branching"
 
-# Canonical narrative genres (apply to MOVIE / TV / BOOK / COMIC / GAME / IF / STAGE)
+# Canonical narrative genres (apply to MOVIE / TV / BOOK / COMIC / GAME / IF)
 GENRE_HORROR = "horror"
 GENRE_COMEDY = "comedy"
 GENRE_DRAMA = "drama"

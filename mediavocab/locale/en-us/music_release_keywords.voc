@@ -1,0 +1,12 @@
+# Release-format signals — always MUSIC_AUDIO, even from an Official Artist Channel
+# (a full album is a 40-min upload, not a 4-min music video regardless of OAC status)
+full album
+album premiere
+full album premiere
+full ep
+new full album
+new album
+new ep
+new single
+track premiere
+full discography

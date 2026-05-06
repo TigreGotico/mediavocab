@@ -12,6 +12,6 @@ class MembershipStatus(str, Enum):
 
     CURRENT = "current"
     PAST = "past"
-    LIVE = "live"
+    TOURING = "touring"   # live/touring member only; not on studio recordings
     GUEST = "guest"
     INACTIVE = "inactive"

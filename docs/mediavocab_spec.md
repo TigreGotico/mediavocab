@@ -1,6 +1,6 @@
 # mediavocab — Formal Specification
 
-**Version:** 0.5-draft  
+**Version:** 0.6-draft  
 **Status:** Working draft — iterate before implementation  
 **Scope:** Standalone vocabulary and data-model library for any software that catalogues,
 resolves, plays, or recommends media content.
@@ -14,14 +14,15 @@ what kinds of media exist, what people and organisations are involved, how editi
 to canonical works, how band members come and go. The definitions are subtly incompatible,
 making cross-project data exchange painful.
 
-`mediavocab` defines these concepts once, prescriptively. It owns the shared **nouns**.
-Consuming packages own the **verbs** — resolving, scraping, playing, recommending.
+`mediavocab` defines these concepts once, prescriptively. It provides the shared
+data model; consuming packages provide the application logic — resolving,
+scraping, playing, recommending.
 
 ### 1.1 Intended consumers
 
-- Metadata resolution libraries (metadatarr)
-- Media scrapers and archivers (pymetal, pyfanedit)
-- Media players and streaming clients (OCP)
+- Metadata resolution libraries
+- Media scrapers and archivers
+- Media players and streaming clients
 - Recommendation engines, deduplication pipelines, library managers
 - Any future project in this space
 
@@ -93,15 +94,21 @@ When in doubt, apply the axiom and document the reasoning.
 10. **`MediaType` is determined by distribution schema, not by audio or aesthetic content.**
     A rap track is MUSIC because it has an ISRC and appears in music databases — not
     because it contains melody. An ASMR recording is MUSIC if distributed through a
-    label, PODCAST if distributed via RSS. The same content in two different distribution
-    channels produces two Releases with the same Work but potentially different types.
-    `content_genres` handles the aesthetic; `MediaType` handles the schema.
+    label, PODCAST if distributed via RSS. `content_genres` handles the aesthetic;
+    `MediaType` handles the schema.
 
 11. **Objective technical attributes are fields, not genres.**
     Colour, aspect ratio, frame rate, and similar measurable properties of a work belong
     as typed fields on `Work`, not in `content_genres`. Genre describes thematic or
     cultural character; a technical attribute describes the artefact itself.
     (Corollary that admits `color: Optional[bool]` on `Work`.)
+
+12. **One Work, one `MediaType`. Distribution forks Releases, not Works.**
+    A Work has a single `MediaType` for its lifetime. Two distribution channels of the
+    same artefact produce two `Release`s of one Work — not two Works. If a single
+    artefact has materially different schemas in two channels (an ASMR ISRC release on a
+    label and the same recording on an RSS feed), it is two Works linked by a
+    `WorkRelation`. The classifier MUST commit to one type at Work-construction time.
 
 ---
 
@@ -168,9 +175,10 @@ tolerances from every existing type.
 
 ```python
 class MediaType(str, Enum):
-    MOVIE       = "movie"
-    TV          = "tv"
-    MUSIC       = "music"
+    MOVIE            = "movie"
+    EPISODIC_SERIES  = "episodic_series"  # on-demand ordered episodes (anime, drama, sitcom)
+    TV               = "tv"               # live linear / IPTV broadcast channel
+    MUSIC            = "music"
     MUSIC_VIDEO = "music_video"
     PODCAST     = "podcast"
     AUDIOBOOK   = "audiobook"
@@ -180,9 +188,9 @@ class MediaType(str, Enum):
     COMIC       = "comic"
     GAME                = "game"
     INTERACTIVE_FICTION = "interactive_fiction"
-    STAGE               = "stage"
     SOUND_EFFECT        = "sound_effect"
     AMBIENT_SOUNDS      = "ambient_sounds"
+    PLAYLIST            = "playlist"            # cross-media-type curated collection
     GENERIC             = "generic"
     NOT_MEDIA           = "not_media"
 ```
@@ -195,12 +203,22 @@ date, IMDB/TMDB IDs, production country. Runtime distinguishes short (≤ 40 min
 feature — no separate type is needed. Documentaries, silent films, animated films, and
 adult films are all MOVIE with an appropriate `content_genres` tag.
 
+**`EPISODIC_SERIES`**  
+On-demand episodic video — anime, drama, sitcoms, web series, streaming originals.
+Anything with ordered episodes you can pause, resume, and binge. Schema: series title,
+season, episode number, network, first air date, TVmaze/TVDB IDs. The `season` and
+`episode` fields on `Work` handle the episode↔series distinction — a series record
+has `season = None`, an episode record has both set.
+
 **`TV`**  
-Episodic video narrative intended for broadcast or streaming in episodes. Schema: series
-title, season, episode number, network, first air date, TVmaze/TVDB IDs. The `season`
-and `episode` fields on `Work` handle the episode↔series distinction — a series record
-has `season = None`, an episode record has both set. TV channels/networks are tracked
-as `Entity` with `EntityKind.ORGANISATION`; individual shows are `Work` with `MediaType.TV`.
+Live linear / IPTV broadcast channels. Parallel to `RADIO`: the *channel* is the Work,
+identified by the broadcaster, not by individual programmes airing on it. You cannot skip
+ahead — schedule is publisher-controlled, content is continuous, and the same channel
+yields a long stream of programmes over time. Use `EPISODIC_SERIES` for the on-demand
+ordered-episodes case (anime, drama, etc.); a TV channel that *also* publishes recordings
+of its programmes on-demand creates separate `EPISODIC_SERIES` Works for those.
+TV channels/networks-as-organisations are tracked as `Entity` with
+`EntityKind.ORGANISATION`.
 
 **`MUSIC`**  
 Audio recording distributed through music pipelines. Schema: artist, album, track number,
@@ -226,8 +244,8 @@ theatrically is `MOVIE` with `content_genres = [GENRE_CONCERT]`.
 **`PODCAST`**  
 Episodic non-music audio content distributed via RSS or a podcast platform. Schema: host,
 show title, episode GUID, RSS feed URL, Podcast Index / Apple Podcasts IDs. Radio
-programmes repackaged as podcasts belong here. A podcast series is a `Work` with
-`episode = None`; individual episodes have `episode` set.
+programmes repackaged as ordered episodes belong here. Series / episode encoding
+follows the convention in §5.5.
 
 **`AUDIOBOOK`**  
 Complete narrated literary work read by a single narrator. Schema: author, narrator,
@@ -246,13 +264,22 @@ a director and a cast list are required fields that do not exist on AUDIOBOOK.
 Original audio dramas and dramatised adaptations of existing works both use this type.
 
 **`RADIO`**  
-All radio content: individual programmes/shows AND broadcast stations/channels.
-A station ("BBC Radio 4", "NTS Radio 1") is a `Work` with `episode = None` and no
-runtime. Its stream URLs are Releases. Individual programmes ("The Archers S65E12")
-are Works with `episode` set. Cross-referencing stations across providers (TuneIn,
-RadioBrowser, RDS PI codes) uses `external_ids` exactly as for films. Multiple stream
-URLs for the same station (mirrors, bitrates, DAB vs web) are modelled as multiple
-Releases of the same Work.
+Live linear audio broadcasting — stations and channels. A station is a `Work`
+with `episode = None` and `runtime = None`; its stream URLs (mirrors, bitrates,
+DAB vs web) are multiple `Release`s of the same Work. Cross-referencing across
+providers uses `external_ids` exactly as for films.
+
+`RADIO` is the audio-only counterpart to `TV`: both model live linear broadcast
+channels where the *channel* is the Work. They are distinct MediaTypes (axiom 1)
+because the schemas diverge — different external databases (radio-station
+directories and RDS PI codes for `RADIO`; IPTV M3U / EPG sources and DVB
+identifiers for `TV`), different Release shapes (audio codec/bitrate vs.
+video codec/resolution), and different downstream tooling.
+
+Individual radio programmes that are republished as ordered episodes (a series
+podcast feed of past broadcasts) are modelled as `PODCAST` works; a fully
+performed radio play is `AUDIO_DRAMA + GENRE_RADIO_DRAMA`. The `RADIO` type
+covers the live broadcast service itself, not its archived programme catalogue.
 
 **`BOOK`**  
 Text-based written work: prose fiction, non-fiction, poetry collections, essays, short
@@ -272,10 +299,10 @@ flag, publisher series, ComicVine / GCD / MangaDex IDs. Distinct from BOOK becau
 the metadata schema is structurally different (issue number, story arc, cover variant)
 and the primary databases are different.
 
-The `episode` field on `Work` carries the issue or chapter number — structurally
-identical to a TV episode number. The `season` field carries the volume number where
-applicable. `series_title` carries the series/run title. A standalone graphic novel
-with no issue structure has `episode = None`.
+The `episode` field carries the issue / chapter number; `season` carries the
+volume number where applicable; `series_title` carries the series / run title.
+A standalone graphic novel with no issue structure has `episode = None`. Series
+/ episode encoding otherwise follows the convention in §5.5.
 
 A trade paperback collecting multiple issues is a `Work` with `VariantKind.COMPILATION`
 and a `tracklist` of `Appearance` entries (one per collected issue). If it contains
@@ -287,9 +314,11 @@ same schema and databases only differ in supplementary coverage, not primary ide
 A narrated or animated presentation of a comic is a separate Work — see §8.6.
 
 **`GAME`**  
-Interactive software. Present primarily for disambiguation: the verb "play" is shared
-with all other media types. Schema: platform, developer, publisher, IGDB / RAWG IDs.
-Passive viewing of game footage (Let's Plays, esports broadcasts) is TV or PODCAST
+Interactive software. The type exists so resolvers can route the verb "play"
+(shared across every other media type) to the right pipeline — a query "play
+Hades" disambiguates to the game, not to a song or film. Schema: platform,
+developer, publisher, IGDB / RAWG IDs. Passive viewing of game footage (Let's
+Plays, esports broadcasts) is `MOVIE`, `EPISODIC_SERIES`, or `PODCAST`
 depending on distribution.
 
 **`INTERACTIVE_FICTION`**  
@@ -308,23 +337,6 @@ The criterion (axiom 1) is the database split: `GAME` records belong on IGDB / M
 Steam; `INTERACTIVE_FICTION` records belong on IFDB.org and ifiction.org. A graphic
 adventure with a parser (Sierra-era titles) is `GAME` — it ships as a platform binary;
 a voice-only narrative skill on Alexa is `INTERACTIVE_FICTION` — it has no binary at all.
-
-**`STAGE`**  
-Live theatrical and performance arts: plays, musicals, opera, ballet, stand-up
-sets *as performed live in a venue* (the recorded release of the same show is
-`MOVIE`/`AUDIO_DRAMA`). Schema: production company, venue, opening night, run
-end, cast, director, writer/composer; external IDs: IBDB (Broadway), Theatricalia,
-Operabase. The Work is the *production* (a specific staging — RSC's 2008 Hamlet
-with David Tennant); the underlying script (Shakespeare's *Hamlet*) is a `BOOK`
-linked via `WorkRelation(kind=ADAPTED_FROM)`. Individual nightly performances
-are `Release`s of the production Work, with `release_date` as the performance
-date and the venue captured in `Release.extra` or as a `RelationRole.PERFORMER`
-credit on the venue Entity.
-
-The criterion (axiom 1) is the database split: theatrical productions live on
-IBDB / Theatricalia / Operabase, not IMDB / TMDB. The credit schema is
-distinct (writer + composer + director + choreographer + producer + lead
-performers per role, often per-cast across the run).
 
 **`SOUND_EFFECT`**  
 A discrete, catalogued audio clip whose primary identity is a *category taxonomy* rather
@@ -349,7 +361,7 @@ distribution schema determines the type (axiom 10).
 A voice assistant request for "what sound does a dog make" resolves to a `SOUND_EFFECT`
 Work. A request for "play a rain soundscape" may resolve to either `MUSIC` (a Spotify
 album) or `SOUND_EFFECT` (a single clip from a sound library) depending on available
-sources — the consuming player (OCP) chooses.
+sources — the consuming player chooses.
 
 **`AMBIENT_SOUNDS`**  
 Background audio that is procedurally generated, algorithmically mixed, or composed as
@@ -374,6 +386,31 @@ playback concern, not an identity concern (axiom 4). A Brian Eno album played on
 is still `MUSIC + GENRE_AMBIENT`; its ISRC and MusicBrainz identity do not change based
 on how a player chooses to loop it. `AMBIENT_SOUNDS` is for content that has no
 recording identity and could never have an ISRC regardless of playback mode.
+
+#### Classifier: MUSIC vs SOUND_EFFECT vs AMBIENT_SOUNDS
+
+When a recording could plausibly fit more than one of these three types, apply
+this decision tree in order — first match wins:
+
+1. The asset has an ISRC (or a MusicBrainz/Discogs ID) → **`MUSIC`**.
+2. The asset is a discrete, finite recording (≤ 15 min) catalogued in a
+   sound-effect library (Freesound, BBC Sound Effects, Soundsnap, ZapSplash) →
+   **`SOUND_EFFECT`**.
+3. The asset is procedurally generated, parameterised, or has user-controlled
+   duration (myNoise, Moodist, Noisli, Endel) → **`AMBIENT_SOUNDS`**.
+4. None of the above apply but the asset is short (≤ 60 s) and
+   category-tagged → **`SOUND_EFFECT`** (lowest schema complexity wins ties).
+
+**`PLAYLIST`**  
+A user-curated cross-media-type collection: Spotify playlists, YouTube playlists,
+M3U files, OPML podcast bundles. The playlist's identity is the *selection and
+ordering*; the constituent Works keep their own MediaType. Schema: `tracklist`
+of `Appearance`s, `Credit` for the curator with `relation_role =
+RelationRole.CURATOR`, mutable membership over time, distinct external databases
+(Spotify Playlist API, YouTube Playlist API). A single-media-type *published*
+compilation (a mixtape, a "best of" album) stays at the underlying media type
+with `variant_kind = COMPILATION` — the schema is the same as a regular release.
+See `docs/patterns/playlists-and-channels.md`.
 
 **`GENERIC`**  
 Unknown or unclassified content. Match confidence is penalised when `media_type` is
@@ -466,13 +503,22 @@ class VariantKind(str, Enum):
 **`THEATRICAL`** — Explicit marker for the theatrical cut when a director's cut also exists
 in the same library. Without a counterpart, `variant_kind = None` is preferred.
 
-**`FANEDIT`** — Foundation-level catch-all. Downstream packages (e.g. metadatarr via
-pyfanedit) sub-classify into FANFIX, FANMIX, FANEDIT_SHORT, etc. These sub-types do not
-belong in the foundation because they are specific to a single database (IFDB/fanedit.org).
+**`FANEDIT`** — Foundation-level catch-all. Downstream packages may sub-classify into
+narrower kinds (e.g. FANFIX, FANMIX, FANEDIT_SHORT). These sub-types do not belong in
+the foundation because they are specific to a single fanedit database.
 
 **`TV_TO_MOVIE` / `MOVIE_TO_TV`** — Structural transformations that change the work's
-relationship to its source. A TV-to-movie cut has a fundamentally different runtime and
-narrative structure from any episode of the source series.
+narrative structure and cross the `MediaType` boundary. By axiom 12 ("one Work, one
+MediaType"), the result is a **new Work**, not an edition of the source. The
+`variant_kind` value tags *what kind* of derivative this Work is; the link back to
+the source Work is recorded as `WorkRelation(kind=FANEDIT_OF, target=source)` (or
+`ADAPTED_FROM` for non-fanedit transformations).
+
+The same applies to `FANEDIT` when the recut materially restructures narrative —
+Fanedit databases catalogue such fanedits as standalone entries with their
+own external IDs. A minor recut that changes nothing structural (a shorter
+opening credit, a colour-grade pass) may stay as a `Release.variant_kind=FANEDIT`
+of the original Work.
 
 **`PRESERVATION`** — Distinct from REMASTERED: a preservation reconstructs content from
 degraded or partially lost source material, sometimes resulting in an incomplete work.
@@ -528,14 +574,6 @@ class EntityKind(str, Enum):
     DEVICE       = "device"        # physical playback endpoint: smart speaker, cast target,
                                    # smart plug connected to legacy hardware, set-top box,
                                    # media player (Kodi, Plex), game console as delivery device
-
-    EVENT        = "event"         # bounded real-world grouping above the production:
-                                   # tour, festival, convention, season-of-screenings.
-                                   # Has start/end dates, optional venues, member productions
-                                   # or performances referenced from `Release.extra`/`Entity.part_of`.
-                                   # Examples: "Pink Floyd 1980 The Wall Tour",
-                                   # "Cannes 2024", "EVO 2023". Distinct from `SERIES` (a
-                                   # cataloguing container without a real-world date range).
 
     OTHER        = "other"
 ```
@@ -615,6 +653,8 @@ class RelationRole(str, Enum):
     # Podcast and radio
     HOST            = "host"
     GUEST           = "guest"
+    CURATOR         = "curator"          # selected/ordered other people's works
+                                         # (playlists, anthologies, compilation editors)
 
     # Game
     DEVELOPER       = "developer"        # studio or individual that created the game
@@ -647,14 +687,16 @@ signal.
 **Critical invariant:** `date_to = None` does NOT mean "current". A defunct band's last
 known member has `date_to = None` (the end date was not recorded) and
 `status = INACTIVE` (the band is no longer active). Status and date range are orthogonal
-and must both be stored. This lesson comes from real data in metal-archives, where bands
-with decades of lineup history cannot be accurately represented without this distinction.
+and must both be stored. This lesson comes from real-world band-lineup datasets, where
+bands with decades of history cannot be accurately represented without this distinction.
 
 ```python
 class MembershipStatus(str, Enum):
     CURRENT   = "current"    # actively in the group now
     PAST      = "past"       # confirmed former member; date_to should be set
-    LIVE      = "live"       # touring/live member only; not on studio recordings
+    TOURING   = "touring"    # touring/live member only; not on studio recordings.
+                             # Renamed from LIVE to avoid collision with
+                             # StreamMode.LIVE and WorkRelationKind.LIVE_VERSION.
     GUEST     = "guest"      # session or guest contributor; not a member
     INACTIVE  = "inactive"   # group is dormant or disbanded; last known status
 ```
@@ -668,8 +710,8 @@ class MembershipStatus(str, Enum):
   membership status at time of inactivity is preserved.
 - An artist can have multiple `Membership` records for the same band if they left and
   rejoined (each stint is a separate record with its own date range and status).
-- `LIVE` and `GUEST` members do not appear on the principal lineup of studio recordings;
-  they appear in the `GUEST` section of release credits.
+- `TOURING` and `GUEST` members do not appear on the principal lineup of studio
+  recordings; they appear in the `GUEST` section of release credits.
 
 ---
 
@@ -797,7 +839,7 @@ GENRE_CHOICE_IF      = "choice_if"      # choice-based, e.g. Twine / ChoiceScrip
 GENRE_VOICE_GAME     = "voice_game"     # voice-driven IF (Alexa Skill, Google Action)
 GENRE_BRANCHING      = "branching"      # branching narrative; applies across IF/BOOK/GAME
 
-# Canonical narrative genres (apply to MOVIE / TV / BOOK / COMIC / GAME / IF / STAGE)
+# Canonical narrative genres (apply to MOVIE / TV / BOOK / COMIC / GAME / IF)
 GENRE_HORROR         = "horror"
 GENRE_COMEDY         = "comedy"
 GENRE_DRAMA          = "drama"
@@ -893,9 +935,8 @@ Consumer packages may define their own canonical lists; mediavocab imposes no va
 
 ### 5.3 `Credit`
 
-An entity's contribution to a specific Work or Release. Captures who played/wrote/
-produced/engineered on a particular recording, not who is generally associated with a
-band or project.
+An entity's contribution to a specific Work. Captures who played/wrote/produced/
+engineered on a particular work, not who is generally associated with a band or project.
 
 ```python
 class Credit(BaseModel):
@@ -903,15 +944,14 @@ class Credit(BaseModel):
 
     entity: EntityRef
     role: str                             # free text from source: "Electric Guitar", "Mix Engineer"
-    relation_role: RelationRole           # typed role for programmatic routing (e.g. provider selection)
+    relation_role: RelationRole           # typed role for programmatic routing
     section: CreditSection = CreditSection.PRINCIPAL
-    position: Optional[int] = None        # editorial credit ordering (1-based) within (section,
-                                          # relation_role). None = unspecified. Film opening titles,
-                                          # liner notes, and book co-author orderings are
-                                          # editorially significant; List ordering alone is not
-                                          # reliable across JSON round-trips.
     note: Optional[str] = None            # "(tracks 1–4 only)", "(R.I.P. 1998)"
 ```
+
+**Credit list order is the editorial credit order.** Poster billing, liner notes,
+opening titles — `Work.credits[0]` is "billed first." Consumers that merge credits
+from multiple providers should preserve first-seen order.
 
 **`role` vs `relation_role`:** `role` preserves the raw credit string from the
 source (e.g. "Bass Guitar", "Score Composer", "Cover Artwork") for display. `relation_role`
@@ -973,28 +1013,29 @@ class Work(BaseModel):
     media_type: MediaType = MediaType.GENERIC
 
     # Temporal and geographic provenance
-    year: Optional[int] = None             # original release/broadcast year of this specific Work;
-                                           # for TV episodes: episode air year (not series debut year);
-                                           # for remasters: original release year (remaster year → Release)
-    runtime: Optional[float] = None        # seconds.
-                                           # None has TWO meanings — distinguish at the consumer:
-                                           #   1. Unknown — not yet resolved
-                                           #   2. Indeterminate — user-paced or open-ended:
-                                           #      books, comics, slideshows, interactive fiction,
-                                           #      radio stations, IPTV, generative ambient.
-                                           # Mediavocab does not encode the distinction — both are
-                                           # `runtime=None`. Consumers needing it use Release.stream_mode
-                                           # (CONTINUOUS implies open-ended) or media_type heuristics
-                                           # (BOOK/COMIC/INTERACTIVE_FICTION → indeterminate).
-    language: str = ""                     # ISO 639-1 or 639-2; "" = unknown OR not applicable
-                                           # (e.g. instrumental music, non-verbal film). Mediavocab
-                                           # does NOT distinguish unknown from not-applicable —
-                                           # both use "". Consumers needing the distinction store
-                                           # `extra["language_na"] = True` for the not-applicable
-                                           # case. Not validated at model level (use text.iso).
-    country: str = ""                      # ISO 3166-1 alpha-2 — origin country. "" = unknown OR
-                                           # not applicable (international co-productions with no
-                                           # single origin country). Same conflation rule as language.
+    year: Optional[int] = None             # original release/broadcast year of this specific Work.
+                                           # For an EPISODIC_SERIES *episode*: episode air year
+                                           # (not series debut year). For a remaster: original
+                                           # release year (the remaster's date is on Release).
+    runtime: Optional[float] = None        # seconds. `None` is overloaded — unknown vs.
+                                           # indeterminate (user-paced / open-ended). Mediavocab
+                                           # does not distinguish; consumers needing the difference
+                                           # check `Release.stream_mode == CONTINUOUS` or use
+                                           # media_type heuristics (BOOK / COMIC /
+                                           # INTERACTIVE_FICTION / TV / RADIO → indeterminate).
+    language: str = ""                     # ISO 639-1 or 639-2. `""` = unknown OR not applicable
+                                           # (instrumental music, non-verbal film). Consumers
+                                           # needing the distinction set `extra["language_na"] = True`.
+                                           # Not validated at model level (use text.iso).
+    country: str = ""                      # ISO 3166-1 alpha-2 — origin country. Same conflation
+                                           # rule as language. Per-MediaType convention:
+                                           #   MOVIE / EPISODIC_SERIES → production country
+                                           #   MUSIC                  → label country (or artist
+                                           #                            primary nationality if no label)
+                                           #   RADIO / TV             → broadcaster headquarters
+                                           #   BOOK                   → first-publication country
+                                           #   GAME / IF              → developer country
+                                           # International co-productions with no single origin: "".
 
     # Episode / series structure (TV, podcast, radio programmes)
     season: Optional[int] = None
@@ -1049,18 +1090,35 @@ class Work(BaseModel):
                                            # use sparingly — if two consumers need the same key,
                                            # it earns a real field. Suggested keys:
                                            # "primary_role" (EntityKind.PERSON sub-classification),
-                                           # "org_type" (ORGANISATION sub-classification),
-                                           # "work_relation_*" (work→work links until §6 is formalised)
+                                           # "org_type" (ORGANISATION sub-classification)
 ```
 
-#### Work and radio stations
+#### Series vs episode encoding
 
-A radio station is a Work with `media_type = MediaType.RADIO`, `episode = None`,
-`runtime = None`, and `external_ids` containing the station's IDs across provider
-databases (TuneIn, RadioBrowser, RDS PI code, etc.). Its stream URLs are modelled as
-Releases. Individual programmes on that station are separate Works with `episode` set
-and a `Credit` linking to the station via `RelationRole.DISTRIBUTOR` or a `series_title`
-pointing to the show name.
+The `season` / `episode` / `series_title` fields are shared across every
+episodic media type. The convention is uniform:
+
+- A *series / show / channel / collection* Work has `episode = None`
+  (and usually `season = None`).
+- An individual *episode / chapter / issue / programme* Work has
+  `episode` set, optionally with `season`. `series_title` carries the
+  parent series' name, denormalised for convenience; if a `SERIES`
+  Entity exists, its `name` should match.
+
+Applies identically to `EPISODIC_SERIES`, `PODCAST`, `RADIO` programmes
+republished as ordered episodes (modelled as `PODCAST`), `AUDIO_DRAMA`,
+and `COMIC` (where `episode` carries issue/chapter and `season` carries
+volume).
+
+#### Work and channel-as-Work types
+
+A `RADIO` station, a `TV` channel, and a `PODCAST` show all use the same
+shape: `episode = None`, `runtime = None`, `external_ids` carrying the
+provider IDs (radio-station directories, IPTV M3U sources, podcast
+platform IDs). Stream URLs / RSS feeds are `Release`s of that Work.
+Individual programmes are separate Works with `episode` set and either
+`series_title` or a `Credit` to the parent station Entity via
+`RelationRole.DISTRIBUTOR`.
 
 ---
 
@@ -1119,8 +1177,9 @@ class Release(BaseModel):
     codec: str = ""                        # audio/video codec:
                                            #   "FLAC", "MP3", "AAC", "Opus",
                                            #   "H.264", "H.265", "AV1", "ProRes"
-    bitrate: str = ""                      # codec parameters where relevant:
-                                           #   "320kbps", "128kbps", "24/96", "1080p", "2160p"
+    bitrate: str = ""                      # audio codec bitrate / fidelity tag:
+                                           #   "320kbps", "128kbps", "24/96", "lossless".
+                                           # Video resolution lives in `resolution`, not here.
     platform: str = ""                     # game / IF runtime target:
                                            #   "PC", "PS4", "Switch", "SNES", "Alexa Skill",
                                            #   "Google Action", "Inform 7"
@@ -1143,14 +1202,26 @@ class Release(BaseModel):
 
     # Release metadata
     release_status: ReleaseStatus = ReleaseStatus.RELEASED
+                                          # Status of THIS specific Release. May differ from
+                                          # `work.release_status`: e.g. a Work with several
+                                          # editions where one has been WITHDRAWN (out of
+                                          # print) while the Work overall remains RELEASED.
+                                          # Precedence rule: a consumer asking
+                                          # "is this thing available?" reads `Release.release_status`;
+                                          # asking "does this thing exist?" reads
+                                          # `work.release_status`.
     release_date: Optional[str] = None    # ISO date or year string
 
     # Rights and availability — typed instead of buried in extra
     license: str = ""                      # "all_rights_reserved" (default if commercial),
                                            # "public_domain", "cc_by", "cc_by_sa", "cc0", etc.
-    region_locked: bool = False            # True if access is restricted by region; the allowed
-                                           # regions are listed in `regions_available` (when known)
-    regions_available: List[str] = []      # ISO 3166-1 alpha-2; empty = unknown or worldwide
+    region_locked: Optional[bool] = None   # True = access is restricted by region (allowed
+                                           # regions in `regions_available`); False = worldwide;
+                                           # None = unknown.
+    regions_available: List[str] = []      # ISO 3166-1 alpha-2 codes. Meaning is gated by
+                                           # `region_locked`: if True, this is the allowlist
+                                           # (empty = unknown allowlist); if False or None,
+                                           # the field is informational only.
     available_from: Optional[str] = None   # ISO date — when this Release becomes (or became) available
     available_until: Optional[str] = None  # ISO date — when access is scheduled to end (e.g.
                                            # "leaves Netflix on 2026-01-31"). None = no scheduled end.
@@ -1169,13 +1240,6 @@ class Release(BaseModel):
     # principal Work (the headline title of the set) or to a dedicated "set" Work when
     # the contents have no headline. Empty = ordinary single-Work Release.
     contents: List[Appearance] = []
-
-    # Release-level credits. Used when a credit applies to THIS specific Release but
-    # not to the Work at large: a featured artist on a remix or radio edit, a
-    # remastering engineer, a session musician on a deluxe-edition bonus track,
-    # a translator credited on a localised edition. Work-level credits remain on
-    # `Work.credits`; Release credits supplement them.
-    credits: List[Credit] = []
 
     # Scoring
     match_confidence: float = 0.0         # [0.0, 1.0]; set by resolver, not by data entry
@@ -1198,6 +1262,35 @@ class Release(BaseModel):
 | Are the primary stream URL and backup mirror of BBC Radio 4 the same? | Same Work, two Releases with different URIs |
 | Is the 1986 CD pressing and the 2016 remaster of Master of Puppets the same album? | Same Work, two Releases (`variant_kind = REMASTERED` on the second) |
 | Is a cover version of Hallelujah the same Work as the original? | Different Works; a `covers` relation may link them (see §6) |
+
+**Inheritance:** Release has no identity fields of its own. Identity
+(title, year, runtime, language, country, credits, content_genres) is
+always read through `release.work`; the Release model deliberately does
+not declare those fields and a consumer must never copy them onto the
+Release. Release-level fields are strictly manifestation: `variant_kind`,
+`edition`, `region`, format / quality / stream fields, localisation,
+`uri`, `image`, `chapters`, `accessibility`, rights / availability,
+`contents`. Release values never back-propagate into Work.
+
+**`Work.tracklist` vs `Release.contents`** — both are `List[Appearance]`
+but answer different questions:
+
+- `Work.tracklist` is the *canonical* track / chapter / episode order
+  of a single Work — the album's intended sequence, the book's chapter
+  list, the comic series' issue order. It is identity-level: the same
+  Work always has the same tracklist.
+- `Release.contents` is the *aggregation* of multiple distinct Works in
+  one box-set or anthology Release — a Blu-ray boxed trilogy, a deluxe
+  multi-album set, a season collected on one DVD. It is manifestation-
+  level: different editions can group different Works without affecting
+  any of the underlying Works.
+
+A reissued album with bonus tracks remains a single Work and a single
+tracklist; the bonus tracks are `Appearance`s with `is_bonus=True`. A
+boxed set of three previously-released albums uses
+`Release.contents`, leaves each album's `Work.tracklist` untouched, and
+sets `Release.work` to the principal album (or to a dedicated "set"
+Work when there is no principal).
 
 ---
 
@@ -1239,8 +1332,8 @@ class Entity(BaseModel):
 ## 6. Relationships between Works
 
 The `credits` field on `Work` handles entity→work relationships (who made this).
-Work→work relationships (covers, adaptations, sequels, compilations) require a separate
-model. This is defined for completeness; implementation is deferred to a future version.
+Work→work relationships (covers, adaptations, sequels, compilations, fanedits) use
+the `WorkRelation` model defined below.
 
 ```python
 class WorkRelationKind(str, Enum):
@@ -1253,9 +1346,13 @@ class WorkRelationKind(str, Enum):
     LIVE_VERSION   = "live_version"    # live recording of a studio track
     REMIX_OF       = "remix_of"
     SOUNDTRACK_FOR = "soundtrack_for"  # this album is the OST for that film
-    PROMOTES       = "promotes"        # this work promotes another (trailer, teaser, ad)
-    BONUS_FOR      = "bonus_for"       # behind-the-scenes featurette, gag reel, commentary
-    DELETED_SCENE  = "deleted_scene"   # scene cut from another work; not in the canonical edit
+    BONUS_FOR      = "bonus_for"       # supplementary content tied to another work:
+                                       # trailers and teasers, behind-the-scenes featurettes,
+                                       # gag reels, commentaries, deleted scenes. Use a free
+                                       # `note` field on `WorkRelation` to disambiguate.
+    FANEDIT_OF     = "fanedit_of"      # this Work is a fanedit/recut of the target. Use
+                                       # alongside `Work.variant_kind` (FANEDIT, TV_TO_MOVIE,
+                                       # MOVIE_TO_TV) to tag the kind of recut.
 
 class WorkRelation(BaseModel):
     kind: WorkRelationKind
@@ -1263,7 +1360,13 @@ class WorkRelation(BaseModel):
     note: Optional[str] = None
 ```
 
-Work→work relations are stored on the `Work.extra` field until this is formalised.
+**`target` is a forward reference, not a deep embed.** A consumer that
+serialises a graph of related Works must avoid recursive nesting (a
+`COVERS` chain or `PART_OF` series will otherwise blow the wire format).
+Idiomatic use: store relations with a `target` that carries only the
+fields needed to resolve identity later — typically `title`, `year`,
+`media_type`, and one entry in `external_ids` — and resolve to a full
+Work record on the consumer side.
 
 ---
 
@@ -1317,7 +1420,8 @@ YEAR_WINDOW = 1      # maximum year difference for agreement
 
 RUNTIME_TOLERANCE_S: Dict[MediaType, float] = {
     MediaType.MOVIE:       120.0,   # recuts and extended editions vary widely
-    MediaType.TV:           30.0,   # broadcast padding varies; episodes are rounded
+    MediaType.EPISODIC_SERIES: 30.0,   # episodes are runtime-padded
+    MediaType.TV:               0.0,   # live broadcast — runtime not identity
     MediaType.MUSIC:         3.0,   # studio recordings are precisely timed
     MediaType.MUSIC_VIDEO:  30.0,   # live versions vary
     MediaType.PODCAST:      60.0,   # episode length is approximate
@@ -1328,7 +1432,6 @@ RUNTIME_TOLERANCE_S: Dict[MediaType, float] = {
     MediaType.COMIC:         0.0,
     MediaType.GAME:                0.0,
     MediaType.INTERACTIVE_FICTION: 0.0,   # session-based, user-paced
-    MediaType.STAGE:               0.0,   # nightly performances vary; no tolerance applies
     MediaType.SOUND_EFFECT:        0.0,   # clips are exactly timed; no tolerance
     MediaType.AMBIENT_SOUNDS: 0.0,   # generative/looping; runtime is undefined
     MediaType.GENERIC:        5.0,
@@ -1346,6 +1449,17 @@ class Conflict(BaseModel):
 
 def compare(a: Work, b: Work) -> List[Conflict]:
     """Return overlapping fields that disagree.
+
+    Compared fields (only when both sides have a value):
+        title (fuzzy), year, country, runtime (within RUNTIME_TOLERANCE_S),
+        media_type, language, season, episode, series_title,
+        variant_kind, edition, source_format.
+
+    Out-of-scope fields (never trigger a Conflict):
+        aka, localized_titles, content_genres, credits, tracklist,
+        external_ids, extra, release_status, color, audio_present,
+        episode_orderings — these are mutable / merged, not identity.
+
     Absence of a field on either side is NOT a conflict — it is unknown.
     Empty list means no contradictions found (may still be a weak match)."""
 
@@ -1356,9 +1470,9 @@ def score(query: Work, candidate: Work) -> float:
       are tried as fallbacks.
     - Year mismatch beyond YEAR_WINDOW halves the score.
     - MediaType mismatch halves the score (GENERIC is permissive).
-    - For episodic media (TV/PODCAST/RADIO/AUDIO_DRAMA), `series_title` mismatch
-      halves the score; mismatching season/episode (when both sides specify
-      them) halves it again.
+    - For episodic media (EPISODIC_SERIES/PODCAST/RADIO/AUDIO_DRAMA),
+      `series_title` mismatch halves the score; mismatching season/episode
+      (when both sides specify them) halves it again.
     - country mismatch halves the score (when both sides specify it).
     - language mismatch halves the score (when both sides specify it).
 
@@ -1379,7 +1493,7 @@ def work_hash(w: Work) -> str:
     are excluded — they are not part of canonical identity.
     `series_title` is included because two shows can share season+episode+title
     (S01E01 'Pilot' is a common collision); excluding it produces hash
-    collisions for TV, PODCAST, RADIO, AUDIO_DRAMA, and STAGE works.
+    collisions for EPISODIC_SERIES, PODCAST, RADIO, and AUDIO_DRAMA works.
     Work has no dedicated artist field; artist identity is expressed via
     RelationRole credits and must be resolved before hashing if needed by the
     consumer. Used as a seed for canonical IDs; same work from different
@@ -1410,819 +1524,30 @@ def normalize_country(v: str) -> str:
 
 ---
 
-## 8. What consuming packages do
-
-`mediavocab` provides vocabulary and structure. All application logic lives downstream.
-
-| Package | Uses from mediavocab | Adds on top |
-|---|---|---|
-| **metadatarr** | MediaType, VariantKind, EntityKind, RelationRole, Work, Release, Entity, Membership, Credit, text/* | Provider API clients, ExternalIds (IMDB, MBID, ISBN…), resolution pipeline, Pydantic Signals model, provider registry |
-| **pymetal** | EntityKind (GROUP, PERSON, ORGANISATION), RelationRole, MembershipStatus, CreditSection, Membership, Credit, Entity | Metal-archives scraper, Band/Artist/Release/Song/TrackAppearance models with MA-specific fields |
-| **pyfanedit** | VariantKind, Work, Release | fanedit.org / IFDB scraper, FANEDIT sub-type map (FANFIX, FANMIX, etc.) |
-| **OCP / player** | MediaType (incl. SOUND_EFFECT), StreamMode, RelationRole, Work, Release | PlaybackType, PlayerState, intent routing, skill registration |
-| **Any library manager** | taxonomy/* (zero deps) | UI models, persistence layer, recommendation logic |
-
-### 8.1 How metadatarr's `Signals` maps to `Work`
-
-metadatarr uses a `Signals` model (a subset of Work fields) for the disambiguation
-phase before a full record is resolved. After resolution, a `Signals` instance can be
-promoted to a `Work`. The mapping is direct: all `Signals` fields exist on `Work`.
-`Signals`-specific fields (`include_variants`, `aka` as fallback candidates) are
-`Work.extra` or handled in the resolution layer.
-
-### 8.2 How pymetal's `LineupMember` maps to `Membership`
-
-pymetal's `LineupMember` (band_id, artist_id, role, status, date_from, date_to) maps
-directly to `Membership` (entity: EntityRef, roles: List[str], status: MembershipStatus,
-date_from, date_to). pymetal's `CreditSection` and `ReleaseLineup` map to
-`CreditSection` and `Credit`. The mediavocab models were designed with pymetal's
-real-world data as the primary test case.
-
-### 8.3 Adult media modelling patterns
-
-Adult content fits the existing model without new types or enums. This section documents
-the canonical patterns for each structural concern.
-
-#### Content flag
-
-Mark any Work with `content_genres = GENRE_ADULT`. This applies regardless of `MediaType`
-— a feature film, a short scene, a photo set described as a Book/Comic, and a podcast
-interview all use the same flag. Consumers filter on it independently of type.
-
-#### Scene vs feature
-
-An adult feature film is a `Work` (`MediaType.MOVIE`). Individual scenes within it are
-also Works (`MediaType.MOVIE`, short runtime), collected as `Appearance` entries in the
-feature's `tracklist`. This is identical to the track-on-album pattern.
-
-```
-Work: "Film Title" (full feature, ~90 min)
-  tracklist:
-    Appearance(position=1, work=Work("Scene 1", runtime=1200))
-    Appearance(position=2, work=Work("Scene 2", runtime=900))
-    ...
-```
-
-Scenes are indexed independently in adult databases (IAFD scene IDs, etc.) and should
-carry their own `external_ids`. A scene released standalone (clip store, subscription
-feed) gets its own Release with a URI.
-
-#### Performer identity and stage names
-
-Adult performers frequently use multiple stage names across their career, retire names,
-or return under new aliases. This is the same problem as pymetal's band member aliases —
-solved by `Entity.aliases` for concurrent known names, and by multiple `Membership`
-records for time-sliced name periods when the stage name itself changed.
-
-```python
-Entity(
-    name="Current Stage Name",
-    kind=EntityKind.PERSON,
-    aliases=["Former Stage Name", "Alternate Spelling"],
-    # If the name change has a known date, use Membership records:
-    memberships=[
-        Membership(
-            entity=EntityRef(name="Former Stage Name", kind=EntityKind.PERSON),
-            roles=["performer"],
-            status=MembershipStatus.PAST,
-            date_from="2010",
-            date_to="2015",
-        ),
-    ],
-    external_ids={
-        "iafd_performer": "...",
-        "babepedia": "...",
-        "freeones": "...",
-    },
-)
-```
-
-The `note` field on `Membership` accommodates annotations like "name change after studio
-switch" or "returned from retirement".
-
-#### Studio vs platform vs self-publishing creator
-
-| Scenario | EntityKind | Notes |
-|---|---|---|
-| Traditional production studio | `ORGANISATION` | Brazzers, Wicked, Evil Angel |
-| Subscription platform | `ORGANISATION` | OnlyFans, Fansly, ManyVids |
-| Self-publishing creator | `PERSON` + `PUBLISHER` role | Performer IS the studio; dual credit |
-| Clip store aggregator | `ORGANISATION` | Clips4Sale, MFC Share |
-
-A self-publishing creator (OnlyFans model) appears in a Work's `credits` twice:
-once as `RelationRole.PERFORMER` (CreditSection.PRINCIPAL) and once as
-`RelationRole.PUBLISHER` (CreditSection.STAFF). No new EntityKind is needed.
-
-#### Subscription feeds and content aggregation
-
-A performer's OnlyFans feed or a studio's subscription channel is a `Work` with
-`MediaType.TV` (episodic) or `MediaType.RADIO` (continuous feed), `stream_mode =
-StreamMode.CONTINUOUS` or `ON_DEMAND` depending on delivery. Individual posts/scenes
-are Works linked via `Appearance`. The feed itself is identified by its platform URL
-in `external_ids`.
-
-#### Databases as `external_ids` keys
-
-Well-known adult database keys for `Work.external_ids` and `Entity.external_ids`:
-
-```python
-# Works
-EID_IAFD_MOVIE     = "iafd_movie"
-EID_ADULTDVDEMPIRE = "adult_dvd_empire"
-EID_AEBN           = "aebn"
-
-# Performers (Entity)
-EID_IAFD_PERFORMER = "iafd_performer"
-EID_BABEPEDIA      = "babepedia"
-EID_FREEONES       = "freeones"
-```
-
-These follow the same pattern as `EID_IMDB`, `EID_MUSICBRAINZ_RECORDING`, etc. —
-string keys defined as constants in `external_ids.py`, no schema enforcement.
-
-#### Hentai
-
-Hentai is anime + adult content: `content_genres = [GENRE_ANIME, GENRE_ADULT]`.
-No new type. This is exactly why `content_genres` is `List[str]` — a work belongs
-to multiple genres simultaneously. `MediaType` is TV or MOVIE depending on format.
-Hentai manga is `MediaType.COMIC` with the same two genre tags.
-
-#### What does NOT change
-
-- `MediaType` — no new values. Adult features are MOVIE; clips are MOVIE (short);
-  photo sets distributed as downloads are BOOK or left to `extra`.
-- `VariantKind` — no new values. Compilation scenes, regional cuts, remasters all
-  use existing values.
-- `CreditSection` — PRINCIPAL for performers, STAFF for director/producer/editor.
-- `RelationRole` — ACTOR for on-screen performers, DIRECTOR, PRODUCER as usual.
-
----
-
-### 8.4 Game modelling patterns
-
-#### Canonical game, ROM, and platform port
-
-A game title is a `Work` (`MediaType.GAME`). Releases cover the different physical and
-digital manifestations:
-
-```
-Work: "Chrono Trigger" (1995, JP, MediaType.GAME)
-  external_ids: {"igdb": "...", "mobygames": "...", "rawg": "..."}
-  credits:
-    - EntityRef("Square", ORGANISATION) / RelationRole.DEVELOPER / CreditSection.PRINCIPAL
-    - EntityRef("Nintendo", PUBLISHER) / RelationRole.PUBLISHER / CreditSection.STAFF
-
-Release: SNES cartridge (JP)      source_format="SNES", region="JP", release_date="1995"
-Release: SNES cartridge (US)      source_format="SNES", region="US", variant_kind=REGIONAL
-Release: SNES ROM image           source_format="SNES ROM", uri="sha1:..."
-Release: Nintendo DS port (2008)  → separate Work (see ports below)
-Release: Steam (PC, 2011)         source_format="PC", uri="steam://..."
-```
-
-#### Console ports
-
-A port to a different platform is a **new Work**, not a Release, because:
-- It may have different content (cut features, added content, different bugs fixed)
-- It has different credits (the porting team may differ from the original developer)
-- It is catalogued as a distinct entry in IGDB, MobyGames, etc.
-
-The port Work links to the original via `WorkRelation(kind=ADAPTED_FROM)`:
-
-```python
-Work(
-    title="Chrono Trigger",
-    year=2008,
-    media_type=MediaType.GAME,
-    credits=[Credit(entity=EntityRef("Square Enix", EntityKind.ORGANISATION), ...)],
-    extra={"relations": [WorkRelation(kind=WorkRelationKind.ADAPTED_FROM,
-                                      target=snes_work,
-                                      note="Nintendo DS port")]},
-)
-```
-
-#### Romhacks
-
-A romhack is to a game what a fanedit is to a film. Model as a new Work with
-`variant_kind = VariantKind.FANEDIT` and `WorkRelation(kind=ADAPTED_FROM)` pointing
-to the original. The romhack creator is credited as `RelationRole.CREATOR` in
-`CreditSection.PRINCIPAL`.
-
-#### The emulator / player
-
-Out of scope. The emulator (RetroArch, MAME, Dolphin) is the playback engine, not the
-media. It does not belong in `mediavocab`. At most, the emulator developer may appear
-as `EntityKind.ORGANISATION` in a consuming application's own data, but that is not a
-vocabulary concern.
-
----
-
-### 8.5 Soundtrack modelling patterns
-
-A soundtrack connects the music domain to the film/TV/game domain. Three distinct cases:
-
-#### 1. Original score (composed for the work)
-
-The score is a `Work` (`MediaType.MUSIC`, album-level) linked to the parent film/game
-via `WorkRelation(kind=SOUNDTRACK_FOR)`. The composer is credited on the score Work;
-the score is also referenced in the film Work's credits as `RelationRole.COMPOSER`.
-
-```
-Work: "Alien" (1979, MOVIE)
-  credits: [Credit(EntityRef("Jerry Goldsmith"), COMPOSER, STAFF)]
-
-Work: "Alien: Original Motion Picture Score" (1979, MUSIC)
-  extra: {"relations": [WorkRelation(kind=SOUNDTRACK_FOR, target=alien_film)]}
-  credits: [Credit(EntityRef("Jerry Goldsmith"), PERFORMER + COMPOSER, PRINCIPAL)]
-```
-
-#### 2. Compilation soundtrack (licensed tracks)
-
-A compilation soundtrack (`VariantKind.COMPILATION`) is a `Work` (`MediaType.MUSIC`)
-whose `tracklist` lists each licensed track as an `Appearance`. Each track is its own
-canonical `Work` (the original song). The Appearance carries no `title_override` unless
-it is an edit made for the film.
-
-```
-Work: "Guardians of the Galaxy: Awesome Mix Vol. 1" (MUSIC, COMPILATION)
-  tracklist:
-    Appearance(position=1, work=Work("Hooked on a Feeling", MUSIC, ...))
-    Appearance(position=2, work=Work("Go All the Way", MUSIC, ...))
-    ...
-  extra: {"relations": [WorkRelation(kind=SOUNDTRACK_FOR, target=guardians_film)]}
-```
-
-#### 3. Game soundtrack
-
-Identical to original score. The game OST is a `Work` (`MediaType.MUSIC`) with
-`WorkRelation(kind=SOUNDTRACK_FOR)` pointing to the game `Work`. Released OSTs often
-have their own IMDB/Discogs/MusicBrainz entries and are tracked independently.
-
-If the OST was never officially released as a standalone album, its tracks may still
-appear as Works inside the game Work's `tracklist` — the game acts as both Work and
-container for its music in that case.
-
-#### 4. Audio drama / audiobook score
-
-Same pattern as film score. An AUDIO_DRAMA production with an original score links to
-a MUSIC Work via `SOUNDTRACK_FOR`. This is uncommon but occurs in major productions
-(BBC Radio full-cast dramas, Big Finish productions).
-
-#### Summary
-
-| Scenario | Model |
-|---|---|
-| Original composed score | MUSIC Work + `SOUNDTRACK_FOR` relation to film/game |
-| Licensed compilation | MUSIC Work, `COMPILATION` variant, tracklist of existing MUSIC Works |
-| Unreleased in-game music | Tracks as Appearances inside the GAME Work's tracklist |
-| Composer credit on the film | `RelationRole.COMPOSER` Credit on the film Work |
-
----
-
-### 8.6 Motion comics and narrated comic formats
-
-A motion comic takes static comic panels and adds narration, voice acting, minimal
-animation, sound effects, and music. The credit schema changes: there is now a cast,
-a director, a sound designer. By axiom 9 (credit structure change = schema change),
-this is a **new Work**, not a Release of the source comic.
-
-```
-Work: "Watchmen Motion Comic" (2008, MediaType.TV)
-  content_genres: ["motion_comic"]
-  credits:
-    - EntityRef("Tom Stechschulte", ACTOR) — sole narrator, all characters
-    - EntityRef("Jake Strider Hughes", DIRECTOR)
-  external_ids: {"imdb": "tt1335296"}
-  extra: {"relations": [WorkRelation(kind=ADAPTED_FROM, target=watchmen_comic_work)]}
-```
-
-The source comic Work (`MediaType.COMIC`) is unchanged. The motion comic Work
-(`MediaType.TV` or `MOVIE`) links back via `ADAPTED_FROM`. Both coexist independently.
-
-#### Taxonomy of video comic formats
-
-| Format | MediaType | content_genres | Notes |
-|---|---|---|---|
-| Motion comic (full production) | TV or MOVIE | `["motion_comic"]` | New Work, ADAPTED_FROM source |
-| YouTube "let's read" narration | TV | `["motion_comic"]` | New Work even if amateur |
-| Animated adaptation (full art) | TV or MOVIE | `["animation"]` | ADAPTED_FROM source comic |
-| Audiobook reading of a comic script | AUDIOBOOK | `["comics"]` | Unusual; treat as AUDIOBOOK |
-| Static panel slideshow, no narration | COMIC | — | Release of the comic, source_format="video" |
-
-The last case (slideshow, no new creative work) is a Release of the COMIC Work with
-`source_format = "video slideshow"`. The first four all produce new Works.
-
----
-
-### 8.7 Independent creators, YouTube series, and AI-generated content
-
-#### YouTube and independent creators
-
-An independent creator's YouTube documentary series ("Unbiased History of Rome",
-"Kurzgesagt", "CGP Grey") is `MediaType.TV` — episodic video content. The schema is
-identical to a network TV series: season/episode structure, credits, runtime. The
-distribution channel (YouTube vs Netflix vs broadcast) is a Release concern, not a
-Work concern.
-
-```
-Work: "Unbiased History of Rome — Republican Era" (MediaType.TV)
-  season=1, episode=3
-  series_title="Unbiased History of Rome"
-  credits:
-    - EntityRef("Dovahhatty", EntityKind.PERSON) / CREATOR / PRINCIPAL
-  external_ids: {"youtube_video": "..."}
-
-Entity: "Dovahhatty" (EntityKind.PERSON)
-  external_ids: {"youtube_channel": "UCW3D0wXUz89D2K1O3ZMZ9hQ"}
-```
-
-The YouTube channel is `EntityKind.ORGANISATION` (the distribution entity). The creator
-is `EntityKind.PERSON` credited as `RelationRole.CREATOR` on the Work. If the creator
-uses a pseudonym, `Entity.aliases` holds it alongside any real name.
-
-For creators who are simultaneously writer, director, editor, and presenter (most
-independent YouTube creators), they appear in multiple `Credit` entries with the
-appropriate `RelationRole` for each, all in `CreditSection.PRINCIPAL`.
-
-#### AI-generated content
-
-AI-generated content has no human author but it is still a Work: it has a title, a
-`MediaType`, a publication date, and in many cases an external database entry. The
-credit model accommodates this without new types.
-
-**No human creator:** Leave `credits` empty, or credit the publishing organisation:
-
-```python
-Credit(
-    entity=EntityRef("Midjourney Inc.", EntityKind.ORGANISATION),
-    role="AI system",
-    relation_role=RelationRole.CREATOR,
-    section=CreditSection.STAFF,
-    note="Generated by Midjourney v6",
-)
-```
-
-**Human-prompted AI content:** The prompter may be credited as `CREATOR` with a note:
-
-```python
-Credit(
-    entity=EntityRef("Jane Smith", EntityKind.PERSON),
-    role="Prompt author",
-    relation_role=RelationRole.CREATOR,
-    section=CreditSection.PRINCIPAL,
-    note="AI-assisted; generated with Suno v4",
-)
-```
-
-**Genre tag:** `GENRE_AI_GENERATED` in `content_genres` marks AI-primary works for
-consumers that filter on it. This is an informational tag, not a type — an AI-generated
-film is still `MediaType.MOVIE`.
-
-**What does NOT change:** No new `EntityKind` for "AI system". The AI tool is modelled
-as `EntityKind.ORGANISATION` (the organisation that built it) or left unmodelled entirely.
-The vocabulary does not need to enumerate AI tools — that belongs in `Credit.note`
-or `Work.extra`.
-
----
-
-### 8.8 Educational content and recorded courses
-
-A recorded university lecture, MOOC course, or tutorial series is episodic video or
-audio content. No new MediaType is needed — the distribution format determines the type.
-
-| Format | MediaType | content_genres | Structure |
-|---|---|---|---|
-| Video lecture series | TV | `["educational"]` | series_title=course, season=module, episode=lecture |
-| Audio-only lecture podcast | PODCAST | `["educational"]` | episode per lecture |
-| Single standalone lecture (video) | MOVIE | `["educational"]` | no episode structure |
-| Textbook | BOOK | `["educational"]` | standard BOOK |
-| Course notes / slide deck | BOOK | `["educational"]` | source_format="PDF" Release |
-
-The lecturer/professor is `RelationRole.HOST` (if conversational) or `RelationRole.CREATOR`
-(if scripted/produced). The university or platform (Coursera, edX, Khan Academy) is
-`EntityKind.ORGANISATION`. The department or channel is also `EntityKind.ORGANISATION` if useful.
-
-```
-Work: "The Early Middle Ages, 284–1000" — Lecture 1 (MediaType.TV)
-  series_title = "The Early Middle Ages, 284–1000"
-  season = 1, episode = 1
-  content_genres = ["educational", "history"]
-  credits:
-    - EntityRef("Paul Freedman", PERSON) / HOST / PRINCIPAL
-    - EntityRef("Yale University", ORGANISATION) / DISTRIBUTOR / STAFF
-  external_ids: {"youtube_video": "...", "open_yale": "..."}
-```
-
-A MOOC with interactive assignments, quizzes, and certificates is still modelled as
-TV — the interactive layer is a platform concern, not a vocabulary concern.
-
----
-
-### 8.9 IoT and device-mediated playback
-
-A voice assistant request may target a *physical device* rather than (or in addition to)
-a specific Work. "Turn on the kitchen radio", "play jazz on my Sonos", and "cast this to
-the TV" all involve a playback device as the delivery endpoint. By axiom 4 corollary,
-the device is an `Entity` (`EntityKind.DEVICE`); the content it plays is still a Work
-classified normally.
-
-```
-Entity: "Kitchen Radio Plug" (EntityKind.DEVICE)
-  external_ids: {"homeassistant": "switch.kitchen_radio_plug"}
-
-Entity: "Living Room Sonos" (EntityKind.DEVICE)
-  external_ids: {"sonos": "...", "homeassistant": "media_player.living_room"}
-```
-
-#### Pattern table
-
-| Request | Work `MediaType` | Device `EntityKind` |
-|---|---|---|
-| "Turn on the kitchen radio" | RADIO | DEVICE (smart plug → legacy radio) |
-| "Play jazz on Sonos" | MUSIC | DEVICE (smart speaker) |
-| "Cast this to the TV" | MOVIE / TV | DEVICE (cast target / smart TV) |
-| "Start the PS4" | GAME (TBD) | DEVICE (game console) |
-| "Play Netflix" | TV / MOVIE | DEVICE (smart TV) |
-
-#### Rules
-
-- The Work is always classified using normal `MediaType` rules. "Turn on the kitchen
-  radio" resolves to a RADIO Work (the station); the smart plug is the delivery channel.
-- When no specific Work is implied ("turn on the Sonos"), the Work is resolved from
-  context or left as `MediaType.GENERIC` until a title is known.
-- Device identity belongs in `Entity.external_ids` using provider-specific keys
-  (e.g. `"homeassistant"`, `"sonos"`, `"chromecast"`, `"kodi"`).
-- Routing logic — which URI to send to which device — is the consuming player's
-  responsibility. `mediavocab` supplies the vocabulary; OCP owns the routing.
-
----
-
-### 8.10 OCP `media_label` mapping
-
-Canonical mapping from all 33 OCP `media_label` values in `ocp_media_templates_en.csv`
-to mediavocab types. The spec is the source of truth; the dataset adapts to it.
-
-| OCP `media_label` | `MediaType` | `content_genres` / notes |
-|---|---|---|
-| `movie` | MOVIE | — |
-| `black_white_movie` | MOVIE | `color = False` on Work |
-| `silent_movie` | MOVIE | `audio_present = False` |
-| `short_film` | MOVIE | `GENRE_SHORT_FILM` |
-| `documentary` | MOVIE or TV | `GENRE_DOCUMENTARY` — distribution determines type |
-| `series` | TV | — |
-| `tv` | TV | — |
-| `anime` | TV or MOVIE | `GENRE_ANIME` |
-| `cartoon` | TV or MOVIE | `GENRE_ANIMATION` |
-| `trailer` | MOVIE or TV | `GENRE_TRAILER` — supplementary material |
-| `behind_the_scenes` | MOVIE or TV | `GENRE_BEHIND_SCENES` — supplementary material |
-| `comic_book` | TV or MOVIE | `GENRE_MOTION_COMIC` — dataset treats this as video; see §8.6. Static COMIC works are not a voice-playback target. |
-| `video` | MOVIE or TV | — generic video; type resolved from available metadata |
-| `hentai` | TV or MOVIE | `GENRE_ANIME + GENRE_ADULT` |
-| `porn` | MOVIE | `GENRE_ADULT` |
-| `music` | MUSIC | — |
-| `podcast` | PODCAST | — |
-| `audiobook` | AUDIOBOOK | — |
-| `radio` | RADIO | — |
-| `radio_theatre` | AUDIO_DRAMA | `GENRE_RADIO_DRAMA` |
-| `asmr` | MUSIC or PODCAST | `GENRE_ASMR` — axiom 10: distribution determines type |
-| `adult_asmr` | MUSIC or PODCAST | `GENRE_ASMR + GENRE_ADULT` |
-| `audio_description` | MOVIE or TV | Not a standalone Work. Accessibility Release variant of the referenced film/programme. Consumer requests an accessible Release of the underlying Work. See §4.1 excluded values. |
-| `news` | TV / RADIO / PODCAST | `GENRE_NEWS` — distribution determines type |
-| `short_sound` | SOUND_EFFECT | — |
-| `ambient_sounds` | AMBIENT_SOUNDS | Procedurally generated or looping environment audio with no recording identity. Ambient albums with ISRCs on music platforms → `MUSIC + GENRE_AMBIENT` instead (axiom 10). |
-| `game` | GAME | — |
-| `adult_game` | GAME | `GENRE_ADULT` |
-| `audio_device` | N/A | `EntityKind.DEVICE` — see §8.9 |
-| `video_device` | N/A | `EntityKind.DEVICE` — see §8.9 |
-| `game_device` | N/A | `EntityKind.DEVICE` — see §8.9 |
-| `not_media` | NOT_MEDIA | Terminal classifier output. No Work exists to resolve. |
-
----
-
-### 8.11 Interactive fiction and voice games
-
-Interactive fiction is `MediaType.INTERACTIVE_FICTION`. Schema differs from `GAME`
-in three ways that matter for cataloguing:
-
-1. **Author, not developer studio.** Most IF works are single-author. `RelationRole.AUTHOR`
-   is the principal credit; `DEVELOPER` is rarely used.
-2. **Distinct external database.** IFDB.org and ifiction.org are the canonical
-   IF databases; `external_ids` keys `ifdb` and `ifiction`. Note: this `IFDB` is
-   the **Interactive Fiction Database** — distinct from the fanedit-community
-   IFDB (Internet Fanedit Database), which uses key `fanedit_ifdb`.
-3. **Source format encodes the engine.** `Z-machine` (`.z3`–`.z8`), `Glulx`
-   (`.gblorb`), `TADS`, `Inform 7`, `Twine` (HTML), `ChoiceScript`, `Ink` (JSON).
-   Voice-game variants use `Alexa Skill` / `Google Action` / `Mycroft Skill`.
-
-```python
-Work(
-    title="Counterfeit Monkey",
-    media_type=MediaType.INTERACTIVE_FICTION,
-    year=2012,
-    content_genres=[GENRE_PARSER_IF, GENRE_BRANCHING],
-    credits=[Credit(
-        entity=EntityRef(name="Emily Short", kind=EntityKind.PERSON),
-        role="author",
-        relation_role=RelationRole.AUTHOR,
-    )],
-    external_ids={"ifdb": "lr40jhwqgyx9rzfr"},
-)
-Release(
-    work=...,
-    source_format="Glulx",
-    uri="https://...",
-)
-```
-
-**Voice-game IF.** A narrative Alexa Skill is the same `MediaType.INTERACTIVE_FICTION`
-with `source_format="Alexa Skill"`, `content_genres=[GENRE_VOICE_GAME, GENRE_BRANCHING]`,
-and `external_ids={"alexa_skill": "amzn1.ask.skill.<uuid>"}`. The "Release" is the
-skill itself; no file is downloaded.
-
-**Disambiguation from `GAME`:** a graphic adventure with a parser (Sierra-era titles)
-is `GAME` — it ships as a platform binary catalogued on IGDB/MobyGames. A text-only
-or voice-only branching narrative is `INTERACTIVE_FICTION` — it ships as a story file
-catalogued on IFDB. Sessions are user-paced and indeterminate; `runtime=None` (axiom 11).
-
----
-
-### 8.12 Reader-paced and user-paced content
-
-Books, comics, slideshows, and interactive fiction share an attribute that is
-*not* representable as a runtime: the user controls pacing. A novel's page count
-is finite but its reading time depends on the reader. A photo slideshow ends
-when the viewer dismisses it. An IF session ends when the player saves and quits.
-
-The spec encodes this as `runtime=None`. There is no `Pacing` axis — adding one
-would force every consumer to handle a third state for a property they don't use.
-The two `runtime=None` interpretations (unknown vs indeterminate) are distinguished
-at the consumer:
-
-- `media_type ∈ {BOOK, COMIC, INTERACTIVE_FICTION}` → indeterminate (user-paced)
-- `stream_mode == StreamMode.CONTINUOUS` → indeterminate (open-ended stream)
-- otherwise → unknown (treat as missing data)
-
-**Slideshows / photo books.** A photo collection with no ordering metadata is a
-`Work(media_type=BOOK, content_genres=[GENRE_PHOTO_BOOK])`. When ordered for
-sequential viewing it is `[GENRE_SLIDESHOW]` instead. The slideshow timer (if any)
-is a Release-level concern: store interval seconds in `Release.extra["slide_interval"]`
-or rely on the consumer's default. A motion-comic slideshow with embedded animation
-is *not* this — that is `MOVIE`/`TV` with `GENRE_MOTION_COMIC` (see §8.6).
-
-**Branching narratives that are books, not games.** A "choose your own adventure"
-print novel is a `BOOK` with `GENRE_BRANCHING`. A digital implementation of the
-same text on Twine or as a Kindle interactive title is `INTERACTIVE_FICTION` —
-the distribution channel determines the type (axiom 10).
-
----
-
-### 8.13 Mid-Release navigation
-
-Audiobook chapters, podcast chapter markers, DVD scene breaks, "skip the intro"
-points, and music-album track gaps with their own metadata are all `Release.chapters`.
-
-```python
-Release(
-    work=audiobook_work,
-    chapters=[
-        Chapter(offset=0.0,    title="Prologue"),
-        Chapter(offset=480.5,  title="Chapter 1: The Wardrobe"),
-        Chapter(offset=2310.0, title="Chapter 2: What Lucy Found There"),
-        # ...
-    ],
-)
-```
-
-Chapters are markers, not Works. A novel's chapter is part of the same canonical
-Work as the rest of the book. By contrast, a track on an album IS a Work
-(it can appear on multiple Releases independently) — so tracks live in
-`Work.tracklist` as `Appearance`, not in `Release.chapters`.
-
-**When in doubt:** if the unit can appear on multiple Releases with stable
-identity (a song reissued on a compilation), it is a Work referenced via
-`Appearance`. If it is purely a navigational offset within one Release (a
-DVD scene break, an audiobook chapter heading), it is a `Chapter`.
-
----
-
-### 8.14 Accessibility tracks
-
-Subtitles, closed captions, audio description, sign-language inserts, lyric
-files, and transcripts are per-Release assets — the underlying Work is unchanged.
-They live in `Release.accessibility: List[AccessibilityTrack]`, never in
-`VariantKind`.
-
-```python
-Release(
-    work=film,
-    audio_language="en",
-    subtitle_languages=["en", "es", "fr"],
-    accessibility=[
-        AccessibilityTrack(kind="subtitles", language="en", uri="...en.vtt"),
-        AccessibilityTrack(kind="subtitles", language="en", uri="...en-sdh.vtt", sdh=True),
-        AccessibilityTrack(kind="subtitles", language="es", uri="...es.vtt"),
-        AccessibilityTrack(kind="audio_description", language="en", uri="...ad.mp3"),
-        AccessibilityTrack(kind="transcript", language="en", uri="...transcript.txt"),
-    ],
-)
-```
-
-**Why per-Release, not per-Work:** the same Work may have one Release with no
-subtitles (theatrical print), another with full multi-language captions
-(Blu-ray), and a third with audio description added later. The accessibility
-profile is a property of the manifestation, not the work.
-
-**Why `kind` is a free string:** accessibility taxonomy is evolving. Closed
-captions vs subtitles, sign language as picture-in-picture vs separate stream,
-"Easy Read" text editions, descriptive audio for video games — these all
-appear and reorganise too quickly to enum-lock. The principal kinds
-("subtitles", "captions", "audio_description", "sign_language", "transcript",
-"lyrics") are conventions, not validation.
-
-**Dub vs sub.** `Release.audio_language` is the primary audio track language;
-`Release.subtitle_languages` lists available subtitle languages. The release
-*market* is `Release.region`. These three axes are independent — collapsing them
-into `VariantKind.REGIONAL` (which is reserved for editorial regional differences:
-censorship cuts, alternate scenes) is wrong. A Blu-ray sold in the US with
-Japanese audio and English subtitles is `region="US"`, `audio_language="ja"`,
-`subtitle_languages=["en"]` — no `REGIONAL` variant needed.
-
----
-
-### 8.15 User playlists, live-streamer channels, branching narratives
-
-**User playlists.** A playlist is a `Work` with `media_type=MUSIC` (or whichever
-type its members share) and a `tracklist` of `Appearance`s pointing to the
-chosen Works. A playlist's *creator* is the curator (`RelationRole.CREATOR`).
-The semantic difference from an album — that the user can reorder, add, and
-remove members — is a consumer concern, not a vocabulary concern. The model is
-identical; the lifecycle is different.
-
-**Live-streamer channels.** A streamer's channel (Twitch, Kick, YouTube Live)
-is a `Work` exactly as a radio station is — `series_title` set to the channel
-name, `runtime=None`, individual streams modelled as either `Release`s of the
-channel Work (when the channel itself is the entity) or as new Works whose
-`series_title` matches (when each stream is a discrete catalogued piece). When
-a stream is recorded and archived, the same Work transitions from
-`stream_mode=LIVE` on its live Release to `stream_mode=ON_DEMAND` on a
-new VOD Release.
-
-**Branching narratives.** Print: `BOOK + GENRE_BRANCHING`. Digital text/voice:
-`INTERACTIVE_FICTION` (often `+ GENRE_BRANCHING` for emphasis). Game with
-branching choices that ships as a binary (Telltale, Detroit: Become Human):
-`GAME + GENRE_BRANCHING`. The MediaType follows the distribution channel
-(axiom 10), not the narrative structure.
-
----
-
-### 8.16 Stage productions
-
-`MediaType.STAGE` is a *production* — a specific staging of a script or score
-by a specific director and cast in a specific venue. The script ("Hamlet" by
-Shakespeare) is a `BOOK` Work; the production ("RSC's 2008 Hamlet with David
-Tennant") is a `STAGE` Work linked via `WorkRelation(kind=ADAPTED_FROM)`.
-
-```python
-hamlet_script = Work(title="Hamlet", media_type=MediaType.BOOK, year=1603,
-                     credits=[author_credit("William Shakespeare")])
-rsc_hamlet = Work(
-    title="Hamlet",
-    media_type=MediaType.STAGE,
-    year=2008,
-    series_title="Royal Shakespeare Company",
-    credits=[
-        director_credit("Gregory Doran"),
-        Credit(entity=david_tennant_ref, role="Hamlet",
-               relation_role=RelationRole.ACTOR),
-    ],
-    external_ids={"theatricalia": "..."},
-)
-```
-
-Each performance night is a `Release` of the production:
-
-```python
-nightly = Release(
-    work=rsc_hamlet,
-    release_date="2008-08-12",
-    container="Live",
-    extra={"venue": "Royal Shakespeare Theatre, Stratford"},
-)
-```
-
-When a production is filmed (NT Live, Met Opera HD) the filmed version is a
-separate `MOVIE` Work with `WorkRelation(kind=ADAPTED_FROM, target=production)`.
-When archival footage of a production is later released as video, it follows
-the same pattern. The `STAGE` Work always represents the live production
-itself, regardless of whether any recording exists.
-
-External-ID keys: `ibdb` (Broadway), `theatricalia`, `operabase`.
-
----
-
-### 8.17 Box sets and composite Releases
-
-A box set is a packaging decision, not a creative work. `Release.contents`
-lets a Release directly aggregate Works without inventing a synthetic
-container Work:
-
-```python
-trilogy = Release(
-    work=fellowship_of_the_ring,            # principal / headline title
-    edition="Extended Edition Trilogy Box Set",
-    container="Blu-ray",
-    contents=[
-        Appearance(work=fellowship_of_the_ring, position=1, disc=1),
-        Appearance(work=two_towers,             position=2, disc=2),
-        Appearance(work=return_of_the_king,     position=3, disc=3),
-    ],
-)
-```
-
-When the box has no headline (a true anthology — three unrelated short films,
-a label sampler), create a single Work to act as the headline:
-
-```python
-sampler_work = Work(title="Indie Label Sampler 2024",
-                    media_type=MediaType.MUSIC, year=2024,
-                    variant_kind=VariantKind.COMPILATION)
-sampler = Release(work=sampler_work, contents=[...])
-```
-
-`tracklist` on `Work` and `contents` on `Release` solve different problems:
-
-| Use case | Where it lives |
-|---|---|
-| Album tracklist (canonical track order on the work) | `Work.tracklist` |
-| DJ mix track ordering with `offset`s (single continuous Release) | `Work.tracklist` with `Appearance.offset` |
-| Box set aggregating *separate* Works (films, albums, novels) | `Release.contents` |
-| Anthology Release with no canonical "host" Work | `Release.contents` + a synthetic anthology Work |
-
----
-
-### 8.18 Format, quality, rights, and availability
-
-The Release fields split into four orthogonal blocks:
-
-**Format axes** (`container`, `codec`, `bitrate`, `platform`) — what physically
-or digitally ships. Replaces the old overloaded `source_format`. A Blu-ray of
-a film is `container="Blu-ray", codec="H.264"`. A FLAC rip is
-`container="Digital", codec="FLAC", bitrate="24/96"`. A SNES ROM is
-`container="ROM", platform="SNES"`. An Alexa Skill is
-`container="Skill", platform="Alexa Skill"`.
-
-**Quality axes** (`resolution`, `hdr`, `audio_channels`, `sample_rate`) —
-fidelity. Enables "play me the highest-quality release" without string-parsing
-container or bitrate.
-
-**Localisation** (`region`, `audio_language`, `subtitle_languages`) — the
-dub/sub/market triple. Distinct from `VariantKind.REGIONAL` (editorial
-differences only).
-
-**Rights and availability** (`license`, `region_locked`, `regions_available`,
-`available_from`, `available_until`) — typed rather than buried in `extra`.
-Covers public-domain editions, Creative-Commons releases, region-locked
-streams, and "leaves Netflix on 2026-01-31" workflows.
-
-`license` is a free string with conventional values
-(`"all_rights_reserved"`, `"public_domain"`, `"cc_by"`, `"cc_by_sa"`,
-`"cc0"`, `"cc_by_nc"`, `"gpl"`, etc.). A typed enum is rejected because the
-license catalogue is too large and consumer-specific to lock down.
-
----
-
-### 8.19 Multiple episode orderings
-
-A single TV season often has several legitimate episode orderings:
-
-- *Production* order — the order episodes were filmed
-- *Broadcast* order — the order they aired (often shuffled by the network)
-- *Chronological* order — the order events happen in-universe
-- *Recommended* viewing order — fan or creator-suggested (Star Wars
-  "Machete order")
-
-`Work.episode` is the single default ordering. `Work.episode_orderings: Dict[str, int]`
-carries alternatives:
-
-```python
-ep = Work(
-    title="Firefly: Serenity",
-    media_type=MediaType.TV,
-    series_title="Firefly",
-    season=1,
-    episode=11,                            # Fox broadcast order
-    episode_orderings={
-        "broadcast": 11,
-        "production": 1,                   # was actually the pilot
-        "chronological": 1,
-        "recommended": 1,                  # creator-recommended viewing order
-    },
-)
-```
-
-The keys are free strings. The `episode` field always mirrors one of the
-orderings — the consumer's default. Separate Works are not created for
-alternative orderings; the Work is the same episode regardless of where it
-sits in a viewing list.
+## 8. Application patterns
+
+`mediavocab` provides vocabulary and structure. All application logic lives
+downstream. Detailed application patterns are kept out of this spec to keep it
+focused on normative model definitions; they live in `docs/patterns/`. Each
+pattern resolves to existing `MediaType`, `EntityKind`, and
+`Work`/`Release`/`Entity` fields — no new schema.
+
+- Adult media → `docs/patterns/adult-media.md`
+- Games → `docs/patterns/games.md`
+- Soundtracks → `docs/patterns/soundtracks.md`
+- Motion comics → `docs/patterns/motion-comics.md`
+- Independent creators & AI-generated content → `docs/patterns/independent-creators.md`
+- Educational content → `docs/patterns/independent-creators.md` (educational subsection)
+- IoT devices → `docs/patterns/iot-devices.md`
+- Interactive fiction & voice games → `docs/patterns/interactive-fiction.md`
+- Reader-paced & user-paced content → `docs/patterns/reader-paced-content.md`
+- Mid-Release navigation (`Chapter`) → `docs/patterns/reader-paced-content.md`
+- Accessibility tracks → `docs/patterns/accessibility.md`
+- Playlists, live-streamer channels, branching narratives → `docs/patterns/playlists-and-channels.md`
+- Stage productions → `docs/patterns/stage.md`
+- Box sets and composite Releases → `docs/patterns/box-sets.md`
+- Format, quality, rights, and availability → `docs/patterns/quality-rights-availability.md`
+- Multiple episode orderings → see `Work.episode_orderings` field docs in §5.5
 
 ---
 
@@ -2234,35 +1559,40 @@ open for v1.0 decision.
 1. ~~**Work→work relations (§6):** Deferred to v1.1. Stored in `Work.extra` for now;
    a `WorkRelation` model will be added once consumers demonstrate divergence.~~ **Resolved.**
 
-2. **Tracklist on Work vs Release:** Currently `tracklist: List[Appearance]` is on
-   `Work`. An argument exists for moving it to `Release` only, since track ordering
-   can differ between editions (bonus tracks, regional variants). Counter-argument:
-   the canonical track order is a property of the work, not the release. **Unresolved.**
+2. ~~**Tracklist on Work vs Release:**~~ **Resolved.** `Work.tracklist`
+   is the canonical track / chapter / episode order of a single Work
+   (identity-level); `Release.contents` is the Work-aggregation field
+   for box sets and anthologies (manifestation-level). Per-edition
+   bonus tracks are `Appearance` entries with `is_bonus=True` on the
+   Work tracklist. See §5.6.
 
-3. ~~**Channel/station as Work vs Entity:** A radio station is modelled as a Work with
-   `stream_mode = CONTINUOUS`; a broadcaster (BBC, NBC) is an Entity with
-   `EntityKind.ORGANISATION`. These are distinct: the station is a broadcast service (something
-   you listen to), the network is the organisation that runs it.~~ **Resolved in §5.5.**
+3. ~~**Channel/station as Work vs Entity:**~~ **Resolved in §5.5.** A
+   broadcast station is a `Work`; the broadcasting organisation is an
+   `Entity` with `EntityKind.ORGANISATION`.
 
-4. **`content_genres` as string vs typed enum:** Currently a free `List[str]` with
-   well-known constants in `genre.py`. A typed enum would enable validation and schema
-   generation but requires ongoing additions. A registry pattern (validated against a
-   known set, extensible) may be a middle ground. **Unresolved.**
+4. **Free-string vocabularies vs typed registries** — partially
+   resolved.
+   - `external_ids` now offers **both** representations: the canonical
+     ``Work.external_ids: Dict[str, str]`` with well-known key
+     constants in ``mediavocab.models.external_ids``, AND the typed
+     ``ExternalIds`` Pydantic model (~50 known fields, ISBN
+     auto-pairing, ``merge`` with first-writer-wins, ``streams``
+     extraction). Either is acceptable — convert via
+     ``ExternalIds.from_dict()`` / ``.to_dict()``. **Resolved for
+     external_ids.**
+   - `content_genres` remains `List[str]` with `GENRE_*` string
+     constants. Adding the typed-model variant for genres is deferred
+     until a consumer demonstrates the need. **Open for content_genres.**
 
-5. ~~**Multi-language `aka`:**~~ **Resolved.** `Work.aka` remains `List[str]`
-   for plain alternative spellings; `Work.localized_titles: List[Tuple[str, str]]`
-   carries language-tagged titles for cross-locale matching. Both are excluded
-   from the identity hash.
+5. ~~**Multi-language `aka`:**~~ **Resolved.** `Work.aka` remains
+   `List[str]` for plain alternative spellings; `Work.localized_titles:
+   List[Tuple[str, str]]` carries language-tagged titles for
+   cross-locale matching. Both are excluded from the identity hash.
 
-6. **`external_ids` as `Dict[str, str]` vs a typed model:** A typed model provides IDE
-   completion and validation but requires mediavocab to enumerate every external database.
-   Current decision: `Dict[str, str]` with key constants in `models/external_ids.py`.
-   Typed model (like metadatarr's `ExternalIds`) remains a consumer responsibility.
-   **Partially resolved; key constants file added to package structure.**
-
-7. ~~**Adult/explicit content modelling:**~~ **Resolved in §8.3.** GENRE_ADULT covers
-   the content flag. Scene-level Work, performer Entity, studio/platform patterns, and
-   adult database `external_ids` keys are documented in §8.3.
+6. ~~**Adult/explicit content modelling:**~~ **Resolved.**
+   `GENRE_ADULT` covers the content flag; scene-level Work, performer
+   Entity, and adult-database `external_ids` keys live in
+   `docs/patterns/adult-media.md`.
 
 ---
 
@@ -2276,3 +1606,29 @@ open for v1.0 decision.
   tuned in minor versions with changelog notes.
 - **`genre.py` constants** — additive only. New constants may be added in any version.
   Changing a constant string value is a breaking change.
+
+### 10.1 Field mutability after canonicalisation
+
+Once a Work has been canonicalised (assigned a `work_hash`), consumers must
+treat its fields as falling into two classes:
+
+**Immutable** — changing these produces a *different* Work. A consumer that
+discovers a different value has discovered a different Work, not new
+information about the same one:
+
+- `media_type`, `year`, `runtime`, `country`, `language`, `season`, `episode`,
+  `series_title`, `variant_kind`, `edition`, `source_format`
+
+(These are the inputs to `work_hash`; cf. §7.2.)
+
+**Mutable** — these accumulate over time as more sources are merged. A new
+provider supplying additional values is *enrichment*, not a conflict:
+
+- `aka`, `localized_titles`, `content_genres`, `credits`, `tracklist`,
+  `external_ids`, `extra`, `release_status`
+
+A consumer rescanning a source and finding a *different* immutable value
+should treat the new record as a separate Work and resolve the conflict
+upstream (typically by retiring the older record). The hash contract in §7.2
+guarantees that future spec versions will not retroactively invalidate
+existing hashes.

@@ -70,6 +70,36 @@ band lineups, radio stations, IoT device routing, work comparison, and the
 
 See [`docs/`](./docs/) for full reference and pattern guides.
 
+## Workspace position
+
+`mediavocab` sits at the bottom of the stack. Every other package in
+this workspace depends on it:
+
+```
+                          mediavocab
+                              ▲
+        ┌───────────┬─────────┼─────────┬───────────┐
+        │           │         │         │           │
+      tutubo   pyfanedit   pymetal   pyo*…       py_bandcamp / nuvem-de-som
+        ▲           ▲         ▲                       ▲
+        └────────┬──┴─────────┴───────────────────────┘
+                 │
+              metadatarr  ◄── canonical resolver, ships every provider above
+                 ▲
+                 │
+           media-archivist  ◄── source-DB orchestrator + sidecars + CLI/server
+```
+
+- **mediavocab**: vocabulary + structural models (this package).
+- **tutubo**, **pyfanedit**, **pymetal**, **py_bandcamp**, **nuvem_de_som**,
+  **radiosoma**, **tunein**, **audiobooker**: API clients / scrapers. Each
+  emits `mediavocab.Work` / `Release` / `Entity` directly.
+- **metadatarr**: cross-source resolver framework. Bundles every
+  first-party scraper as a hard runtime dep (no extras juggling) and
+  ships ~24 providers under `metadatarr.resolve.providers`.
+- **media-archivist**: local source-DB indexer / canonicalizer /
+  CLI / web server. Consumes metadatarr's resolver.
+
 ## Testing
 
 ```bash

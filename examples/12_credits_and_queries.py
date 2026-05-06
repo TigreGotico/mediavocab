@@ -1,25 +1,25 @@
-"""Credit ordering, primary-credit shortcuts, and Release-level credits.
+"""Credit queries and remixes-as-Works.
 
 Demonstrates:
-- `Credit.position` for editorial ordering of co-credits
 - `helpers.director` / `helpers.author` / `helpers.performers` shortcuts
-- `Release.credits` for credits that apply only to a specific manifestation
-  (a featured artist on a radio edit, etc.)
+- Credit list order is the editorial billing order
+- A remix that adds a featured artist is its own Work, related to the
+  canonical Work via `WorkRelationKind.REMIX_OF`
 """
 from mediavocab import (
-    Credit, EntityKind, EntityRef, MediaType, RelationRole, Release, Work,
+    Credit, EntityKind, EntityRef, MediaType, RelationRole, Work,
+    WorkRelation, WorkRelationKind,
 )
 from mediavocab.helpers import (
-    director, performers, primary_credit, merged_credits,
+    director, performers, credits_with_role,
 )
 
 
-def _credit(name, role, position=None):
+def _credit(name, role):
     return Credit(
         entity=EntityRef(name=name, kind=EntityKind.PERSON),
         role=role.value,
         relation_role=role,
-        position=position,
     )
 
 
@@ -29,37 +29,43 @@ def main() -> None:
         media_type=MediaType.MOVIE,
         year=1995,
         credits=[
-            _credit("Michael Mann",   RelationRole.DIRECTOR,    position=1),
-            _credit("Michael Mann",   RelationRole.SCREENWRITER, position=1),
-            _credit("Robert De Niro", RelationRole.ACTOR,        position=1),
-            _credit("Al Pacino",      RelationRole.ACTOR,        position=2),
-            _credit("Val Kilmer",     RelationRole.ACTOR,        position=3),
+            _credit("Michael Mann",   RelationRole.DIRECTOR),
+            _credit("Michael Mann",   RelationRole.SCREENWRITER),
+            _credit("Robert De Niro", RelationRole.ACTOR),
+            _credit("Al Pacino",      RelationRole.ACTOR),
+            _credit("Val Kilmer",     RelationRole.ACTOR),
         ],
     )
     print(f"{film.title} ({film.year})")
     print(f"  director: {director(film).entity.name}")
-    print("  cast (in credit order):")
-    for c in performers(film):
-        pass  # nothing — performers() is for music
-    # For films, ACTOR is the role:
-    from mediavocab.helpers import credits_with_role
-    for c in credits_with_role(film, RelationRole.ACTOR):
-        print(f"    {c.position}. {c.entity.name}")
+    print("  cast (in billing order):")
+    for i, c in enumerate(credits_with_role(film, RelationRole.ACTOR), start=1):
+        print(f"    {i}. {c.entity.name}")
 
-    # Release-level credit: a remix that adds a featuring artist
     song = Work(
         title="Hotline Bling",
         media_type=MediaType.MUSIC,
         credits=[_credit("Drake", RelationRole.PERFORMER)],
     )
-    radio_edit = Release(
-        work=song,
-        edition="Radio Edit",
-        credits=[_credit("Erykah Badu", RelationRole.FEATURING)],
+    remix = Work(
+        title="Hotline Bling (Erykah Badu Remix)",
+        media_type=MediaType.MUSIC,
+        credits=[
+            _credit("Drake",       RelationRole.PERFORMER),
+            _credit("Erykah Badu", RelationRole.FEATURING),
+        ],
+        extra={
+            "related": [
+                WorkRelation(kind=WorkRelationKind.REMIX_OF, target=song),
+            ],
+        },
     )
-    print(f"\n{song.title}  (radio edit credits):")
-    for c in merged_credits(radio_edit):
-        print(f"  - {c.entity.name:20s} [{c.relation_role.value}]")
+    print(f"\n{remix.title}")
+    print("  performers:")
+    for c in performers(remix):
+        print(f"    - {c.entity.name}")
+    for c in credits_with_role(remix, RelationRole.FEATURING):
+        print(f"    feat. {c.entity.name}")
 
 
 if __name__ == "__main__":

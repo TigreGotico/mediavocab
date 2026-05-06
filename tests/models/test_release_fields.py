@@ -69,7 +69,7 @@ def test_appearance_offset_for_continuous_mix():
 def test_episode_orderings():
     ep = Work(
         title="Serenity",
-        media_type=MediaType.TV,
+        media_type=MediaType.EPISODIC_SERIES,
         series_title="Firefly",
         season=1, episode=11,
         episode_orderings={"broadcast": 11, "production": 1, "recommended": 1},
@@ -78,8 +78,3 @@ def test_episode_orderings():
     assert ep.episode_orderings["production"] == 1
 
 
-def test_stage_media_type():
-    w = Work(title="Hamlet", media_type=MediaType.STAGE, year=2008)
-    nightly = Release(work=w, release_date="2008-08-12", container="Live")
-    assert w.media_type == MediaType.STAGE
-    assert nightly.release_date == "2008-08-12"

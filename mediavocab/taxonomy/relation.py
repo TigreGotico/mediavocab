@@ -27,6 +27,7 @@ class RelationRole(str, Enum):
 
     HOST = "host"
     GUEST = "guest"
+    CURATOR = "curator"   # selected/ordered other people's works (playlists, anthologies)
 
     DEVELOPER = "developer"
     PORTER = "porter"
@@ -58,6 +59,5 @@ class WorkRelationKind(str, Enum):
     LIVE_VERSION = "live_version"
     REMIX_OF = "remix_of"
     SOUNDTRACK_FOR = "soundtrack_for"
-    PROMOTES = "promotes"
     BONUS_FOR = "bonus_for"
-    DELETED_SCENE = "deleted_scene"
+    FANEDIT_OF = "fanedit_of"

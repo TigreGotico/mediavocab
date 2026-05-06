@@ -164,14 +164,10 @@ class Release(BaseModel):
     chapters: List[Chapter] = Field(default_factory=list)
     accessibility: List[AccessibilityTrack] = Field(default_factory=list)
 
-    # Composite / box-set Releases
+    # Composite Releases (box sets, anthology Blu-rays). A box set aggregates
+    # several Works in one Release without a synthetic container Work. `work`
+    # is the principal / headline Work; `contents` lists the member Works.
     contents: List[Appearance] = Field(default_factory=list)
-
-    # Release-level credits — supplement Work.credits for credits that apply
-    # only to this Release (featured artist on remix, remastering engineer,
-    # session musician on a deluxe-edition bonus track, translator on a
-    # localised edition).
-    credits: List[Credit] = Field(default_factory=list)
 
     # Scoring
     match_confidence: float = 0.0

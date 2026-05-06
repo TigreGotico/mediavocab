@@ -17,7 +17,8 @@ YEAR_WINDOW = 1
 
 RUNTIME_TOLERANCE_S: Dict[MediaType, float] = {
     MediaType.MOVIE:          120.0,
-    MediaType.TV:              30.0,
+    MediaType.EPISODIC_SERIES: 30.0,
+    MediaType.TV:               0.0,   # live broadcast — runtime not identity
     MediaType.MUSIC:            3.0,
     MediaType.MUSIC_VIDEO:     30.0,
     MediaType.PODCAST:         60.0,
@@ -28,9 +29,9 @@ RUNTIME_TOLERANCE_S: Dict[MediaType, float] = {
     MediaType.COMIC:            0.0,
     MediaType.GAME:                0.0,
     MediaType.INTERACTIVE_FICTION: 0.0,
-    MediaType.STAGE:               0.0,
     MediaType.SOUND_EFFECT:        0.0,
     MediaType.AMBIENT_SOUNDS:   0.0,
+    MediaType.PLAYLIST:         0.0,   # ordering-based identity, not runtime
     MediaType.GENERIC:          5.0,
     MediaType.NOT_MEDIA:        0.0,
 }
@@ -40,7 +41,7 @@ RUNTIME_TOLERANCE_S: Dict[MediaType, float] = {
 # stable hash contract — do not reorder without a major version bump.
 # `series_title` is included to prevent S01E01 cross-show collisions —
 # omitting it produces colliding hashes for TV / PODCAST / RADIO /
-# AUDIO_DRAMA / STAGE works that share season+episode+title.
+# AUDIO_DRAMA works that share season+episode+title.
 _IDENTITY_FIELDS = (
     "title", "year", "country", "runtime", "media_type", "language",
     "season", "episode", "series_title",
@@ -50,8 +51,8 @@ _IDENTITY_FIELDS = (
 
 # Media types where `series_title` is a primary identity signal.
 _EPISODIC_MEDIA = frozenset({
-    MediaType.TV, MediaType.PODCAST, MediaType.RADIO,
-    MediaType.AUDIO_DRAMA, MediaType.STAGE,
+    MediaType.EPISODIC_SERIES, MediaType.PODCAST, MediaType.RADIO,
+    MediaType.AUDIO_DRAMA,
 })
 
 
@@ -213,6 +214,41 @@ def work_hash(w: Work) -> str:
         elif f == "runtime" and v is not None:
             v = round(float(v), 2)
         elif hasattr(v, "value"):  # Enum
+            v = v.value
+        parts.append(f"{f}={v!r}")
+    blob = "|".join(parts).encode("utf-8")
+    return hashlib.sha1(blob).hexdigest()
+
+
+# Release-level identity fields. The Work side is identified by the embedded
+# work_hash; these add the manifestation-level distinctions that fork one
+# Work into multiple Releases.
+_RELEASE_IDENTITY_FIELDS = (
+    "variant_kind", "edition", "region",
+    "container", "codec", "bitrate", "platform",
+    "resolution", "hdr", "audio_channels", "sample_rate",
+    "audio_language",
+)
+
+
+def release_hash(r) -> str:
+    """Stable SHA1 over a Release's manifestation identity.
+
+    Combines the embedded ``work_hash(r.work)`` with the release-level
+    distinguishing fields (variant, edition, region, container/codec/
+    quality/platform, audio language). Two Releases of the same Work
+    that differ only in ``uri`` / ``image`` / ``release_status`` /
+    ``regions_available`` (mirrors, availability) hash identically;
+    a director's cut on Blu-ray hashes differently from a director's
+    cut on DVD.
+
+    Use as a dedup seed when a consumer wants per-edition identity, not
+    per-work identity.
+    """
+    parts = [f"work={work_hash(r.work)}"]
+    for f in _RELEASE_IDENTITY_FIELDS:
+        v = getattr(r, f, None)
+        if hasattr(v, "value"):
             v = v.value
         parts.append(f"{f}={v!r}")
     blob = "|".join(parts).encode("utf-8")

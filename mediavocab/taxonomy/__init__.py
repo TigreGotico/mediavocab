@@ -9,6 +9,7 @@ from mediavocab.taxonomy.relation import (
     WorkRelationKind,
 )
 from mediavocab.taxonomy.membership import MembershipStatus
+from mediavocab.taxonomy.content_type import ContentType
 from mediavocab.taxonomy.genre import (  # noqa: F401  (re-exported)
     GENRE_DOCUMENTARY, GENRE_ANIMATION, GENRE_ANIME, GENRE_SHORT_FILM,
     GENRE_NOIR, GENRE_CONCERT, GENRE_STAND_UP, GENRE_TALK_SHOW, GENRE_REALITY,
@@ -40,6 +41,7 @@ from mediavocab.taxonomy.genre import (  # noqa: F401  (re-exported)
 __all__ = [
     "MediaType", "VariantKind", "ReleaseStatus", "StreamMode", "EntityKind",
     "RelationRole", "CreditSection", "WorkRelationKind", "MembershipStatus",
+    "ContentType",
     # genres
     "GENRE_DOCUMENTARY", "GENRE_ANIMATION", "GENRE_ANIME", "GENRE_SHORT_FILM",
     "GENRE_NOIR", "GENRE_CONCERT", "GENRE_STAND_UP", "GENRE_TALK_SHOW",

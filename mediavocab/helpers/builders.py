@@ -49,7 +49,7 @@ def make_episode(
     """Construct a TV episode Work."""
     return Work(
         title=title or f"{series_title} S{season:02d}E{episode:02d}",
-        media_type=MediaType.TV,
+        media_type=MediaType.EPISODIC_SERIES,
         series_title=series_title,
         season=season,
         episode=episode,

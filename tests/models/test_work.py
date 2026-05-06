@@ -25,7 +25,7 @@ def test_json_roundtrip(blade_runner):
 
 
 def test_episode_fields():
-    w = Work(title="ep", media_type=MediaType.TV, season=1, episode=3,
+    w = Work(title="ep", media_type=MediaType.EPISODIC_SERIES, season=1, episode=3,
              series_title="Show")
     assert (w.season, w.episode) == (1, 3)
     assert w.series_title == "Show"

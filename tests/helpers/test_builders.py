@@ -16,7 +16,7 @@ def test_make_movie_with_director():
 def test_make_episode_synthesises_title():
     e = make_episode("Doctor Who", season=4, episode=10)
     assert e.title.endswith("S04E10")
-    assert e.media_type == MediaType.TV
+    assert e.media_type == MediaType.EPISODIC_SERIES
     assert (e.season, e.episode) == (4, 10)
 
 

@@ -27,6 +27,13 @@ from mediavocab.models import (
     AccessibilityTrack,
     Entity,
     Conflict,
+    ExternalIds,
+    Stream,
+    Signals,
+    SignalConflict,
+    MetadataProvider,
+    ProviderMatch,
+    ResolutionConflict,
 )
 
 __all__ = [
@@ -51,4 +58,11 @@ __all__ = [
     "AccessibilityTrack",
     "Entity",
     "Conflict",
+    "ExternalIds",
+    "Stream",
+    "Signals",
+    "SignalConflict",
+    "MetadataProvider",
+    "ProviderMatch",
+    "ResolutionConflict",
 ]

@@ -36,6 +36,9 @@ version = {attr = "mediavocab.version.__version__"}
 include = ["mediavocab*"]
 exclude = ["tests*", "examples*", "docs*"]
 
+[tool.setuptools.package-data]
+"mediavocab.locale" = ["**/*.voc"]
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = "-q"

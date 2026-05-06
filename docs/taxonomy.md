@@ -4,7 +4,7 @@ All enums inherit `(str, Enum)` so values compare equal to their string
 representation: `MediaType.MOVIE == "movie"`. This makes them safe to use in
 JSON, env vars, and dict keys without conversion.
 
-## `MediaType` (17 values)
+## `MediaType` (18 values)
 
 The top-level classification of a Work. Determines schema, external databases,
 and comparison tolerances.
@@ -12,7 +12,8 @@ and comparison tolerances.
 | Value | Use for |
 |---|---|
 | `MOVIE` | Feature films, short films, documentaries (with `GENRE_DOCUMENTARY`) |
-| `TV` | Episodic video — series and individual episodes |
+| `EPISODIC_SERIES` | On-demand episodic video — anime, drama, sitcom, web series |
+| `TV` | Live linear / IPTV broadcast channel (parallel to `RADIO`; channel-as-Work) |
 | `MUSIC` | Audio with music-pipeline identity (artist, ISRC, MusicBrainz) |
 | `MUSIC_VIDEO` | Promotional / performance video for a musical work |
 | `PODCAST` | Episodic non-music audio via RSS or podcast platforms |
@@ -23,9 +24,9 @@ and comparison tolerances.
 | `COMIC` | Sequential art (singles, GNs, manga, manhwa, manhua, webcomics) |
 | `GAME` | Video games (any platform) |
 | `INTERACTIVE_FICTION` | Text-/voice-driven branching narrative (Inform, Twine, Alexa Skills) |
-| `STAGE` | Live theatrical productions (plays, musicals, opera, ballet) |
 | `SOUND_EFFECT` | Short triggered audio clips (one-shots) |
 | `AMBIENT_SOUNDS` | Procedurally generated / looping environment audio |
+| `PLAYLIST` | Cross-media-type curated collection (Spotify / YouTube playlist, M3U); curator credit via `RelationRole.CURATOR` |
 | `GENERIC` | Type unknown; further resolution may clarify |
 | `NOT_MEDIA` | Terminal classifier sentinel — definitely not a media request |
 
@@ -39,7 +40,7 @@ Cuts: `THEATRICAL`, `DIRECTORS`, `EXTENDED`. Fan: `FANEDIT`, `TV_TO_MOVIE`,
 A canonical/default edition uses `variant_kind=None` — `STANDARD` is
 intentionally absent.
 
-## `EntityKind` (7 values)
+## `EntityKind` (6 values)
 
 | Value | Use for |
 |---|---|
@@ -48,8 +49,7 @@ intentionally absent.
 | `ORGANISATION` | Label, publisher, studio, broadcaster, dev studio |
 | `SERIES` | Container: TV franchise, book series, podcast show |
 | `DEVICE` | Physical playback endpoint: smart speaker, smart plug, console |
-| `EVENT` | Bounded real-world grouping: tour, festival, convention |
-| `OTHER` | Catch-all |
+| `OTHER` | Catch-all (use `extra["event_type"]="tour"` for tours/festivals) |
 
 `Entity.extra["primary_role"]` records professional identity ("primarily an
 actor") when needed; that's not a schema concern.
@@ -59,7 +59,9 @@ actor") when needed; that's not a schema concern.
 Music: `PERFORMER`, `COMPOSER`, `LYRICIST`, `PRODUCER`, `FEATURING`, `REMIXER`.
 Film/TV: `DIRECTOR`, `SCREENWRITER`, `ACTOR`, `CINEMATOGRAPHER`, `EDITOR`.
 Books/comics: `AUTHOR`, `ILLUSTRATOR`, `TRANSLATOR`, `NARRATOR`.
-Podcast/radio: `HOST`, `GUEST`. Game: `DEVELOPER`, `PORTER`. Release
+Podcast/radio: `HOST`, `GUEST`. Curated collections: `CURATOR` (playlist
+curator, anthology editor — selected and ordered other people's works).
+Game: `DEVELOPER`, `PORTER`. Release
 infrastructure: `PUBLISHER`, `LABEL`, `DISTRIBUTOR`. Generic fallback:
 `CREATOR`, `OTHER`.
 
@@ -74,9 +76,11 @@ vs. crew.
 
 ## `MembershipStatus`
 
-`CURRENT`, `PAST`, `LIVE`, `GUEST`, `INACTIVE`. **`date_to=None` does not
-mean "current"** — check `status` (a defunct band's last member has
-`date_to=None` + `status=INACTIVE`).
+`CURRENT`, `PAST`, `TOURING`, `GUEST`, `INACTIVE`. **`date_to=None` does
+not mean "current"** — check `status` (a defunct band's last member has
+`date_to=None` + `status=INACTIVE`). `TOURING` (renamed from `LIVE`)
+avoids collision with `StreamMode.LIVE` and
+`WorkRelationKind.LIVE_VERSION`.
 
 ## `ReleaseStatus`
 
@@ -93,13 +97,16 @@ streaming, rights reverted. Distinct from `CANCELLED` (never shipped).
 ## `WorkRelationKind`
 
 `COVERS`, `SAMPLES`, `ADAPTED_FROM`, `SEQUEL_TO`, `PREQUEL_TO`, `PART_OF`,
-`LIVE_VERSION`, `REMIX_OF`, `SOUNDTRACK_FOR`, `PROMOTES`, `BONUS_FOR`,
-`DELETED_SCENE`. Used by the optional `WorkRelation` model.
+`LIVE_VERSION`, `REMIX_OF`, `SOUNDTRACK_FOR`, `BONUS_FOR`, `FANEDIT_OF`.
+Used by the optional `WorkRelation` model.
 
-`PROMOTES` covers trailers, teasers, and promotional spots. `BONUS_FOR`
-covers behind-the-scenes featurettes, gag reels, and commentary tracks.
-`DELETED_SCENE` covers scenes cut from another work and not present in its
-canonical edit.
+`BONUS_FOR` is the catch-all for supplementary content: trailers, teasers,
+behind-the-scenes featurettes, gag reels, commentary tracks, and deleted
+scenes. Use the free `WorkRelation.note` field to disambiguate the subtype.
+
+`FANEDIT_OF` links a fanedit Work back to its source. Pair with
+`Work.variant_kind` (`FANEDIT`, `TV_TO_MOVIE`, `MOVIE_TO_TV`) to indicate
+the kind of recut.
 
 ## `genre.py` constants
 
