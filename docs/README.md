@@ -28,3 +28,4 @@ Applied modelling examples for each subdomain:
 - [User playlists and live-streamer channels](./patterns/playlists-and-channels.md)
 - [IoT devices](./patterns/iot-devices.md)
 - [Broadcast scheduling (EPG)](./patterns/scheduling.md)
+- [Playback modality routing](./patterns/playback-modality.md)
