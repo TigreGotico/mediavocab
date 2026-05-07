@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 import hashlib
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 
 from mediavocab.taxonomy import MediaType
 from mediavocab.models.work import Work
@@ -205,7 +205,16 @@ def merge(*works: Work) -> Work:
 
 
 def work_hash(w: Work) -> str:
-    """Stable SHA1 over identity fields. See spec §7.2."""
+    """Stable SHA1 over identity fields. See spec §7.2.
+
+    ``aka`` and ``localized_titles`` are intentionally **excluded** from
+    the hash — they are alternative spellings of the *same* identity, not
+    distinct identities. Two records that differ only in their alias
+    lists hash equal and merge via :func:`merge` (alias lists are
+    unioned, not compared). If you need a hash that *is* alias-sensitive
+    (e.g. for forensic dedup), build it yourself from
+    ``work.aka + [work.title]`` rather than mutating the canonical hash.
+    """
     parts = []
     for f in _IDENTITY_FIELDS:
         v = getattr(w, f, None)

@@ -71,3 +71,117 @@ release = make_release(movie, "file:///x.mkv")
 
 Builders are conveniences only — never required. Construct models directly when
 you need fields the builders don't expose.
+
+## Parse raw titles
+
+```python
+from mediavocab.text import parse_title
+
+r = parse_title("Blade Runner (1982) [Director's Cut] [4K UHD].mkv")
+# r.title="Blade Runner.mkv"  r.year=1982  r.variant_kind=VariantKind.DIRECTORS
+# r.source_format="4K UHD"
+```
+
+Locale-aware via the optional `lang=` parameter (`"pt-pt"`, `"es"`,
+`"fr-fr"`, …) — the `.voc` keyword tree lives at
+`mediavocab/locale/<lang>/`.
+
+## Resolve across providers
+
+`mediavocab.Signals` is the disambiguation bag every cross-source resolver
+shares. The `modality` field gates which providers are invoked — orthogonal to
+`medium` (spec axiom 13):
+
+```python
+from mediavocab import (
+    Signals, MediaType, PlaybackModality, ExternalIds,
+    MetadataProvider, ProviderMatch,
+)
+from mediavocab.models.signals import compare_signals, signal_hash
+from mediavocab.taxonomy.modality import infer_modality
+from mediavocab.text import release_hash, isbn10_to_13
+
+# "play me Blade Runner" — VIDEO modality skips audio-only providers
+local = Signals(
+    title="Blade Runner", year=1982, medium=MediaType.MOVIE,
+    modality=PlaybackModality.VIDEO,
+)
+
+# When the caller has no verb hint, infer from the media type:
+# infer_modality(MediaType.PODCAST) → PlaybackModality.AUDIO
+local_audio = Signals(
+    title="Hardcore History", medium=MediaType.PODCAST,
+    modality=infer_modality(MediaType.PODCAST),
+)
+
+ids = ExternalIds(isbn_10="0-261-10328-8")     # ISBN-13 auto-paired
+print(ids.streams)                              # → typed list of playable URLs
+
+# Per-edition dedup across mirrors / availability changes
+print(release_hash(remaster))
+```
+
+## Pick the best available release
+
+```python
+from mediavocab.helpers.queries import best_release, quality_score
+
+# theatrical BluRay vs 4K remaster
+theatrical = make_release(movie, "file:///x/theatrical.mkv",
+                          resolution="1080p", audio_channels="5.1")
+remaster   = make_release(movie, "file:///x/4k-remaster.mkv",
+                          variant_kind=VariantKind.REMASTERED,
+                          resolution="2160p", hdr="Dolby Vision",
+                          audio_channels="Atmos")
+
+winner = best_release(theatrical, remaster)
+print(winner.resolution)   # "2160p"
+print(quality_score(theatrical))  # (5, 5, 0, 4, 0)  — lower than remaster
+```
+
+`best_release` returns `None` when called with no arguments. List order
+breaks ties, so pre-order by preference (local file before stream) before
+calling.
+
+## Model a broadcast schedule
+
+```python
+from mediavocab import EntityRef, EntityKind
+from mediavocab.models.work import Programme, Schedule
+
+bbc_r4 = EntityRef(name="BBC Radio 4", kind=EntityKind.GROUP)
+episode_ref = EntityRef(name="Desert Island Discs",
+                        external_ids={"tvmaze": "12345"})
+
+slot = Programme(
+    work=episode_ref,
+    channel=bbc_r4,
+    starts_at="2026-05-06T09:00:00Z",
+    ends_at="2026-05-06T09:45:00Z",
+    is_repeat=False,
+)
+
+schedule = Schedule(
+    channel=bbc_r4,
+    programmes=[slot],
+    valid_from="2026-05-06T00:00:00Z",
+    valid_until="2026-05-07T00:00:00Z",
+    source="tvmaze",
+)
+
+# Find what's on at a given instant
+from datetime import datetime, timezone
+now = "2026-05-06T09:20:00Z"
+current = next(
+    (p for p in schedule.programmes
+     if p.starts_at <= now < (p.ends_at or now + "Z")),
+    None,
+)
+```
+
+`Programme` and `Schedule` are EPG-only models — they are not `Work`
+subclasses and carry no playback URI. See `docs/patterns/scheduling.md`
+for the full broadcast scheduling pattern.
+
+See `docs/text-utilities.md` for the full text / parsing / classifier
+surface and `docs/models.md` for the model catalogue.

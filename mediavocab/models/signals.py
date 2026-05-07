@@ -1,23 +1,42 @@
-"""Signals — the disambiguation bag.
+"""Signals — the resolver query / observation / consensus model.
 
-A flat, pre-canonical metadata bag used by resolvers, scrapers, and
-dedup pipelines *before* a full :class:`Work` record exists. The shape
-is deliberately small (~14 fields) and distinct from ``Work``: no
-nested credits, no tracklist, no Release inheritance.
+``Signals`` exists *only* in the resolver pipeline. The taxonomy and
+``Work`` / ``Release`` / ``Entity`` models do not use it; persisted
+records are ``Work``s. See spec §5.10 for the full scope rules.
 
-Compared to ``Work``:
+The same shape carries three roles, distinguished by *direction of flow*:
 
-- ``Work`` is the canonical record — has identity, credits, tracklist.
-- ``Signals`` is the candidate record — what one provider asserts
-  about a row, suitable for cross-provider conflict detection and
-  first-non-None merging.
+1. **Query** (caller → resolver). Filled with what the caller knows;
+   passed to ``MetadataProvider.matches(signals)`` to gate dispatch
+   and ``MetadataProvider.lookup(signals)`` to fetch.
+2. **Observation** (provider → consolidator). The provider re-emits a
+   ``Signals`` on its ``ProviderMatch.signals`` describing what *it*
+   believes the work is. The consolidator compares observations
+   across providers via :func:`compare_signals` and discards
+   conflicts.
+3. **Result** (consolidator → caller). The merged consensus on
+   ``ResolveResult.signals`` produced by :func:`merge_signals` — the
+   closest the resolver pipeline gets to a ``Work``, but not a
+   ``Work``: no canonical hash, no credits, no tracklist, no
+   accessibility profile. A consumer that needs a ``Work`` calls a
+   separate constructor (e.g.
+   ``metadatarr.canonicalize.work_from_resolve_result``).
 
-Comparison rules (encoded in :func:`compare`):
+Why the field overlap with ``Work`` is intentional: cross-provider
+comparison needs identical comparable structure. The duplication is
+the reason the comparator can be written once. The orthogonality
+axiom (spec §2 axiom 13) keeps ``Signals``-only fields off ``Work``:
+``include_variants``, ``fanedit_subtype``, ``modality`` are all
+routing hints, not identity claims.
+
+Comparison rules (encoded in :func:`compare_signals`):
 
 - A field absent on either side is **not** a disagreement.
 - All overlapping fields must agree → matched.
 - Any single overlapping field disagrees → conflict (caller decides
   whether to quarantine, demote confidence, or accept).
+- ``modality`` is a query hint and is **never** a conflict-eligible
+  field; providers don't observe it, the comparator skips it.
 """
 from __future__ import annotations
 
@@ -27,6 +46,7 @@ from typing import Any, Dict, List, Optional
 from pydantic import BaseModel, ConfigDict, Field
 
 from mediavocab.taxonomy import MediaType, VariantKind
+from mediavocab.taxonomy.modality import PlaybackModality
 from mediavocab.text.compare import (
     TITLE_MIN as _TITLE_MIN,
     ARTIST_MIN as _ARTIST_MIN,
@@ -75,6 +95,12 @@ class Signals(BaseModel):
     # Resolver hint — should the cross-source resolver fan out to
     # variant-aware providers? Defaults to False.
     include_variants: bool = False
+
+    # Routing-axis hint, orthogonal to ``medium``. The resolver gate
+    # filters providers by ``provider.modality`` ∋ ``signals.modality``;
+    # ``None`` means "no preference". Never participates in identity or
+    # in :func:`compare_signals` — it is a query field, never observed.
+    modality: Optional[PlaybackModality] = None
 
 
 class SignalConflict(BaseModel):

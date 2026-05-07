@@ -1,12 +1,15 @@
-"""Cross-source resolver protocol — typed shape only, no runtime registry.
+"""Cross-source resolver contract — abstract base, no runtime registry.
 
 Defines the typed interface a metadata provider implements when
 participating in a cross-source resolver pipeline:
 
 - :class:`ProviderMatch` — what a provider returns for a given
   :class:`~mediavocab.models.Signals` query.
-- :class:`MetadataProvider` — the runtime ``Protocol`` every concrete
-  provider implements.
+- :class:`MetadataProvider` — the abstract base every concrete provider
+  inherits from. Subclass and implement :meth:`is_available` and
+  :meth:`lookup`; :meth:`matches` ships with a default routing
+  implementation that callers can override only when the default
+  ``(media, genre_filter)`` gate is insufficient.
 - :class:`ResolutionConflict` — a single match dropped by the
   consolidator because it disagreed with what was already accepted.
 
@@ -17,21 +20,14 @@ the same shape regardless of who hosts the implementation.
 """
 from __future__ import annotations
 
-from typing import (
-    ClassVar,
-    Dict,
-    List,
-    Optional,
-    Protocol,
-    Set,
-    runtime_checkable,
-)
+from abc import ABC, abstractmethod
+from typing import ClassVar, List, Optional, Set
 
 from pydantic import BaseModel, ConfigDict, Field
 
 from mediavocab.models.external_ids import ExternalIds
 from mediavocab.models.signals import Signals, SignalConflict
-from mediavocab.taxonomy import MediaType
+from mediavocab.taxonomy import MediaType, PlaybackModality
 
 
 class ProviderMatch(BaseModel):
@@ -61,89 +57,124 @@ class ProviderMatch(BaseModel):
 class ResolutionConflict(BaseModel):
     """One provider match dropped from the consolidated result because
     it disagreed with what was already accepted.
-
-    Surfacing these is how a resolver explains "we ignored provider X
-    on these fields" without silently throwing the data away.
     """
 
     model_config = ConfigDict(extra="forbid")
 
     provider: str
-    """The provider whose match was dropped."""
-
     against: str
-    """Either ``"local"`` (disagreed with the input query) or the name
-    of the already-accepted provider that anchored the result."""
-
     fields: List[SignalConflict] = Field(default_factory=list)
-    """The specific :class:`SignalConflict` entries that triggered the
-    drop."""
 
 
-@runtime_checkable
-class MetadataProvider(Protocol):
-    """Typed interface every resolver-participating provider implements.
+class MetadataProvider(ABC):
+    """Abstract base every cross-source resolver provider inherits from.
 
-    A provider is anything that, given a :class:`Signals` query,
-    returns zero or more :class:`ProviderMatch` results. The optional
-    :attr:`media` and :attr:`genre_filter` class-level attributes let
-    a dispatcher gate calls without invoking the provider:
+    Routing is **three-axis**, with each axis orthogonal (spec axiom 13):
 
-    - ``media`` — the set of ``MediaType`` values this provider
-      handles. Empty set ⇒ universal w.r.t. media type.
-    - ``genre_filter`` — the set of genre tags (typically
-      ``mediavocab.taxonomy.genre`` constants) that must overlap with
-      ``signals.content_genres`` for this provider to be eligible.
-      Empty set ⇒ no genre gate.
+    - ``media`` — set of ``MediaType`` values this provider handles.
+    - ``modality`` — set of ``PlaybackModality`` values (AUDIO / VIDEO /
+      INTERACTIVE / TEXT / UNKNOWN). Lets a caller route a
+      ``MediaType.GENERIC`` query to audio-only providers by passing
+      ``Signals(modality=AUDIO)``.
+    - ``genre_filter`` — set of genre tags from
+      ``mediavocab.taxonomy.genre``.
 
-    Anime / manga-only providers therefore declare e.g.
+    A provider matches when **all three** of the following hold:
+
+        (no ``media`` declared OR signals.medium is None
+         OR signals.medium in self.media)
+        AND
+        (no ``modality`` declared OR signals.modality is None
+         OR signals.modality in self.modality)
+        AND
+        (no ``genre_filter`` declared
+         OR self.genre_filter ∩ signals.content_genres)
+
+    Anime / manga-only providers declare e.g.
     ``media = {EPISODIC_SERIES, MOVIE}`` plus
     ``genre_filter = {"anime"}`` rather than a fake
-    ``MediaType.ANIME`` value (anime is a *genre*, per spec axiom 2).
+    ``MediaType.ANIME`` value (anime is a *genre*, per axiom 2).
+    Audio-only book providers declare ``modality = {AUDIO}`` so a
+    GENERIC query with ``modality=VIDEO`` skips them.
+
+    Subclasses must implement :meth:`is_available` and :meth:`lookup`.
+    Override :meth:`matches` only if the default three-axis gate is
+    wrong for your provider.
     """
 
-    name: ClassVar[str]
+    name: ClassVar[str] = ""
     """Stable provider name — used as the registry key and as
-    ``ProviderMatch.provider``."""
+    :attr:`ProviderMatch.provider`. Override in subclasses."""
 
-    media: ClassVar[Set[MediaType]]
+    media: ClassVar[Set[MediaType]] = set()
     """Media-type gate. Empty ⇒ universal."""
 
-    genre_filter: ClassVar[Set[str]]
-    """Genre-tag gate. Empty ⇒ no gate. When set, at least one tag
-    must appear in ``signals.content_genres`` for the provider to be
-    invoked."""
+    modality: ClassVar[Set[PlaybackModality]] = set()
+    """Playback-modality gate. Empty ⇒ universal. When set, at least one
+    of the modalities must match ``signals.modality`` for the provider
+    to be invoked. ``signals.modality is None`` always passes."""
 
+    genre_filter: ClassVar[Set[str]] = set()
+    """Genre-tag gate. Empty ⇒ no gate. When set, at least one tag must
+    appear in ``signals.content_genres`` for the provider to be invoked."""
+
+    @abstractmethod
     def is_available(self) -> bool:
         """True if the provider has all the configuration it needs
-        (API keys, optional dependencies, …) to actually run."""
+        (API keys, optional dependencies, network reachability) to
+        actually run."""
 
+    @abstractmethod
     def lookup(self, signals: Signals) -> Optional[ProviderMatch]:
         """Return the single best match for ``signals``, or ``None``."""
 
     def matches(self, signals: Signals) -> bool:
-        """Default routing test used by dispatchers:
-
-        - ``media`` empty OR ``signals.medium`` is ``None`` OR
-          ``signals.medium in self.media``
-        - AND
-        - ``genre_filter`` empty OR ``self.genre_filter`` overlaps
-          ``signals.content_genres``
-        """
+        """Default three-axis routing test. Override only if your
+        provider needs a non-standard gate."""
+        return _three_axis_gate(
+            self.media, self.modality, self.genre_filter, signals,
+        )
 
 
-def provider_matches(provider: MetadataProvider, signals: Signals) -> bool:
-    """Reference implementation of :meth:`MetadataProvider.matches`.
+def _three_axis_gate(
+    media: Set[MediaType],
+    modality: Set[PlaybackModality],
+    genre_filter: Set[str],
+    signals: Signals,
+) -> bool:
+    """Single source of truth for the three-axis routing gate
+    (mediavocab spec axiom 13).
 
-    Dispatcher implementations should follow this exact gate so
-    cross-package routing is consistent.
+    A concern that doesn't change the schema earns a typed routing
+    field, not a ``MediaType`` value. The gate short-circuits
+    independently on each axis; an empty class-level set means
+    "accept all" for that axis, and a ``None`` on the signals side
+    means the caller has no preference.
     """
-    media = getattr(provider, "media", None) or set()
     if media and signals.medium and signals.medium not in media:
         return False
-    genre_filter = getattr(provider, "genre_filter", None) or set()
+    if modality and signals.modality and signals.modality not in modality:
+        return False
     if genre_filter:
         tags = set(signals.content_genres or [])
         if not (tags & genre_filter):
             return False
     return True
+
+
+def provider_matches(provider: MetadataProvider, signals: Signals) -> bool:
+    """Standalone three-axis gate, callable on any object that declares
+    the ``media`` / ``modality`` / ``genre_filter`` attributes
+    (the duck-typed contract).
+
+    Identical semantics to :meth:`MetadataProvider.matches` — both
+    paths delegate to :func:`_three_axis_gate`. Use this form when
+    you want to gate an arbitrary object that doesn't subclass
+    :class:`MetadataProvider` (typing tests, plugin shims, …).
+    """
+    return _three_axis_gate(
+        getattr(provider, "media", None) or set(),
+        getattr(provider, "modality", None) or set(),
+        getattr(provider, "genre_filter", None) or set(),
+        signals,
+    )

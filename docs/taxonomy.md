@@ -108,6 +108,35 @@ scenes. Use the free `WorkRelation.note` field to disambiguate the subtype.
 `Work.variant_kind` (`FANEDIT`, `TV_TO_MOVIE`, `MOVIE_TO_TV`) to indicate
 the kind of recut.
 
+## `ReleaseRelationKind`
+
+`SUPERSEDES`, `REMASTER_OF`, `REISSUE_OF`, `PORT_OF`, `DERIVED_FROM`. See
+`models.md § ReleaseRelation` for semantics.
+
+## `PlaybackModality` — routing axis
+
+`mediavocab/taxonomy/modality.py` — orthogonal to `MediaType` (axiom 13).
+
+| Value | Intent |
+|---|---|
+| `AUDIO` | Caller wants audio playback — maps to `MUSIC`, `PODCAST`, `AUDIOBOOK`, `AUDIO_DRAMA`, `RADIO`, `SOUND_EFFECT`, `AMBIENT_SOUNDS` |
+| `VIDEO` | Caller wants video — maps to `MOVIE`, `EPISODIC_SERIES`, `TV`, `MUSIC_VIDEO` |
+| `TEXT` | Caller wants a readable work — maps to `BOOK`, `COMIC` |
+| `INTERACTIVE` | Game or interactive fiction |
+| `UNKNOWN` | `PLAYLIST`, `GENERIC`, `NOT_MEDIA`, or no playback intent |
+
+`infer_modality(media_type) -> PlaybackModality` returns the default modality
+for a `MediaType` via `MEDIA_TYPE_TO_MODALITY` — `mediavocab/taxonomy/modality.py:55`.
+Pass to `Signals.modality` when the caller has no explicit verb hint and wants
+to constrain the resolver gate.
+
+Provider declaration (`mediavocab/models/protocols.py:112`):
+```python
+modality: ClassVar[Set[PlaybackModality]] = {PlaybackModality.AUDIO}
+```
+Empty set means the provider is universal. When non-empty, a `Signals` with
+`modality=None` always passes; a set `Signals.modality` must be a member.
+
 ## `genre.py` constants
 
 Canonical lowercase spellings — additive only. The package ships constants for

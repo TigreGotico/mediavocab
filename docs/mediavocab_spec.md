@@ -41,9 +41,14 @@ scraping, playing, recommending.
 These rules govern every inclusion and exclusion decision in this specification.
 When in doubt, apply the axiom and document the reasoning.
 
-1. **A type earns its place by changing the schema.**
+1. **A `MediaType` value earns its place by changing the schema AND when no orthogonal axis would fit.**
    If two kinds of content require identical fields, the same external databases, and the
    same comparison tolerances, they are the same type. Genre tags distinguish them.
+
+   If a distinction is real but the schema is unchanged, it is an *axis* (modality, regional
+   variant, accessibility profile) — see axiom 13. The two-part test prevents the recurring
+   failure mode where a real distinction is jammed into `MediaType` because no other home
+   exists. Add the axis first; then ask whether `MediaType` still needs the new value.
 
 2. **Genre is not type.**
    Anime is TV with a cultural origin. Documentary is a film with a non-fiction treatment.
@@ -109,6 +114,31 @@ When in doubt, apply the axiom and document the reasoning.
     artefact has materially different schemas in two channels (an ASMR ISRC release on a
     label and the same recording on an RSS feed), it is two Works linked by a
     `WorkRelation`. The classifier MUST commit to one type at Work-construction time.
+
+13. **Routing axes are orthogonal to identity.**
+    A concern that doesn't change the schema earns a typed *field* (typically on `Signals`
+    or as a `ClassVar` on `MetadataProvider`), **not** a `MediaType` value. The resolver
+    gate is `(media, modality, content_genres, …)`; identity is `(media + identity-fields)`.
+
+    `PlaybackModality` (AUDIO / VIDEO / INTERACTIVE / TEXT / UNKNOWN) is the first such
+    axis: a request verb collapses cleanly onto it ("play X" ⇒ AUDIO; "watch X" ⇒ VIDEO),
+    a provider declares which modalities it serves, and the gate filters dispatch
+    accordingly. Trailers, behind-the-scenes clips, and reactions are not separate
+    `MediaType`s — they are `MediaType.GENERIC` with a `content_genres` tag and (typically)
+    the right modality.
+
+    Axioms that follow this pattern: an axis must be (a) declarable on `MetadataProvider`
+    as a `ClassVar[Set[X]]`, (b) optional on `Signals` (None = no preference), and
+    (c) absent from `work_hash` and `release_hash`. Identity does not move; routing
+    constrains dispatch.
+
+14. **Provider output flows through typed fields OR `extra` — never both.**
+    If a value has a typed home (`external_ids.musicbrainz_release_group`,
+    `Signals.modality`, a typed `Stream` in `ExternalIds.streams`), the provider
+    populates that. The same value MUST NOT also appear as a `ProviderEntity` relation,
+    an `extra` key, or a free string elsewhere in the same match. The consolidator
+    dedup contract assumes one source of truth per fact; double-writing produces silent
+    conflicts and inflates `match_quality()` scores.
 
 ---
 
@@ -403,13 +433,29 @@ this decision tree in order — first match wins:
 
 **`PLAYLIST`**  
 A user-curated cross-media-type collection: Spotify playlists, YouTube playlists,
-M3U files, OPML podcast bundles. The playlist's identity is the *selection and
-ordering*; the constituent Works keep their own MediaType. Schema: `tracklist`
-of `Appearance`s, `Credit` for the curator with `relation_role =
-RelationRole.CURATOR`, mutable membership over time, distinct external databases
-(Spotify Playlist API, YouTube Playlist API). A single-media-type *published*
-compilation (a mixtape, a "best of" album) stays at the underlying media type
-with `variant_kind = COMPILATION` — the schema is the same as a regular release.
+M3U files, OPML podcast bundles. The constituent Works keep their own MediaType.
+Schema: `tracklist` of `Appearance`s, `Credit` for the curator with `relation_role =
+RelationRole.CURATOR`, distinct external databases (Spotify Playlist API,
+YouTube Playlist API).
+
+Identity is anchored at the **source** — the `external_ids` entry that points
+at the upstream playlist record (e.g. `spotify_playlist_id`, `youtube_playlist_id`).
+The same playlist may be reordered, have tracks added, or have tracks removed
+without becoming a different Work; the source-side ID is stable across those
+edits. This is consistent with §10.1: `tracklist` is in the *mutable* set;
+the playlist's identity is its `external_ids` + `title` + `media_type`, not
+its membership.
+
+A single-media-type *published* compilation (a mixtape, a "best of" album)
+stays at the underlying media type with `variant_kind = COMPILATION` — the
+schema is the same as a regular release.
+
+A standalone playlist with no upstream source (a hand-curated `.m3u`)
+inherits its identity from the file path / URI; consumers that need
+content-based dedup should hash `(title, [appearance.work.external_ids
+for appearance in tracklist])` themselves — that hash is non-normative
+and not part of `work_hash`.
+
 See `docs/patterns/playlists-and-channels.md`.
 
 **`GENERIC`**  
@@ -887,6 +933,62 @@ GENRE_ADULT          = "adult"          # explicit sexual content; applies to an
 GENRE_AI_GENERATED   = "ai_generated"   # primary creative content produced by an AI system
 ```
 
+### 4.10 `PlaybackModality` — the playback-intent axis
+
+Orthogonal to `MediaType` (axiom 13). A request verb collapses cleanly onto a modality at
+the consumer side: *"play X"* ⇒ AUDIO; *"watch X"* / *"show me X"* ⇒ VIDEO; *"open X"* /
+*"read X"* ⇒ TEXT or INTERACTIVE depending on context. The resolver gates providers on
+the modality the caller hints at, so a `Signals(medium=GENERIC, modality=AUDIO)` never
+touches TVmaze or pyfanedit.
+
+```python
+class PlaybackModality(str, Enum):
+    AUDIO       = "audio"
+    VIDEO       = "video"
+    INTERACTIVE = "interactive"   # game, interactive fiction
+    TEXT        = "text"          # book, comic, ebook
+    UNKNOWN     = "unknown"        # GENERIC / PLAYLIST / NOT_MEDIA / no hint
+```
+
+**Default `MediaType → PlaybackModality` mapping** (`mediavocab.taxonomy.modality.MEDIA_TYPE_TO_MODALITY`):
+
+| Modality | MediaTypes |
+|---|---|
+| `AUDIO` | `MUSIC`, `PODCAST`, `AUDIOBOOK`, `AUDIO_DRAMA`, `RADIO`, `SOUND_EFFECT`, `AMBIENT_SOUNDS` |
+| `VIDEO` | `MOVIE`, `EPISODIC_SERIES`, `TV`, `MUSIC_VIDEO` |
+| `TEXT` | `BOOK`, `COMIC` |
+| `INTERACTIVE` | `GAME`, `INTERACTIVE_FICTION` |
+| `UNKNOWN` | `PLAYLIST`, `GENERIC`, `NOT_MEDIA` |
+
+`PLAYLIST` is `UNKNOWN` because membership decides the modality — the consumer infers
+from the first track. `NOT_MEDIA` is `UNKNOWN` because it is by definition not playback.
+`GENERIC` is `UNKNOWN` and the modality hint on `Signals` is exactly the field that
+disambiguates it for routing — *"play this thing"* (AUDIO) versus *"show me this thing"*
+(VIDEO) on the same MediaType.
+
+**Routing rule** (`MetadataProvider.matches`, axiom 13):
+
+```
+(no `media`    declared OR signals.medium   in self.media)
+AND
+(no `modality` declared OR signals.modality in self.modality)
+AND
+(no `genre_filter` declared OR self.genre_filter ∩ signals.content_genres)
+```
+
+Each axis short-circuits independently. A provider declares
+`modality = {PlaybackModality.AUDIO}` to opt out of video routing without claiming any
+particular `MediaType`.
+
+**No `DEVICE` modality.** Per axiom 4, devices are `Entity(EntityKind.DEVICE)`;
+*"turn on the kitchen light"* is `MediaType.NOT_MEDIA`. `PlaybackModality` is for
+media-playback intent only.
+
+**No field on `Work` or `Release`.** Modality is a routing concern, not identity (axiom 13).
+A `Work` whose modality consumers want to know is a `Work` whose `MediaType` already
+carries that information through `infer_modality(work.media_type)`. Persisting an
+explicit modality on `Work` would invite drift between two sources of truth.
+
 ---
 
 ## 5. Models
@@ -1027,6 +1129,11 @@ class Work(BaseModel):
                                            # (instrumental music, non-verbal film). Consumers
                                            # needing the distinction set `extra["language_na"] = True`.
                                            # Not validated at model level (use text.iso).
+    original_languages: List[str] = []     # multi-language originals (Quebec film FR+EN,
+                                           # simulcast anime JP+EN, bilingual hip-hop tracks).
+                                           # `language` remains the primary; `original_languages`
+                                           # carries the full list when the work was authored in
+                                           # several at once. Empty list = single-language Work.
     country: str = ""                      # ISO 3166-1 alpha-2 — origin country. Same conflation
                                            # rule as language. Per-MediaType convention:
                                            #   MOVIE / EPISODIC_SERIES → production country
@@ -1225,6 +1332,12 @@ class Release(BaseModel):
     available_from: Optional[str] = None   # ISO date — when this Release becomes (or became) available
     available_until: Optional[str] = None  # ISO date — when access is scheduled to end (e.g.
                                            # "leaves Netflix on 2026-01-31"). None = no scheduled end.
+    availability_windows: List[Tuple[Optional[str], Optional[str]]] = []
+                                           # Cycled availability ("Disney vault" pattern):
+                                           # ordered list of (from, until) ISO-date pairs. Either
+                                           # side may be None for open-ended bookends. Use only
+                                           # when there are *multiple* windows; the simple single-
+                                           # window case stays in `available_from` / `available_until`.
 
     # Playback
     uri: str = ""                          # stream URL, file path, or platform deep link
@@ -1329,6 +1442,131 @@ class Entity(BaseModel):
 
 ---
 
+### 5.8 `License`
+
+`Release.license: str` is the canonical persisted form for licence
+information — an SPDX-style identifier (`"CC-BY-SA-4.0"`,
+`"all_rights_reserved"`, …) or the empty string for "unknown."
+`License` is the typed companion for callers who want to filter on
+rights without string-matching every variation.
+
+```python
+class License(BaseModel):
+    identifier: str = ""               # SPDX-style or free string
+    name: str = ""
+    url: str = ""
+    attribution: bool = True           # credit required (CC default)
+    share_alike: bool = False          # derivatives must adopt same licence
+    commercial: bool = True            # commercial use permitted
+    derivatives: bool = True           # derivative works permitted
+    is_public_domain: bool = False     # PD / CC0 / PDM
+
+    def is_open(self) -> bool: ...
+    @classmethod
+    def from_spdx(cls, spdx: str) -> "License": ...
+```
+
+`License.from_spdx()` parses the well-known Creative Commons family
+(`CC0-1.0`, `CC-BY`, `CC-BY-SA`, `CC-BY-NC`, `CC-BY-NC-SA`, `CC-BY-ND`,
+`CC-BY-NC-ND`), the public-domain forms (`PDM`, `public_domain`), and
+falls back to a fully-restricted licence for unknown identifiers. The
+returned model is a *view* — `Release.license` stays the source of
+truth.
+
+### 5.9 `Programme` and `Schedule`
+
+Live linear broadcast (`MediaType.TV`, `MediaType.RADIO`) needs a
+schedule model: *what is airing on this channel at what time*. The
+channel-as-Work captures stable channel identity; `Schedule` and
+`Programme` capture the airing axis.
+
+```python
+class Programme(BaseModel):
+    """A single airing of a Work on a broadcast channel."""
+    work: EntityRef                          # the content Work being aired
+    channel: EntityRef                       # the broadcast channel Work / Entity
+    starts_at: str                           # ISO datetime; aired-at start
+    ends_at: Optional[str] = None
+    runtime: Optional[float] = None          # seconds
+    is_live: bool = False
+    is_repeat: bool = False
+    extra: Dict[str, Any] = {}
+
+
+class Schedule(BaseModel):
+    """An ordered list of Programme slots for a single channel."""
+    channel: EntityRef
+    programmes: List[Programme] = []
+    valid_from: Optional[str] = None
+    valid_until: Optional[str] = None
+    source: str = ""                         # "tunein", "tvmaze", "epg.xml", …
+    fetched_at: Optional[str] = None
+    extra: Dict[str, Any] = {}
+```
+
+A `Programme` is a *slot* — it locates a Work in time on a specific
+channel. The same episode airing on two channels yields two Programme
+records, one Work. Schedules are append-only at the model level; to
+refresh, replace the `Schedule` wholesale.
+
+mediavocab does not model "what's on right now" as a function — query
+the schedule for the slot whose `[starts_at, ends_at)` contains the
+consumer's clock.
+
+### 5.10 `Signals` — scope and pipeline usage
+
+`Signals` is the **query / disambiguation** model. Persisted records are `Work`s; the
+taxonomy and `Work` / `Release` / `Entity` models do not use `Signals`. **`Signals` exists
+*only* in the resolver pipeline.**
+
+The same shape carries three roles, distinguished by direction of flow:
+
+1. **Query** (caller → resolver). The caller fills in what they know:
+   ```python
+   Signals(title="Inception", year=2010,
+           medium=MediaType.MOVIE,
+           modality=PlaybackModality.VIDEO)
+   ```
+   Used by `MetadataProvider.matches(signals)` to gate dispatch, then passed to
+   `MetadataProvider.lookup(signals)` to fetch.
+
+2. **Observation** (provider → consolidator). The provider re-emits a `Signals` on its
+   `ProviderMatch.signals` to describe what *it* believes the work is. The consolidator
+   compares observations across providers via `compare_signals()` and discards conflicts.
+
+3. **Result** (consolidator → caller). The merged consensus on `ResolveResult.signals`,
+   produced by `merge_signals()` over the accepted matches. This is the closest thing the
+   resolver pipeline produces to a `Work` — but it is **not** a `Work`: no canonical hash,
+   no `credits`, no `tracklist`, no `accessibility` profile. A consumer that needs a
+   `Work` calls a separate constructor (e.g.
+   `metadatarr.canonicalize.work_from_resolve_result`); there is no implicit
+   `Signals → Work` coercion.
+
+**Why the field overlap with `Work` is intentional.** Cross-provider comparison needs
+identical comparable structure; the duplication is the reason the comparator can be
+written once. The orthogonality axiom (axiom 13) keeps `Signals`-only fields off `Work`:
+
+| `Signals`-only field | Why it doesn't belong on `Work` |
+|---|---|
+| `include_variants: bool` | Query-only fan-out hint. Not an identity claim. |
+| `fanedit_subtype: str` | Sub-classification used by query-time filtering, not stored. |
+| `modality: PlaybackModality` | Routing axis (axiom 13). A `Work`'s modality is derived from its `MediaType`. |
+
+| `Work`-only field | Why it doesn't belong on `Signals` |
+|---|---|
+| `credits` | Identity-shaping; not derivable from a single provider response. |
+| `tracklist` | Container-shape; resolved post-merge, not per-provider. |
+| `accessibility`, `chapters` | Per-Release; `Signals` is per-Work. |
+| `aka`, `localized_titles` | Aliases; merged at canonicalisation, not at lookup. |
+| `external_ids` (typed) | `Signals` carries IDs only via `ProviderMatch.external_ids`, never on the bag itself. |
+
+**`compare_signals()` skips `modality`.** The modality is a query hint, never an
+observation; comparing it across providers would always tie or always disagree depending
+on the caller. `signal_hash()` likewise excludes it. This follows the third clause of
+axiom 13: routing-axis fields are absent from identity hashes.
+
+---
+
 ## 6. Relationships between Works
 
 The `credits` field on `Work` handles entity→work relationships (who made this).
@@ -1353,12 +1591,45 @@ class WorkRelationKind(str, Enum):
     FANEDIT_OF     = "fanedit_of"      # this Work is a fanedit/recut of the target. Use
                                        # alongside `Work.variant_kind` (FANEDIT, TV_TO_MOVIE,
                                        # MOVIE_TO_TV) to tag the kind of recut.
+    DLC_FOR        = "dlc_for"         # game DLC tied to a base game (the DLC ships as its
+                                       # own Work — different external IDs, distinct schema —
+                                       # but is meaningless without the base game).
+    EXPANSION_OF   = "expansion_of"    # standalone expansion of a base game / IF (works
+                                       # without the base, but is the same franchise lineage).
 
 class WorkRelation(BaseModel):
     kind: WorkRelationKind
     target: "Work"
     note: Optional[str] = None
 ```
+
+### 6.1 Release-level relations
+
+Some relationships are *per-edition*, not per-Work: a 2025 Atmos
+remaster supersedes the 2017 stereo remaster of the same album. The
+underlying Work is unchanged, but the Release graph chains through
+the manifestation timeline. Use `ReleaseRelation` for these.
+
+```python
+class ReleaseRelationKind(str, Enum):
+    SUPERSEDES   = "supersedes"        # this Release replaces an earlier one
+    REMASTER_OF  = "remaster_of"       # explicit remaster lineage (newer remaster of older one)
+    REISSUE_OF   = "reissue_of"        # later commercial release of the same edition
+    PORT_OF      = "port_of"           # platform port of a game / IF (same Work, new platform)
+    DERIVED_FROM = "derived_from"      # generic catch-all
+
+class ReleaseRelation(BaseModel):
+    kind: ReleaseRelationKind
+    target: "Release"
+    note: Optional[str] = None
+```
+
+Use sparingly. Most Release-to-Release distinctions are encoded by
+the format / quality / variant fields plus `release_hash` — a 4K
+Blu-ray of the same cut is *already* distinguishable from a DVD.
+`ReleaseRelation` is for explicit *lineage* claims a consumer wants
+to surface ("this remaster supersedes that one and you should hide
+the older record").
 
 **`target` is a forward reference, not a deep embed.** A consumer that
 serialises a graph of related Works must avoid recursive nesting (a
@@ -1367,6 +1638,23 @@ Idiomatic use: store relations with a `target` that carries only the
 fields needed to resolve identity later — typically `title`, `year`,
 `media_type`, and one entry in `external_ids` — and resolve to a full
 Work record on the consumer side.
+
+**Where do relations live?** mediavocab does not pin
+relations to a specific field on `Work`. The two viable positions:
+
+- **Co-located on Work.** Add `Work.relations: List[WorkRelation] = []`.
+  Cheap to author, fast to read, but every Work record carries the
+  graph edges out of it — splits a `Work.model_dump()` from cleanly
+  representing identity vs. relationship.
+- **External relation table.** Keep `Work` flat; consumers store
+  `WorkRelation` records keyed by `(work_hash, kind)`. This matches
+  how the canonical-Work / sidecar-relation split works in
+  resolver-driven pipelines.
+
+mediavocab itself does **not** include `relations` on `Work` for now —
+the `WorkRelation` model is shipped, the field is consumer choice. If
+a future spec version adds the field, the field shape is fixed
+(`List[WorkRelation]`).
 
 ---
 
@@ -1627,8 +1915,53 @@ provider supplying additional values is *enrichment*, not a conflict:
 - `aka`, `localized_titles`, `content_genres`, `credits`, `tracklist`,
   `external_ids`, `extra`, `release_status`
 
+**`tracklist` on a `PLAYLIST` Work** is mutable in the §10.1 sense even
+though "what tracks are in the playlist" is the playlist's reason to
+exist. A reordered or membership-edited Spotify playlist is *the same
+playlist* in source-side terms (same `spotify_playlist_id`); the hash
+agrees by design. Consumers that need to detect "the playlist contents
+changed" should compare `tracklist` directly against a snapshot, not
+infer it from `work_hash`.
+
 A consumer rescanning a source and finding a *different* immutable value
 should treat the new record as a separate Work and resolve the conflict
 upstream (typically by retiring the older record). The hash contract in §7.2
 guarantees that future spec versions will not retroactively invalidate
 existing hashes.
+
+### 10.2 The `extra` escape hatch — what it is, what it isn't
+
+Every model that surfaces external metadata carries an `extra` dict
+(`Work.extra`, `Release.extra`, `Entity.extra`, `Programme.extra`,
+`Schedule.extra`, `ExternalIds.extra`). This is an explicit landfill
+for *provider-specific values that have not yet earned a typed field*.
+
+**The contract**
+
+1. **Strings preferred, lists / numbers tolerated.** New code should
+   write strings only. `Programme.extra`, `Schedule.extra`, and
+   `ExternalIds.extra` are typed `Dict[str, str]` — the validator will
+   reject non-string values. `Work.extra`, `Release.extra`, and
+   `Entity.extra` keep `Dict[str, Any]` for backwards compatibility
+   with existing consumers that store lists (genre tags, stream URL
+   arrays); new fields written here SHOULD still be strings.
+
+2. **Promotion is the goal.** A key that appears across two or more
+   providers, or that downstream consumers branch on, is a candidate
+   for promotion to a typed field on the next minor release. The
+   `extra` is a staging area, not a final destination.
+
+3. **Identity-irrelevant.** No `extra` key participates in `work_hash`
+   or `release_hash`. If you need a value to anchor identity, it is
+   not an `extra` entry — promote it to a typed field first.
+
+4. **Provider-namespaced when ambiguous.** Two providers writing the
+   same key (`url`, `image`, `source`) collide silently. Prefix with
+   the provider when the key is not universally well-defined:
+   `bandcamp_band_id`, `audiodb_artist_id`. The same convention used
+   for typed fields in `ExternalIds`.
+
+5. **No mediavocab-internal use.** mediavocab itself never *reads*
+   `extra` values. Consumers are free to read and write; the spec
+   makes no assertion about what's in there. Anything mediavocab
+   ships normative behaviour around must be a typed field.

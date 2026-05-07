@@ -5,7 +5,7 @@ phrases to classify a piece of content into a ``ContentType`` and to
 extract orthogonal labels (genre, era, format sub-type, audience).
 
 Classification is English by default. Pass ``lang="es-es"`` (or call
-``mediavocab.locale.set_lang()``) for non-English vocab. Locale files
+``MEDIAVOCAB_LANG`` env var) for non-English vocab. Locale files
 live in ``mediavocab/locale/<lang>/``. Adding a new language requires
 only creating the corresponding ``.voc`` files — no Python changes.
 """
