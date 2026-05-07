@@ -12,7 +12,6 @@ a typed value, and :meth:`License.is_open` to filter by openness.
 """
 from __future__ import annotations
 
-from typing import Optional
 
 from pydantic import BaseModel, ConfigDict
 
@@ -44,7 +43,7 @@ class License(BaseModel):
     persistence; round-trip via :meth:`from_spdx` / :attr:`identifier`.
     """
 
-    model_config = ConfigDict(extra="ignore")
+    model_config = ConfigDict(extra="ignore", populate_by_name=True)
 
     identifier: str = ""               # SPDX identifier or free string ("CC-BY-SA-4.0", "all_rights_reserved", "")
     name: str = ""                     # human-readable name

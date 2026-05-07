@@ -131,36 +131,50 @@ class MetadataProvider(ABC):
     def matches(self, signals: Signals) -> bool:
         """Default three-axis routing test. Override only if your
         provider needs a non-standard gate."""
-        if self.media and signals.medium and signals.medium not in self.media:
-            return False
-        if self.modality and signals.modality and signals.modality not in self.modality:
-            return False
-        if self.genre_filter:
-            tags = set(signals.content_genres or [])
-            if not (tags & self.genre_filter):
-                return False
-        return True
+        return _three_axis_gate(
+            self.media, self.modality, self.genre_filter, signals,
+        )
 
 
-def provider_matches(provider: MetadataProvider, signals: Signals) -> bool:
-    """Standalone three-axis gate, callable on any object that declares
-    the ``media`` / ``modality`` / ``genre_filter`` attributes (the
-    duck-typed contract).
+def _three_axis_gate(
+    media: Set[MediaType],
+    modality: Set[PlaybackModality],
+    genre_filter: Set[str],
+    signals: Signals,
+) -> bool:
+    """Single source of truth for the three-axis routing gate
+    (mediavocab spec axiom 13).
 
-    Implements the same logic as :meth:`MetadataProvider.matches` without
-    delegating to it — that prevents infinite recursion if a subclass's
-    custom ``matches()`` calls back into this function (a pre-ABC
-    Protocol-era pattern).
+    A concern that doesn't change the schema earns a typed routing
+    field, not a ``MediaType`` value. The gate short-circuits
+    independently on each axis; an empty class-level set means
+    "accept all" for that axis, and a ``None`` on the signals side
+    means the caller has no preference.
     """
-    media = getattr(provider, "media", None) or set()
     if media and signals.medium and signals.medium not in media:
         return False
-    modality = getattr(provider, "modality", None) or set()
     if modality and signals.modality and signals.modality not in modality:
         return False
-    genre_filter = getattr(provider, "genre_filter", None) or set()
     if genre_filter:
         tags = set(signals.content_genres or [])
         if not (tags & genre_filter):
             return False
     return True
+
+
+def provider_matches(provider: MetadataProvider, signals: Signals) -> bool:
+    """Standalone three-axis gate, callable on any object that declares
+    the ``media`` / ``modality`` / ``genre_filter`` attributes
+    (the duck-typed contract).
+
+    Identical semantics to :meth:`MetadataProvider.matches` — both
+    paths delegate to :func:`_three_axis_gate`. Use this form when
+    you want to gate an arbitrary object that doesn't subclass
+    :class:`MetadataProvider` (typing tests, plugin shims, …).
+    """
+    return _three_axis_gate(
+        getattr(provider, "media", None) or set(),
+        getattr(provider, "modality", None) or set(),
+        getattr(provider, "genre_filter", None) or set(),
+        signals,
+    )

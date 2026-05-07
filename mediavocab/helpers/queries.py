@@ -7,7 +7,7 @@ from __future__ import annotations
 
 from typing import Iterable, List, Optional
 
-from mediavocab.taxonomy import MediaType, RelationRole
+from mediavocab.taxonomy import RelationRole
 from mediavocab.models.entity import Credit, EntityRef
 from mediavocab.models.work import Release, Work
 

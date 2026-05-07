@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 import hashlib
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 
 from mediavocab.taxonomy import MediaType
 from mediavocab.models.work import Work

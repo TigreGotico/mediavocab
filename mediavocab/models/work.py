@@ -2,8 +2,13 @@
 
 Spec §5.4, §5.5, §5.6, §6.
 """
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, TYPE_CHECKING, Tuple
 from pydantic import BaseModel, ConfigDict, Field
+
+if TYPE_CHECKING:
+    # Forward-reference target for ``Release.parsed_license`` — imported
+    # at runtime inside the property body to avoid the import cycle.
+    from mediavocab.models.license import License
 
 from mediavocab.taxonomy import (
     MediaType,
