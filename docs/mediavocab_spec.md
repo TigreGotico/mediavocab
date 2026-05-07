@@ -41,9 +41,14 @@ scraping, playing, recommending.
 These rules govern every inclusion and exclusion decision in this specification.
 When in doubt, apply the axiom and document the reasoning.
 
-1. **A type earns its place by changing the schema.**
+1. **A `MediaType` value earns its place by changing the schema AND when no orthogonal axis would fit.**
    If two kinds of content require identical fields, the same external databases, and the
    same comparison tolerances, they are the same type. Genre tags distinguish them.
+
+   If a distinction is real but the schema is unchanged, it is an *axis* (modality, regional
+   variant, accessibility profile) — see axiom 13. The two-part test prevents the recurring
+   failure mode where a real distinction is jammed into `MediaType` because no other home
+   exists. Add the axis first; then ask whether `MediaType` still needs the new value.
 
 2. **Genre is not type.**
    Anime is TV with a cultural origin. Documentary is a film with a non-fiction treatment.
@@ -109,6 +114,31 @@ When in doubt, apply the axiom and document the reasoning.
     artefact has materially different schemas in two channels (an ASMR ISRC release on a
     label and the same recording on an RSS feed), it is two Works linked by a
     `WorkRelation`. The classifier MUST commit to one type at Work-construction time.
+
+13. **Routing axes are orthogonal to identity.**
+    A concern that doesn't change the schema earns a typed *field* (typically on `Signals`
+    or as a `ClassVar` on `MetadataProvider`), **not** a `MediaType` value. The resolver
+    gate is `(media, modality, content_genres, …)`; identity is `(media + identity-fields)`.
+
+    `PlaybackModality` (AUDIO / VIDEO / INTERACTIVE / TEXT / UNKNOWN) is the first such
+    axis: a request verb collapses cleanly onto it ("play X" ⇒ AUDIO; "watch X" ⇒ VIDEO),
+    a provider declares which modalities it serves, and the gate filters dispatch
+    accordingly. Trailers, behind-the-scenes clips, and reactions are not separate
+    `MediaType`s — they are `MediaType.GENERIC` with a `content_genres` tag and (typically)
+    the right modality.
+
+    Axioms that follow this pattern: an axis must be (a) declarable on `MetadataProvider`
+    as a `ClassVar[Set[X]]`, (b) optional on `Signals` (None = no preference), and
+    (c) absent from `work_hash` and `release_hash`. Identity does not move; routing
+    constrains dispatch.
+
+14. **Provider output flows through typed fields OR `extra` — never both.**
+    If a value has a typed home (`external_ids.musicbrainz_release_group`,
+    `Signals.modality`, a typed `Stream` in `ExternalIds.streams`), the provider
+    populates that. The same value MUST NOT also appear as a `ProviderEntity` relation,
+    an `extra` key, or a free string elsewhere in the same match. The consolidator
+    dedup contract assumes one source of truth per fact; double-writing produces silent
+    conflicts and inflates `match_quality()` scores.
 
 ---
 
@@ -903,6 +933,62 @@ GENRE_ADULT          = "adult"          # explicit sexual content; applies to an
 GENRE_AI_GENERATED   = "ai_generated"   # primary creative content produced by an AI system
 ```
 
+### 4.10 `PlaybackModality` — the playback-intent axis
+
+Orthogonal to `MediaType` (axiom 13). A request verb collapses cleanly onto a modality at
+the consumer side: *"play X"* ⇒ AUDIO; *"watch X"* / *"show me X"* ⇒ VIDEO; *"open X"* /
+*"read X"* ⇒ TEXT or INTERACTIVE depending on context. The resolver gates providers on
+the modality the caller hints at, so a `Signals(medium=GENERIC, modality=AUDIO)` never
+touches TVmaze or pyfanedit.
+
+```python
+class PlaybackModality(str, Enum):
+    AUDIO       = "audio"
+    VIDEO       = "video"
+    INTERACTIVE = "interactive"   # game, interactive fiction
+    TEXT        = "text"          # book, comic, ebook
+    UNKNOWN     = "unknown"        # GENERIC / PLAYLIST / NOT_MEDIA / no hint
+```
+
+**Default `MediaType → PlaybackModality` mapping** (`mediavocab.taxonomy.modality.MEDIA_TYPE_TO_MODALITY`):
+
+| Modality | MediaTypes |
+|---|---|
+| `AUDIO` | `MUSIC`, `PODCAST`, `AUDIOBOOK`, `AUDIO_DRAMA`, `RADIO`, `SOUND_EFFECT`, `AMBIENT_SOUNDS` |
+| `VIDEO` | `MOVIE`, `EPISODIC_SERIES`, `TV`, `MUSIC_VIDEO` |
+| `TEXT` | `BOOK`, `COMIC` |
+| `INTERACTIVE` | `GAME`, `INTERACTIVE_FICTION` |
+| `UNKNOWN` | `PLAYLIST`, `GENERIC`, `NOT_MEDIA` |
+
+`PLAYLIST` is `UNKNOWN` because membership decides the modality — the consumer infers
+from the first track. `NOT_MEDIA` is `UNKNOWN` because it is by definition not playback.
+`GENERIC` is `UNKNOWN` and the modality hint on `Signals` is exactly the field that
+disambiguates it for routing — *"play this thing"* (AUDIO) versus *"show me this thing"*
+(VIDEO) on the same MediaType.
+
+**Routing rule** (`MetadataProvider.matches`, axiom 13):
+
+```
+(no `media`    declared OR signals.medium   in self.media)
+AND
+(no `modality` declared OR signals.modality in self.modality)
+AND
+(no `genre_filter` declared OR self.genre_filter ∩ signals.content_genres)
+```
+
+Each axis short-circuits independently. A provider declares
+`modality = {PlaybackModality.AUDIO}` to opt out of video routing without claiming any
+particular `MediaType`.
+
+**No `DEVICE` modality.** Per axiom 4, devices are `Entity(EntityKind.DEVICE)`;
+*"turn on the kitchen light"* is `MediaType.NOT_MEDIA`. `PlaybackModality` is for
+media-playback intent only.
+
+**No field on `Work` or `Release`.** Modality is a routing concern, not identity (axiom 13).
+A `Work` whose modality consumers want to know is a `Work` whose `MediaType` already
+carries that information through `infer_modality(work.media_type)`. Persisting an
+explicit modality on `Work` would invite drift between two sources of truth.
+
 ---
 
 ## 5. Models
@@ -1426,6 +1512,58 @@ refresh, replace the `Schedule` wholesale.
 mediavocab does not model "what's on right now" as a function — query
 the schedule for the slot whose `[starts_at, ends_at)` contains the
 consumer's clock.
+
+### 5.10 `Signals` — scope and pipeline usage
+
+`Signals` is the **query / disambiguation** model. Persisted records are `Work`s; the
+taxonomy and `Work` / `Release` / `Entity` models do not use `Signals`. **`Signals` exists
+*only* in the resolver pipeline.**
+
+The same shape carries three roles, distinguished by direction of flow:
+
+1. **Query** (caller → resolver). The caller fills in what they know:
+   ```python
+   Signals(title="Inception", year=2010,
+           medium=MediaType.MOVIE,
+           modality=PlaybackModality.VIDEO)
+   ```
+   Used by `MetadataProvider.matches(signals)` to gate dispatch, then passed to
+   `MetadataProvider.lookup(signals)` to fetch.
+
+2. **Observation** (provider → consolidator). The provider re-emits a `Signals` on its
+   `ProviderMatch.signals` to describe what *it* believes the work is. The consolidator
+   compares observations across providers via `compare_signals()` and discards conflicts.
+
+3. **Result** (consolidator → caller). The merged consensus on `ResolveResult.signals`,
+   produced by `merge_signals()` over the accepted matches. This is the closest thing the
+   resolver pipeline produces to a `Work` — but it is **not** a `Work`: no canonical hash,
+   no `credits`, no `tracklist`, no `accessibility` profile. A consumer that needs a
+   `Work` calls a separate constructor (e.g.
+   `metadatarr.canonicalize.work_from_resolve_result`); there is no implicit
+   `Signals → Work` coercion.
+
+**Why the field overlap with `Work` is intentional.** Cross-provider comparison needs
+identical comparable structure; the duplication is the reason the comparator can be
+written once. The orthogonality axiom (axiom 13) keeps `Signals`-only fields off `Work`:
+
+| `Signals`-only field | Why it doesn't belong on `Work` |
+|---|---|
+| `include_variants: bool` | Query-only fan-out hint. Not an identity claim. |
+| `fanedit_subtype: str` | Sub-classification used by query-time filtering, not stored. |
+| `modality: PlaybackModality` | Routing axis (axiom 13). A `Work`'s modality is derived from its `MediaType`. |
+
+| `Work`-only field | Why it doesn't belong on `Signals` |
+|---|---|
+| `credits` | Identity-shaping; not derivable from a single provider response. |
+| `tracklist` | Container-shape; resolved post-merge, not per-provider. |
+| `accessibility`, `chapters` | Per-Release; `Signals` is per-Work. |
+| `aka`, `localized_titles` | Aliases; merged at canonicalisation, not at lookup. |
+| `external_ids` (typed) | `Signals` carries IDs only via `ProviderMatch.external_ids`, never on the bag itself. |
+
+**`compare_signals()` skips `modality`.** The modality is a query hint, never an
+observation; comparing it across providers would always tie or always disagree depending
+on the caller. `signal_hash()` likewise excludes it. This follows the third clause of
+axiom 13: routing-axis fields are absent from identity hashes.
 
 ---
 

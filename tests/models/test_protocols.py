@@ -2,8 +2,8 @@
 from typing import ClassVar, Optional, Set
 
 from mediavocab import (
-    MediaType, MetadataProvider, ProviderMatch, ResolutionConflict,
-    Signals,
+    MediaType, MetadataProvider, PlaybackModality, ProviderMatch,
+    ResolutionConflict, Signals,
 )
 from mediavocab.models.protocols import provider_matches
 
@@ -117,6 +117,68 @@ def test_provider_matches_alias():
     p = _AnimeOnlyProvider()
     sig = Signals(medium=MediaType.MOVIE, content_genres=["anime"])
     assert provider_matches(p, sig) == p.matches(sig)
+
+
+# ---------------------------------------------------------------------------
+# Three-axis gate — modality
+# ---------------------------------------------------------------------------
+
+class _AudioOnlyProvider(MetadataProvider):
+    name = "audio_only"
+    modality = {PlaybackModality.AUDIO}
+
+    def is_available(self) -> bool:
+        return True
+
+    def lookup(self, signals: Signals):
+        return None
+
+
+class _VideoOnlyProvider(MetadataProvider):
+    name = "video_only"
+    modality = {PlaybackModality.VIDEO}
+
+    def is_available(self) -> bool:
+        return True
+
+    def lookup(self, signals: Signals):
+        return None
+
+
+def test_modality_gate_filters_video_from_audio_provider():
+    p = _AudioOnlyProvider()
+    assert p.matches(Signals(modality=PlaybackModality.AUDIO)) is True
+    assert p.matches(Signals(modality=PlaybackModality.VIDEO)) is False
+
+
+def test_modality_none_passes_modality_gate():
+    """No hint ⇒ no gate. The caller didn't constrain modality."""
+    p = _AudioOnlyProvider()
+    assert p.matches(Signals(medium=MediaType.MUSIC)) is True
+
+
+def test_modality_universal_provider_accepts_all():
+    p = _UniversalProvider()
+    for m in PlaybackModality:
+        assert p.matches(Signals(modality=m)) is True
+
+
+def test_modality_orthogonal_to_media_gate():
+    """media gate fails first ⇒ never reaches modality check."""
+    p = _VideoOnlyProvider()
+    p.media = {MediaType.MOVIE}     # type: ignore[misc]
+    try:
+        # Wrong media: rejected even though modality matches.
+        assert p.matches(Signals(medium=MediaType.MUSIC,
+                                 modality=PlaybackModality.VIDEO)) is False
+        # Right media + right modality: accepted.
+        assert p.matches(Signals(medium=MediaType.MOVIE,
+                                 modality=PlaybackModality.VIDEO)) is True
+        # Right media but wrong modality: rejected.
+        assert p.matches(Signals(medium=MediaType.MOVIE,
+                                 modality=PlaybackModality.AUDIO)) is False
+    finally:
+        p.media = set()              # type: ignore[misc]
 
 
 # ---------------------------------------------------------------------------

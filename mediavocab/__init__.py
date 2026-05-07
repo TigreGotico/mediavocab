@@ -15,6 +15,9 @@ from mediavocab.taxonomy import (
     StreamMode,
     WorkRelationKind,
     ReleaseRelationKind,
+    PlaybackModality,
+    MEDIA_TYPE_TO_MODALITY,
+    infer_modality,
 )
 from mediavocab.models import (
     EntityRef,
@@ -53,6 +56,9 @@ __all__ = [
     "StreamMode",
     "WorkRelationKind",
     "ReleaseRelationKind",
+    "PlaybackModality",
+    "MEDIA_TYPE_TO_MODALITY",
+    "infer_modality",
     "EntityRef",
     "Membership",
     "Credit",

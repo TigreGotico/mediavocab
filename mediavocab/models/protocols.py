@@ -27,7 +27,7 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from mediavocab.models.external_ids import ExternalIds
 from mediavocab.models.signals import Signals, SignalConflict
-from mediavocab.taxonomy import MediaType
+from mediavocab.taxonomy import MediaType, PlaybackModality
 
 
 class ProviderMatch(BaseModel):
@@ -69,25 +69,37 @@ class ResolutionConflict(BaseModel):
 class MetadataProvider(ABC):
     """Abstract base every cross-source resolver provider inherits from.
 
-    Routing is two-axis. ``media`` (a set of mediavocab ``MediaType``
-    values) is the primary gate; ``genre_filter`` (a set of genre
-    strings — typically constants from ``mediavocab.taxonomy.genre``)
-    is an optional secondary gate. A provider matches when:
+    Routing is **three-axis**, with each axis orthogonal (spec axiom 13):
 
-        (no `media` declared OR signals.medium is None
+    - ``media`` — set of ``MediaType`` values this provider handles.
+    - ``modality`` — set of ``PlaybackModality`` values (AUDIO / VIDEO /
+      INTERACTIVE / TEXT / UNKNOWN). Lets a caller route a
+      ``MediaType.GENERIC`` query to audio-only providers by passing
+      ``Signals(modality=AUDIO)``.
+    - ``genre_filter`` — set of genre tags from
+      ``mediavocab.taxonomy.genre``.
+
+    A provider matches when **all three** of the following hold:
+
+        (no ``media`` declared OR signals.medium is None
          OR signals.medium in self.media)
         AND
-        (no `genre_filter` declared
+        (no ``modality`` declared OR signals.modality is None
+         OR signals.modality in self.modality)
+        AND
+        (no ``genre_filter`` declared
          OR self.genre_filter ∩ signals.content_genres)
 
-    Anime / manga-only providers therefore declare e.g.
+    Anime / manga-only providers declare e.g.
     ``media = {EPISODIC_SERIES, MOVIE}`` plus
     ``genre_filter = {"anime"}`` rather than a fake
-    ``MediaType.ANIME`` value (anime is a *genre*, per spec axiom 2).
+    ``MediaType.ANIME`` value (anime is a *genre*, per axiom 2).
+    Audio-only book providers declare ``modality = {AUDIO}`` so a
+    GENERIC query with ``modality=VIDEO`` skips them.
 
     Subclasses must implement :meth:`is_available` and :meth:`lookup`.
-    Override :meth:`matches` only if the default two-axis gate is wrong
-    for your provider.
+    Override :meth:`matches` only if the default three-axis gate is
+    wrong for your provider.
     """
 
     name: ClassVar[str] = ""
@@ -96,6 +108,11 @@ class MetadataProvider(ABC):
 
     media: ClassVar[Set[MediaType]] = set()
     """Media-type gate. Empty ⇒ universal."""
+
+    modality: ClassVar[Set[PlaybackModality]] = set()
+    """Playback-modality gate. Empty ⇒ universal. When set, at least one
+    of the modalities must match ``signals.modality`` for the provider
+    to be invoked. ``signals.modality is None`` always passes."""
 
     genre_filter: ClassVar[Set[str]] = set()
     """Genre-tag gate. Empty ⇒ no gate. When set, at least one tag must
@@ -112,9 +129,11 @@ class MetadataProvider(ABC):
         """Return the single best match for ``signals``, or ``None``."""
 
     def matches(self, signals: Signals) -> bool:
-        """Default two-axis routing test. Override only if your provider
-        needs a non-standard gate."""
+        """Default three-axis routing test. Override only if your
+        provider needs a non-standard gate."""
         if self.media and signals.medium and signals.medium not in self.media:
+            return False
+        if self.modality and signals.modality and signals.modality not in self.modality:
             return False
         if self.genre_filter:
             tags = set(signals.content_genres or [])
