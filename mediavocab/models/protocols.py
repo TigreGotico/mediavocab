@@ -143,9 +143,24 @@ class MetadataProvider(ABC):
 
 
 def provider_matches(provider: MetadataProvider, signals: Signals) -> bool:
-    """Free-function alias for :meth:`MetadataProvider.matches`.
+    """Standalone three-axis gate, callable on any object that declares
+    the ``media`` / ``modality`` / ``genre_filter`` attributes (the
+    duck-typed contract).
 
-    Kept for callers that prefer the procedural form. Identical
-    semantics — both paths share the same gate.
+    Implements the same logic as :meth:`MetadataProvider.matches` without
+    delegating to it — that prevents infinite recursion if a subclass's
+    custom ``matches()`` calls back into this function (a pre-ABC
+    Protocol-era pattern).
     """
-    return provider.matches(signals)
+    media = getattr(provider, "media", None) or set()
+    if media and signals.medium and signals.medium not in media:
+        return False
+    modality = getattr(provider, "modality", None) or set()
+    if modality and signals.modality and signals.modality not in modality:
+        return False
+    genre_filter = getattr(provider, "genre_filter", None) or set()
+    if genre_filter:
+        tags = set(signals.content_genres or [])
+        if not (tags & genre_filter):
+            return False
+    return True

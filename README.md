@@ -45,7 +45,7 @@ band lineups, radio stations, IoT device routing, work comparison, and the
 
 | Module | Contents |
 |---|---|
-| `mediavocab.taxonomy` | `MediaType`, `VariantKind`, `EntityKind`, `RelationRole`, `CreditSection`, `MembershipStatus`, `ReleaseStatus`, `StreamMode`, `WorkRelationKind`, plus `GENRE_*` string constants. Zero deps. |
+| `mediavocab.taxonomy` | `MediaType`, `VariantKind`, `EntityKind`, `RelationRole`, `CreditSection`, `MembershipStatus`, `ReleaseStatus`, `StreamMode`, `WorkRelationKind`, `PlaybackModality`, plus `GENRE_*` string constants. Zero deps. |
 | `mediavocab.models` | `Work`, `Release`, `Appearance`, `WorkRelation`, `ReleaseRelation`, `Entity`, `EntityRef`, `Membership`, `Credit`, `Programme`, `Schedule`, `License`. Pydantic v2. |
 | `mediavocab.text` | Normalisation, fuzzy matching, work comparison/scoring, ISO 639/3166 helpers. Stdlib only. |
 | `mediavocab.helpers` | Convenience builders and classifier predicates. Non-normative. |
@@ -64,6 +64,11 @@ band lineups, radio stations, IoT device routing, work comparison, and the
   is a different Release of the same Work. A bootleg is a different Release
   of the same Work. The Work's identity hash never depends on Release
   metadata.
+- **`PlaybackModality` is orthogonal to `MediaType`.** `AUDIO` / `VIDEO` /
+  `TEXT` / `INTERACTIVE` routes resolver dispatch by playback intent. A
+  `Signals(modality=AUDIO)` query never touches video-only providers, even if
+  `medium=GENERIC`. Declare `modality: ClassVar[Set[PlaybackModality]]` on each
+  provider; empty means universal.
 - **Genre is a free `List[str]`** with canonical spellings in
   `mediavocab.taxonomy.genre`. ASMR, ambient, anime, adult, etc. are genre
   tags applied across multiple media types — not types of their own.

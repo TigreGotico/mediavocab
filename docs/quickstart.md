@@ -88,19 +88,31 @@ Locale-aware via the optional `lang=` parameter (`"pt-pt"`, `"es"`,
 
 ## Resolve across providers
 
-`mediavocab.Signals` is the disambiguation bag every cross-source
-resolver shares; `MetadataProvider` is the typed Protocol every
-provider implements:
+`mediavocab.Signals` is the disambiguation bag every cross-source resolver
+shares. The `modality` field gates which providers are invoked — orthogonal to
+`medium` (spec axiom 13):
 
 ```python
 from mediavocab import (
-    Signals, MediaType, ExternalIds,
+    Signals, MediaType, PlaybackModality, ExternalIds,
     MetadataProvider, ProviderMatch,
 )
 from mediavocab.models.signals import compare_signals, signal_hash
+from mediavocab.taxonomy.modality import infer_modality
 from mediavocab.text import release_hash, isbn10_to_13
 
-local = Signals(title="Blade Runner", year=1982, medium=MediaType.MOVIE)
+# "play me Blade Runner" — VIDEO modality skips audio-only providers
+local = Signals(
+    title="Blade Runner", year=1982, medium=MediaType.MOVIE,
+    modality=PlaybackModality.VIDEO,
+)
+
+# When the caller has no verb hint, infer from the media type:
+# infer_modality(MediaType.PODCAST) → PlaybackModality.AUDIO
+local_audio = Signals(
+    title="Hardcore History", medium=MediaType.PODCAST,
+    modality=infer_modality(MediaType.PODCAST),
+)
 
 ids = ExternalIds(isbn_10="0-261-10328-8")     # ISBN-13 auto-paired
 print(ids.streams)                              # → typed list of playable URLs

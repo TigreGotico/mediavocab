@@ -278,60 +278,72 @@ formed), `media_type` (`"track"` / `"album"` / `"video"` /
 `ExternalIds.streams` so player code iterates typed streams instead
 of dict-key spelunking.
 
-## `Signals` — disambiguation bag
+## `Signals` — resolver pipeline bag
 
-`mediavocab.Signals` is the *pre-canonical* metadata bag used by
-resolvers, scrapers, and dedup pipelines before a full `Work` exists.
-~14 fields (`title`, `artist`, `year`, `country`, `runtime`,
-`medium`, `language`, `season`, `episode`, `content_genres`,
-`variant_kind`, `edition`, `region`, `source_format`,
-`fanedit_subtype`, `include_variants`). Distinct from `Work`: no
-nested credits / tracklist, no Release inheritance.
+`mediavocab.Signals` exists **only in the resolver pipeline** — it is not a
+persisted record. Persisted records are `Work`s. The same shape carries three
+roles distinguished by direction of flow (`mediavocab/models/signals.py`):
+
+1. **Query** (caller → resolver) — filled with what the caller knows; gates
+   dispatch via `MetadataProvider.matches(signals)`.
+2. **Observation** (provider → consolidator) — the provider re-emits a
+   `Signals` on its `ProviderMatch.signals` describing what it believes the
+   work is. The consolidator compares via `compare_signals`.
+3. **Consensus** (consolidator → caller) — the merged result on
+   `ResolveResult.signals`; the closest the pipeline gets to a `Work`, but
+   not a `Work`: no credits, no tracklist, no accessibility profile.
+
+Fields: `title`, `artist`, `year`, `country`, `runtime`, `medium`, `language`,
+`season`, `episode`, `content_genres`, `variant_kind`, `edition`, `region`,
+`source_format`, `fanedit_subtype`, `include_variants`, `modality`.
+
+`modality: Optional[PlaybackModality]` (`mediavocab/models/signals.py:83`) is a
+routing-axis hint that gates which providers are invoked. It is **never** a
+conflict-eligible field — providers do not observe it and `compare_signals`
+skips it. `None` means "no preference" (all modality-gated providers pass).
 
 Comparison helpers in `mediavocab.models.signals`:
 
 ```python
-compare_signals(a, b) -> List[SignalConflict]   # overlapping disagreements
+compare_signals(a, b) -> List[SignalConflict]   # overlapping disagreements; skips modality
 merge_signals(*bags)  -> Signals                # first-non-empty wins; genres unioned
 match_quality(local, candidate) -> float        # [0, 1]; year/medium mismatches halve
-signal_hash(s) -> str                           # canonical-id seed
+signal_hash(s) -> str                           # canonical-id seed (excludes modality)
 ```
 
-## `MetadataProvider` Protocol
+## `MetadataProvider` ABC
 
-`mediavocab.MetadataProvider` is a `runtime_checkable` `Protocol` —
-the typed contract every cross-source resolver provider implements.
-No inheritance required:
+`mediavocab.MetadataProvider` is an **abstract base class** (ABC) — every
+concrete provider must inherit and implement its abstract methods
+(`mediavocab/models/protocols.py:69`). Three routing `ClassVar` axes:
 
 ```python
-class MyProvider:
+class MyProvider(MetadataProvider):
     name: ClassVar[str] = "my_provider"
     media: ClassVar[Set[MediaType]] = {MediaType.MOVIE}
     genre_filter: ClassVar[Set[str]] = set()
+    modality: ClassVar[Set[PlaybackModality]] = set()   # empty = universal
 
     def is_available(self) -> bool: ...
     def lookup(self, signals: Signals) -> Optional[ProviderMatch]: ...
     def matches(self, signals: Signals) -> bool:
         return provider_matches(self, signals)
-
-assert isinstance(MyProvider(), MetadataProvider)   # passes
 ```
 
-`provider_matches(provider, signals)` is the reference dispatcher
-gate — combines a media-type check and a genre-filter check.
+`provider_matches(provider, signals)` — `mediavocab/models/protocols.py:145` —
+combines a `media` type check, a `genre_filter` check, and a `modality` gate.
+A provider with `modality = {PlaybackModality.AUDIO}` is skipped when
+`signals.modality == PlaybackModality.VIDEO`.
+
 `ProviderMatch` carries the provider's typed response;
 `ResolutionConflict` records dropped matches.
 
-The runtime registry / dispatcher / consolidator implementation
-itself lives in downstream packages (e.g. `metadatarr.resolve`).
+The runtime registry / dispatcher / consolidator implementation itself lives in
+downstream packages (e.g. `metadatarr.resolve`).
 
-> **Caveat — `runtime_checkable` Protocol evolution.** Adding a new
-> abstract method to the Protocol is a *silent* breakage for existing
-> concrete providers — `isinstance(p, MetadataProvider)` will simply
-> start returning `False` for providers that don't implement the new
-> method, with no error at registration time. Treat additions as
-> breaking changes; ship them in major versions and update every
-> known concrete provider in lockstep.
+> **Note — ABC evolution.** Adding a new abstract method is a breaking change
+> for every concrete provider. Ship additions in major versions and update all
+> known providers in lockstep.
 
 ## Decision guide: Work vs Release
 

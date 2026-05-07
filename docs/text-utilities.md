@@ -104,6 +104,29 @@ Pure stdlib. Used by `ExternalIds` to auto-pair ISBN-10 / ISBN-13
 representations on construction so two providers using different
 conventions don't produce divergent records.
 
+## `IsoDate` — annotated date/datetime validator
+
+`mediavocab.text.IsoDate` (also `from mediavocab.text import IsoDate`) is a
+pydantic `Annotated[str, AfterValidator]` type — `mediavocab/_iso_date.py:78`.
+Use it on any model field that carries an ISO-8601 date or datetime string.
+
+```python
+from mediavocab.text import IsoDate, parse_iso_date
+from pydantic import BaseModel
+
+class MyModel(BaseModel):
+    release_date: Optional[IsoDate] = None
+```
+
+Accepted forms: `YYYY`, `YYYY-MM`, `YYYY-MM-DD`, `YYYY-MM-DDTHH:MM[:SS[.fff]][Z|±HH:MM]`.
+Empty string and `None` pass unchanged (absence is not a value — spec axiom 3).
+The string is returned verbatim; it is never normalised, so dedup hashes remain
+stable even when sources provide different precisions.
+
+`parse_iso_date(value) -> Optional[str]` — `mediavocab/_iso_date.py:35` — the
+underlying validator function, callable directly when pydantic validation is not
+in scope.
+
 ## `mediavocab.text.iso`
 
 ```python
