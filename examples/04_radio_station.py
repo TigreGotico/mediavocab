@@ -7,7 +7,7 @@ def main() -> None:
     station = Work(
         title="BBC Radio 4",
         media_type=MediaType.RADIO,
-        country="GB",
+        broadcaster_country="GB",
         language="en",
         external_ids={eid.TUNEIN: "s17725", eid.RADIO_BROWSER: "..."},
     )

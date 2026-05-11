@@ -1,33 +1,42 @@
-"""Use NOT_MEDIA as a terminal classifier sentinel.
+"""Use the MediaType sentinels as terminal classifier outputs.
 
-A classifier may produce both media and non-media outputs. NOT_MEDIA lets
-the routing layer cleanly exclude non-media intents BEFORE attempting any
-provider resolution. GENERIC is the transient counterpart: type unknown,
-resolution may clarify.
+A classifier may produce both media and non-media outputs. The sentinel
+MediaTypes (GENERIC, NOT_MEDIA, CONTROL) let the routing layer cleanly
+exclude non-media intents BEFORE attempting any provider resolution. By T8
+they NEVER reach a canonical Work — they live on the resolver bag
+(Signals.medium).
 """
-from mediavocab import MediaType, Work
-from mediavocab.helpers import is_not_media, is_generic
+from mediavocab import MediaType, Signals
+from mediavocab.helpers import is_not_media, is_generic, is_control
 
 
 def main() -> None:
-    inputs = [
-        Work(title="when is Christopher Nolan's birthday",
-             media_type=MediaType.NOT_MEDIA),
-        Work(title="turn off the lights",
-             media_type=MediaType.NOT_MEDIA),
-        Work(title="play Inception",
-             media_type=MediaType.MOVIE),
-        Work(title="play something fun",
-             media_type=MediaType.GENERIC),
+    queries = [
+        ("when is Christopher Nolan's birthday",   MediaType.NOT_MEDIA),
+        ("turn off the lights",                    MediaType.NOT_MEDIA),
+        ("pause",                                  MediaType.CONTROL),
+        ("seek to 3:00",                           MediaType.CONTROL),
+        ("play Inception",                         MediaType.MOVIE),
+        ("play something fun",                     MediaType.GENERIC),
     ]
 
-    for w in inputs:
-        if is_not_media(w):
-            print(f"  [skip]    {w.title!r}  -> NOT_MEDIA")
-        elif is_generic(w):
-            print(f"  [resolve] {w.title!r}  -> GENERIC")
+    print("Classifier verdict on resolver-side Signals (never on Work):")
+    for utter, classified in queries:
+        sig = Signals(title=utter, medium=classified)
+        m = sig.medium
+        if is_not_media(m):
+            tag = "[skip]   "
+            verdict = "NOT_MEDIA"
+        elif is_control(m):
+            tag = "[control]"
+            verdict = "CONTROL"
+        elif is_generic(m):
+            tag = "[resolve]"
+            verdict = "GENERIC"
         else:
-            print(f"  [media]   {w.title!r}  -> {w.media_type.value}")
+            tag = "[media]  "
+            verdict = m.value
+        print(f"  {tag} {utter!r:40s} -> {verdict}")
 
 
 if __name__ == "__main__":
