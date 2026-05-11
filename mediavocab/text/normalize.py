@@ -70,3 +70,45 @@ def best_match(query: str, candidates: List[str]) -> Tuple[str, float]:
 def title_words(text: str) -> List[str]:
     """Tokenise into meaningful words; strip stopwords/articles."""
     return [w for w in normalize(text).split() if w and w not in _STOPWORDS]
+
+
+# ---------------------------------------------------------------------------
+# Identity-input primitives (spec §6.1)
+# ---------------------------------------------------------------------------
+
+def normalise_title(s: str) -> str:
+    """Full `normalize` pipeline (§6.1). Empty input → empty output.
+    Used as a `work_hash` / `release_hash` input."""
+    return normalize(s or "")
+
+
+def normalise_edition(s: str) -> str:
+    """Same as `normalise_title` — used for `edition`, `source_format`,
+    and any free-text identity tag where typos / spacing variants should
+    collide (§6.1)."""
+    return normalize(s or "")
+
+
+def normalise_format(s: str) -> str:
+    """Lowercase, ASCII-stripped, whitespace-collapsed, no punctuation.
+    `"Blu-ray"` → `"bluray"`; `"320 kbps"` → `"320kbps"`;
+    `"H.265"` → `"h265"` (§6.1)."""
+    return "".join(ch for ch in (s or "").lower() if ch.isalnum())
+
+
+def normalise_country(s: str) -> str:
+    """ISO 3166-1 alpha-2 uppercase via `text.iso.normalize_country` (§6.1).
+    Empty / None → empty; unrecognised input raises `ValueError`."""
+    if not s:
+        return ""
+    from mediavocab.text.iso import normalize_country
+    return normalize_country(s)
+
+
+def normalise_language(s: str) -> str:
+    """ISO 639-1 lowercase via `text.iso.normalize_language` (§6.1).
+    Empty / None → empty; unrecognised input raises `ValueError`."""
+    if not s:
+        return ""
+    from mediavocab.text.iso import normalize_language
+    return normalize_language(s)

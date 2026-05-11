@@ -14,7 +14,7 @@ from dataclasses import dataclass, field
 from typing import List, Optional
 
 from mediavocab.locale import voc_regex
-from mediavocab.taxonomy import VariantKind
+from mediavocab.taxonomy import VariantKind, ReleasePackaging
 
 
 # ---------------------------------------------------------------------------
@@ -61,22 +61,23 @@ _LANG_BRACKET_RE = re.compile(
 # Locale-driven detection tables
 # ---------------------------------------------------------------------------
 
-# (voc_name, VariantKind | None, edition_label)
-# - VariantKind=None means "label only" (e.g. unrated → edition, no variant)
-# - edition_label, when not None, overrides the matched text in the edition field
-#   (used to canonicalise CRITERION/ANNIVERSARY label values)
+# (voc_name, VariantKind | None, ReleasePackaging | None, edition_label)
+# Spec §3.4 / §3.5: Work-level restructurings (cuts, remasters, fanedits)
+# go into variant_kind; Release-level packaging (deluxe, reissue, anniversary,
+# criterion box-set) goes into packaging. Both may fire from the same title
+# label — a "Director's Cut Anniversary Edition" emits both.
 _CUT_LOCALE = [
-    ("cut_fanedit",         VariantKind.FANEDIT,     None),
-    ("cut_directors",       VariantKind.DIRECTORS,   None),
-    ("cut_theatrical",      VariantKind.THEATRICAL,  None),
-    ("cut_extended",        VariantKind.EXTENDED,    None),
-    ("cut_unrated",         None,                    None),  # edition only
-    ("cut_colorized",       VariantKind.COLORIZED,   None),
-    ("cut_upscaled",        VariantKind.UPSCALED,    None),
-    ("edition_remastered",  VariantKind.REMASTERED,  None),
-    ("edition_anniversary", VariantKind.REISSUE,     "Anniversary"),
-    ("edition_deluxe",      VariantKind.DELUXE,      None),
-    ("edition_criterion",   VariantKind.REISSUE,     "Criterion"),
+    ("cut_fanedit",         VariantKind.FANEDIT,     None,                       None),
+    ("cut_directors",       VariantKind.DIRECTORS,   None,                       None),
+    ("cut_theatrical",      VariantKind.THEATRICAL,  None,                       None),
+    ("cut_extended",        VariantKind.EXTENDED,    None,                       None),
+    ("cut_unrated",         None,                    None,                       None),  # edition label only
+    ("cut_colorized",       VariantKind.COLORIZED,   None,                       None),
+    ("cut_upscaled",        VariantKind.UPSCALED,    None,                       None),
+    ("edition_remastered",  VariantKind.REMASTERED,  None,                       None),
+    ("edition_anniversary", None,                    ReleasePackaging.REISSUE,   "Anniversary"),
+    ("edition_deluxe",      None,                    ReleasePackaging.DELUXE,    None),
+    ("edition_criterion",   None,                    ReleasePackaging.REISSUE,   "Criterion"),
 ]
 
 _FORMAT_LOCALE = [
@@ -104,14 +105,18 @@ def _re(voc_name: str, lang: Optional[str]):
 class TitleParseResult:
     """Structured fields extracted from a raw title string.
 
-    ``title`` is the cleaned version suitable for search queries. All other
-    fields are ``None`` / empty when not detected.
+    `title` is the cleaned version suitable for search queries. All other
+    fields are `None` / empty when not detected.
+
+    `variant_kind` is a Work-level hint (restructuring of the canonical
+    artefact); `packaging` is a Release-level hint (how this edition ships).
     """
     title: str
     year: Optional[int] = None
     season: Optional[int] = None
     episode: Optional[int] = None
     variant_kind: Optional[VariantKind] = None
+    packaging: Optional[ReleasePackaging] = None
     edition: Optional[str] = None
     source_format: Optional[str] = None
     language_hint: Optional[str] = None
@@ -184,6 +189,14 @@ def parse_title(raw: str, lang: Optional[str] = None) -> TitleParseResult:
     # --- AKA / parenthetical alternative titles ---
     aka: List[str] = []
 
+    # Pre-compile cut/edition regexes once so the AKA collector can defer to
+    # them: parenthetical content matching a known cut/edition keyword
+    # (Director's Cut, Deluxe Edition, Criterion, Anniversary, …) stays in the
+    # title so the cut detector below can extract it as a typed signal rather
+    # than burying it in aka.
+    _CUT_REGEXES = [_re(name, lang) for name, *_ in _CUT_LOCALE]
+    _CUT_REGEXES = [rx for rx in _CUT_REGEXES if rx is not None]
+
     def _collect_aka(mo):
         content = mo.group(1).strip()
         if re.fullmatch(r"\d{4}", content):
@@ -193,6 +206,9 @@ def parse_title(raw: str, lang: Optional[str] = None) -> TitleParseResult:
         if len(content) < 4:
             return mo.group(0)
         if _RESOLUTION_RE.fullmatch(content) or _CODEC_RE.fullmatch(content):
+            return mo.group(0)
+        # Defer to the cut/edition detector — keep this parenthetical in text.
+        if any(rx.search(content) for rx in _CUT_REGEXES):
             return mo.group(0)
         aka.append(content)
         return ""
@@ -209,8 +225,9 @@ def parse_title(raw: str, lang: Optional[str] = None) -> TitleParseResult:
     text_for_cut = _strip_brackets_for_cut(text)
 
     variant_kind: Optional[VariantKind] = None
+    packaging: Optional[ReleasePackaging] = None
     edition: Optional[str] = None
-    for voc_name, vk, label_override in _CUT_LOCALE:
+    for voc_name, vk, pkg, label_override in _CUT_LOCALE:
         rx = _re(voc_name, lang)
         if rx:
             m = rx.search(text_for_cut)
@@ -227,6 +244,8 @@ def parse_title(raw: str, lang: Optional[str] = None) -> TitleParseResult:
                     text = text_new
                 if vk is not None and variant_kind is None:
                     variant_kind = vk
+                if pkg is not None and packaging is None:
+                    packaging = pkg
                 if edition is None:
                     edition = label_override or matched_text
 
@@ -250,6 +269,7 @@ def parse_title(raw: str, lang: Optional[str] = None) -> TitleParseResult:
         season=season,
         episode=episode,
         variant_kind=variant_kind,
+        packaging=packaging,
         edition=edition,
         source_format=source_format,
         language_hint=language_hint,

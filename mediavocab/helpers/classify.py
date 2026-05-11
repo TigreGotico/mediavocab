@@ -1,23 +1,28 @@
 """Predicate helpers for routing decisions in consuming code."""
 from __future__ import annotations
 
-from mediavocab.taxonomy import MediaType, EntityKind, StreamMode
+from mediavocab.taxonomy import EntityKind, MediaType, StreamMode
 from mediavocab.models.entity import Entity
-from mediavocab.models.work import Release, Work
+from mediavocab.models.work import Release
 
 
-def is_not_media(work: Work) -> bool:
-    """True if the Work is the terminal NOT_MEDIA sentinel — not a playback
-    candidate. Routers should send these to non-media handlers.
+def is_not_media(media_type: MediaType) -> bool:
+    """True if `media_type` is the terminal NOT_MEDIA sentinel.
+
+    Pipeline sentinels never appear on a canonical Work (T8); call this on
+    `signals.medium` or `MediaType` directly, not on `work.media_type`.
     """
-    return work.media_type == MediaType.NOT_MEDIA
+    return media_type == MediaType.NOT_MEDIA
 
 
-def is_generic(work: Work) -> bool:
-    """True if media_type is the transient GENERIC marker — type unknown,
-    further resolution may clarify.
-    """
-    return work.media_type == MediaType.GENERIC
+def is_generic(media_type: MediaType) -> bool:
+    """True if `media_type` is the transient GENERIC marker (type unknown)."""
+    return media_type == MediaType.GENERIC
+
+
+def is_control(media_type: MediaType) -> bool:
+    """True if `media_type` is the playback-control sentinel."""
+    return media_type == MediaType.CONTROL
 
 
 def is_device_entity(entity: Entity) -> bool:
