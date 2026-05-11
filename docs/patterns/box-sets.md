@@ -1,12 +1,13 @@
 # Box sets and composite Releases
 
-A box set is a packaging decision, not a creative work. `Release.contents`
-aggregates several Works in one Release without inventing a synthetic
-container Work.
+A box set is a packaging decision (`ReleasePackaging.BOX_SET`), not a
+creative work. `Release.contents` aggregates several Works in one Release
+without inventing a synthetic container Work.
 
 ```python
 box = Release(
     work=fellowship,                 # principal headline title
+    packaging=ReleasePackaging.BOX_SET,
     edition="Extended Edition Trilogy 4K",
     container="4K UHD Blu-ray",
     contents=[
@@ -17,6 +18,10 @@ box = Release(
 )
 ```
 
+For a multi-cut single-Work box (theatrical + director's + extended on one
+disc), each cut is its own Work (§3.4); the box set lists each cut as an
+Appearance in `contents`.
+
 When the box has no headline (a true anthology — three unrelated short films,
 a label sampler), create a single Work to act as the headline:
 
@@ -24,7 +29,7 @@ a label sampler), create a single Work to act as the headline:
 sampler_work = Work(title="Indie Label Sampler 2024",
                     media_type=MediaType.MUSIC, year=2024,
                     variant_kind=VariantKind.COMPILATION)
-sampler = Release(work=sampler_work, contents=[…])
+sampler = Release(work=sampler_work, contents=[...])  # appearances
 ```
 
 ## `Work.tracklist` vs `Release.contents`

@@ -1,8 +1,8 @@
 # Radio station identity
 
-A radio station is a `Work` (axiom 8). Its stream URLs are `Release`s. This
-document covers when changes to a station produce a new Work versus a new
-Release of the same Work.
+A radio station is a `Work` (T4: *a station is a Work*). Its stream URLs
+are `Release`s. This document covers when changes to a station produce a
+new Work versus a new Release of the same Work.
 
 ## Same Work — change is a Release-level concern
 

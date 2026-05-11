@@ -1,7 +1,5 @@
 # Independent creators, YouTube, AI-generated content
 
-See spec §8.7 for full discussion.
-
 ## YouTube and independent creators
 
 A YouTube series is a `SERIES` Entity; individual episodes are `Work`s with
