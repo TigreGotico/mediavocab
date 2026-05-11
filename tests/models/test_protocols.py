@@ -2,7 +2,7 @@
 from typing import ClassVar, Optional, Set
 
 from mediavocab import (
-    MediaType, MetadataProvider, PlaybackModality, ProviderMatch,
+    ContentForm, MediaType, MetadataProvider, PlaybackType, ProviderMatch,
     ResolutionConflict, Signals,
 )
 from mediavocab.models.protocols import provider_matches
@@ -40,18 +40,15 @@ class _UniversalProvider(MetadataProvider):
 # ---------------------------------------------------------------------------
 
 def test_concrete_provider_is_metadata_provider():
-    """Subclassing the ABC is the canonical way."""
     assert isinstance(_AnimeOnlyProvider(), MetadataProvider)
     assert isinstance(_UniversalProvider(), MetadataProvider)
 
 
 def test_abc_blocks_unimplemented_subclass():
-    """Forgetting an abstract method raises at instantiation."""
     import pytest
 
     class _Broken(MetadataProvider):
         name = "broken"
-        # Intentionally missing is_available + lookup.
 
     with pytest.raises(TypeError):
         _Broken()
@@ -72,7 +69,7 @@ def test_provider_match_confidence_bounds():
 
 
 # ---------------------------------------------------------------------------
-# matches() — default two-axis routing
+# matches() — default four-axis routing
 # ---------------------------------------------------------------------------
 
 def test_universal_matches_anything():
@@ -84,28 +81,19 @@ def test_universal_matches_anything():
 
 def test_anime_provider_requires_genre():
     p = _AnimeOnlyProvider()
-    # Right media + right genre → match.
     assert p.matches(Signals(
         medium=MediaType.EPISODIC_SERIES, content_genres=["anime"])) is True
-    # Right media but no genre tag → no match.
-    assert p.matches(Signals(
-        medium=MediaType.EPISODIC_SERIES)) is False
-    # MOVIE is in the media set; needs the genre tag too.
-    assert p.matches(Signals(
-        medium=MediaType.MOVIE, content_genres=["anime"])) is True
-    # Wrong media → no match.
-    assert p.matches(Signals(
-        medium=MediaType.MUSIC, content_genres=["anime"])) is False
+    assert p.matches(Signals(medium=MediaType.EPISODIC_SERIES)) is False
+    assert p.matches(Signals(medium=MediaType.MOVIE, content_genres=["anime"])) is True
+    assert p.matches(Signals(medium=MediaType.MUSIC, content_genres=["anime"])) is False
 
 
 def test_unknown_medium_passes_media_gate():
-    """When ``signals.medium`` is None the media gate is skipped."""
     p = _AnimeOnlyProvider()
     assert p.matches(Signals(content_genres=["anime"])) is True
 
 
 def test_genre_filter_with_partial_overlap():
-    """Any tag in the filter present in content_genres → match."""
     p = _AnimeOnlyProvider()
     assert p.matches(Signals(
         medium=MediaType.MOVIE,
@@ -113,19 +101,18 @@ def test_genre_filter_with_partial_overlap():
 
 
 def test_provider_matches_alias():
-    """``provider_matches(p, sig)`` aliases ``p.matches(sig)``."""
     p = _AnimeOnlyProvider()
     sig = Signals(medium=MediaType.MOVIE, content_genres=["anime"])
     assert provider_matches(p, sig) == p.matches(sig)
 
 
 # ---------------------------------------------------------------------------
-# Three-axis gate — modality
+# Four-axis gate — playback_type
 # ---------------------------------------------------------------------------
 
 class _AudioOnlyProvider(MetadataProvider):
     name = "audio_only"
-    modality = {PlaybackModality.AUDIO}
+    playback_type = {PlaybackType.AUDIO}
 
     def is_available(self) -> bool:
         return True
@@ -136,7 +123,7 @@ class _AudioOnlyProvider(MetadataProvider):
 
 class _VideoOnlyProvider(MetadataProvider):
     name = "video_only"
-    modality = {PlaybackModality.VIDEO}
+    playback_type = {PlaybackType.VIDEO}
 
     def is_available(self) -> bool:
         return True
@@ -145,40 +132,58 @@ class _VideoOnlyProvider(MetadataProvider):
         return None
 
 
-def test_modality_gate_filters_video_from_audio_provider():
+def test_playback_gate_filters_video_from_audio_provider():
     p = _AudioOnlyProvider()
-    assert p.matches(Signals(modality=PlaybackModality.AUDIO)) is True
-    assert p.matches(Signals(modality=PlaybackModality.VIDEO)) is False
+    assert p.matches(Signals(playback_type=PlaybackType.AUDIO)) is True
+    assert p.matches(Signals(playback_type=PlaybackType.VIDEO)) is False
 
 
-def test_modality_none_passes_modality_gate():
-    """No hint ⇒ no gate. The caller didn't constrain modality."""
+def test_playback_none_passes_gate():
     p = _AudioOnlyProvider()
     assert p.matches(Signals(medium=MediaType.MUSIC)) is True
 
 
-def test_modality_universal_provider_accepts_all():
+def test_universal_provider_accepts_all_playback_types():
     p = _UniversalProvider()
-    for m in PlaybackModality:
-        assert p.matches(Signals(modality=m)) is True
+    for pt in PlaybackType:
+        assert p.matches(Signals(playback_type=pt)) is True
 
 
-def test_modality_orthogonal_to_media_gate():
-    """media gate fails first ⇒ never reaches modality check."""
+def test_playback_orthogonal_to_media_gate():
     p = _VideoOnlyProvider()
     p.media = {MediaType.MOVIE}     # type: ignore[misc]
     try:
-        # Wrong media: rejected even though modality matches.
         assert p.matches(Signals(medium=MediaType.MUSIC,
-                                 modality=PlaybackModality.VIDEO)) is False
-        # Right media + right modality: accepted.
+                                 playback_type=PlaybackType.VIDEO)) is False
         assert p.matches(Signals(medium=MediaType.MOVIE,
-                                 modality=PlaybackModality.VIDEO)) is True
-        # Right media but wrong modality: rejected.
+                                 playback_type=PlaybackType.VIDEO)) is True
         assert p.matches(Signals(medium=MediaType.MOVIE,
-                                 modality=PlaybackModality.AUDIO)) is False
+                                 playback_type=PlaybackType.AUDIO)) is False
     finally:
         p.media = set()              # type: ignore[misc]
+
+
+# ---------------------------------------------------------------------------
+# ContentForm gate
+# ---------------------------------------------------------------------------
+
+class _PrimaryOnlyProvider(MetadataProvider):
+    name = "primary_only"
+    content_form = {ContentForm.PRIMARY}
+
+    def is_available(self) -> bool:
+        return True
+
+    def lookup(self, signals: Signals):
+        return None
+
+
+def test_content_form_gate():
+    p = _PrimaryOnlyProvider()
+    assert p.matches(Signals(content_form=ContentForm.PRIMARY)) is True
+    assert p.matches(Signals(content_form=ContentForm.TRAILER)) is False
+    # No hint passes
+    assert p.matches(Signals()) is True
 
 
 # ---------------------------------------------------------------------------

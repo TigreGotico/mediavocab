@@ -134,7 +134,7 @@ def test_streams_youtube_video_id_expands_to_url():
     s = streams[0]
     assert isinstance(s, Stream)
     assert s.platform == "youtube"
-    assert s.media_type == "video"
+    assert s.kind == "video"
     assert s.url == "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
     assert s.id == "dQw4w9WgXcQ"
 

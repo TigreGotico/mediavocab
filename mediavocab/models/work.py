@@ -1,37 +1,76 @@
-"""Work, Release, Appearance, Chapter, AccessibilityTrack, WorkRelation.
+"""Work, Release, Appearance, Chapter, AccessibilityTrack, AvailabilityWindow,
+WorkRelation, ReleaseRelation, Programme, Schedule.
 
-Spec §5.4, §5.5, §5.6, §6.
+Spec §5 (models).
+
+`Work` is embedded directly inside `Appearance.work`, `Release.work`,
+`WorkRelation.target`, etc. The spec describes `WorkRef` / `ReleaseRef` as
+lightweight pointers — in practice, consumers pass a Work with only
+identity fields populated, which is wire-format-equivalent.
 """
-from typing import Any, Dict, List, Optional, TYPE_CHECKING, Tuple
-from pydantic import BaseModel, ConfigDict, Field
+from __future__ import annotations
 
-if TYPE_CHECKING:
-    # Forward-reference target for ``Release.parsed_license`` — imported
-    # at runtime inside the property body to avoid the import cycle.
-    from mediavocab.models.license import License
+from typing import Dict, List, Optional
 
+from pydantic import BaseModel, ConfigDict, Field, model_validator
+
+from mediavocab._iso_date import IsoDate, iso_compare
+from mediavocab.models.entity import Credit, EntityRef
 from mediavocab.taxonomy import (
+    AccessibilityKind,
+    ContentForm,
     MediaType,
-    VariantKind,
+    PIPELINE_SENTINELS,
+    ProgrammeFormat,
+    ReleasePackaging,
     ReleaseStatus,
     StreamMode,
+    VariantKind,
     WorkRelationKind,
+    ReleaseRelationKind,
 )
-from mediavocab.taxonomy.relation import ReleaseRelationKind
-from mediavocab.models.entity import Credit, EntityRef
-from mediavocab._iso_date import IsoDate
-
 
 _CFG = ConfigDict(extra="ignore", populate_by_name=True)
 
 
-class Appearance(BaseModel):
-    """Position of a Work within a Release container.
+# A MediaType-to-country-slot table. Used for editorial validation and as a
+# hint to ingestion code; the Work validator enforces exclusivity only (§5.3).
+COUNTRY_SLOT_FOR: Dict[MediaType, str] = {
+    MediaType.MOVIE: "production_country",
+    MediaType.SHORT_FILM: "production_country",
+    MediaType.EPISODIC_SERIES: "production_country",
+    MediaType.MUSIC_VIDEO: "production_country",
+    MediaType.GAME: "production_country",
+    MediaType.INTERACTIVE_FICTION: "production_country",
 
-    `offset` carries the absolute time-into-the-Release where this member
-    starts. Used by continuous mixes (DJ sets, megamixes, live concerts)
-    where `position` alone is insufficient. None = the parent uses simple
-    ordering and members do not occupy a fixed offset.
+    MediaType.MUSIC: "publication_country",
+    MediaType.BOOK: "publication_country",
+    MediaType.COMIC: "publication_country",
+    MediaType.AUDIOBOOK: "publication_country",
+
+    MediaType.RADIO: "broadcaster_country",
+    MediaType.TV: "broadcaster_country",
+    MediaType.PODCAST: "broadcaster_country",
+    MediaType.AUDIO_DRAMA: "broadcaster_country",
+}
+
+
+class LocalizedTitle(BaseModel):
+    """Language-tagged title (§5.1)."""
+
+    model_config = _CFG
+
+    language: str
+    title: str
+    is_original: bool = False
+
+
+class Appearance(BaseModel):
+    """Position of a Work within a container Release / parent Work (§5.3).
+
+    `offset` carries absolute time-into-the-parent where this member starts —
+    used by continuous mixes (DJ sets, megamixes, live concerts). None = the
+    parent uses ordering only.
     """
 
     model_config = _CFG
@@ -47,17 +86,7 @@ class Appearance(BaseModel):
 
 
 class Chapter(BaseModel):
-    """A timestamped marker within a Release: audiobook chapter, podcast
-    chapter marker, DVD scene break, "skip the intro" point.
-
-    Chapters are NOT separate Works in their own right. ``work_ref``
-    is an optional pointer for the case where one Release contains
-    *segments* of distinct Works (a podcast episode whose chapters
-    delineate an interview Work + a monologue Work). When set, the
-    chapter is read as "this region of the Release contains *that*
-    Work." When ``None`` the chapter is purely a navigation aid for
-    the parent Release.
-    """
+    """A timestamped marker within a Release (§5.4). Navigation aid, NOT a Work."""
 
     model_config = _CFG
 
@@ -65,20 +94,15 @@ class Chapter(BaseModel):
     title: str = ""
     image: str = ""
     end: Optional[float] = None
-    work_ref: Optional[EntityRef] = None   # see docstring; usually None
+    work_ref: Optional[EntityRef] = None   # rare; when chapter delineates a distinct Work segment
 
 
 class AccessibilityTrack(BaseModel):
-    """A per-Release accessibility asset: subtitle/caption file, audio
-    description, sign-language insert, lyric, transcript.
-
-    Distinct from `VariantKind` — the underlying Work is unchanged; the
-    Release simply ships an additional asset.
-    """
+    """Per-Release accessibility asset (§5.4)."""
 
     model_config = _CFG
 
-    kind: str
+    kind: AccessibilityKind
     language: str = ""
     uri: str = ""
     forced: bool = False
@@ -86,156 +110,35 @@ class AccessibilityTrack(BaseModel):
     note: Optional[str] = None
 
 
-class Work(BaseModel):
-    """The abstract canonical creative work.
-
-    Does not contain playback URIs — those live in Release. Two records
-    describing the same song on two different albums share a Work.
-    """
+class AvailabilityWindow(BaseModel):
+    """A single (start, end) availability window. None = open-ended on that side (§5.4)."""
 
     model_config = _CFG
 
-    title: str
-    media_type: MediaType = MediaType.GENERIC
+    start: Optional[str] = None
+    end: Optional[str] = None
+    note: str = ""
 
-    year: Optional[int] = None
-    runtime: Optional[float] = None
-    language: str = ""
-    original_languages: List[str] = Field(default_factory=list)  # multi-language original (Quebec films, simulcast anime)
-    country: str = ""
-
-    season: Optional[int] = None
-    episode: Optional[int] = None
-    series_title: Optional[str] = None
-    episode_orderings: Dict[str, int] = Field(default_factory=dict)
-
-    variant_kind: Optional[VariantKind] = None
-    edition: str = ""
-    source_format: str = ""
-
-    color: Optional[bool] = None
-    audio_present: Optional[bool] = None
-
-    content_genres: List[str] = Field(default_factory=list)
-    release_status: ReleaseStatus = ReleaseStatus.RELEASED
-
-    aka: List[str] = Field(default_factory=list)
-    localized_titles: List[Tuple[str, str]] = Field(default_factory=list)
-
-    credits: List[Credit] = Field(default_factory=list)
-    tracklist: List[Appearance] = Field(default_factory=list)
-
-    external_ids: Dict[str, str] = Field(default_factory=dict)
-    extra: Dict[str, Any] = Field(default_factory=dict)
-
-
-class Release(BaseModel):
-    """A specific physical or digital manifestation of a Work."""
-
-    model_config = _CFG
-
-    work: Work
-
-    # Edition
-    variant_kind: Optional[VariantKind] = None
-    edition: str = ""
-    region: str = ""
-
-    # Format — three orthogonal axes (replaces overloaded source_format)
-    container: str = ""
-    codec: str = ""
-    bitrate: str = ""
-    platform: str = ""
-    stream_mode: StreamMode = StreamMode.ON_DEMAND
-
-    # Quality / fidelity
-    resolution: str = ""
-    hdr: str = ""
-    audio_channels: str = ""
-    sample_rate: Optional[int] = None
-
-    # Localisation — dub/sub/market triple; not VariantKind.REGIONAL
-    audio_language: str = ""
-    subtitle_languages: List[str] = Field(default_factory=list)
-
-    # Lifecycle
-    release_status: ReleaseStatus = ReleaseStatus.RELEASED
-    release_date: Optional[IsoDate] = None
-
-    # Rights and availability — license carries the SPDX-style string for
-    # persistence; use ``parsed_license`` for the typed view.
-    license: str = ""
-    region_locked: Optional[bool] = None
-    regions_available: List[str] = Field(default_factory=list)
-    available_from: Optional[IsoDate] = None
-    available_until: Optional[IsoDate] = None
-    # Cycled availability ("Disney vault" pattern) — list of (from, until)
-    # ISO-date pairs. Either side may be None for open-ended windows.
-    # ``available_from`` / ``available_until`` cover the simple single-window
-    # case; populate ``availability_windows`` only when there are multiple.
-    availability_windows: List[Tuple[Optional[IsoDate], Optional[IsoDate]]] = Field(default_factory=list)
-
-    # Playback
-    uri: str = ""
-    image: str = ""
-
-    # Mid-Release navigation and accessibility
-    chapters: List[Chapter] = Field(default_factory=list)
-    accessibility: List[AccessibilityTrack] = Field(default_factory=list)
-
-    # Composite Releases (box sets, anthology Blu-rays). A box set aggregates
-    # several Works in one Release without a synthetic container Work. `work`
-    # is the principal / headline Work; `contents` lists the member Works.
-    contents: List[Appearance] = Field(default_factory=list)
-
-    # Scoring
-    match_confidence: float = 0.0
-
-    # Infrastructure
-    label: Optional[EntityRef] = None
-    distributor: Optional[EntityRef] = None
-
-    external_ids: Dict[str, str] = Field(default_factory=dict)
-    extra: Dict[str, Any] = Field(default_factory=dict)
-
-    @property
-    def parsed_license(self) -> "License":
-        """Typed view of :attr:`license`.
-
-        ``license`` is the canonical persisted form (SPDX identifier or
-        free string); ``parsed_license`` is the typed overlay parsed
-        via :meth:`License.from_spdx`. Use it to filter on rights
-        (open / commercial / share-alike) without string-matching every
-        SPDX variant.
-
-        Round-trips: ``Release.parsed_license.identifier == Release.license``
-        for any string the parser recognises; unknown strings round-trip
-        too but :meth:`License.is_open` returns ``False``.
-        """
-        # Local import: avoid circular dep on License (which imports nothing
-        # from this module) at module-load time, and avoid forcing every
-        # Release consumer to import License.
-        from mediavocab.models.license import License
-        return License.from_spdx(self.license)
+    @model_validator(mode="after")
+    def _check(self) -> "AvailabilityWindow":
+        if self.start is not None and self.end is not None and self.end < self.start:
+            raise ValueError("AvailabilityWindow.end precedes start")
+        return self
 
 
 class WorkRelation(BaseModel):
-    """A relation from one Work to another. Spec §6."""
+    """Work→Work relation (§4.13)."""
 
     model_config = _CFG
 
     kind: WorkRelationKind
-    target: Work
+    target: "Work"
     note: Optional[str] = None
 
 
 class ReleaseRelation(BaseModel):
-    """A relation from one Release to another. Spec §6.
-
-    Use for per-edition lineage that ``WorkRelation`` cannot express:
-    a 2025 Atmos remaster ``SUPERSEDES`` the 2017 stereo remaster
-    (same Work; the Release graph chains).
-    """
+    """Release→Release lineage (§4.13). Use sparingly — most distinctions are
+    encoded by format/packaging fields plus `release_hash`."""
 
     model_config = _CFG
 
@@ -244,61 +147,247 @@ class ReleaseRelation(BaseModel):
     note: Optional[str] = None
 
 
-class Programme(BaseModel):
-    """A single airing of a Work on a broadcast channel.
+class Work(BaseModel):
+    """The canonical creative artefact (§5.3).
 
-    A ``Programme`` is the show-as-aired-at-time anchor for live
-    broadcast (``MediaType.TV``, ``MediaType.RADIO``). It points at
-    the *content* Work being aired (typically an
-    ``EPISODIC_SERIES`` episode, a ``MOVIE``, an ``AUDIO_DRAMA``
-    instalment, …) and locates it in time on a specific channel.
-
-    Distinct from the channel-as-Work itself: a ``Programme`` is a
-    *slot*, not an identity. Two channels broadcasting the same
-    episode at different times yield two ``Programme`` records, one
-    Work.
+    Does not contain playback URIs — those live on Release. Two records
+    describing the same song on two different albums share a Work.
     """
 
     model_config = _CFG
 
-    work: EntityRef                          # the content Work being aired (resolve via external_ids / title+year)
-    channel: EntityRef                       # the broadcast channel Work / Entity
-    starts_at: IsoDate                       # aired-at start
-    ends_at: Optional[IsoDate] = None        # aired-at end (omit when only duration is known)
-    runtime: Optional[float] = None          # seconds; programme length on the schedule
-    is_live: bool = False                    # True for live broadcasts (sport, news, talk)
-    is_repeat: bool = False                  # True when this airing is a re-broadcast
+    title: str
+    media_type: MediaType
+    content_form: ContentForm = ContentForm.PRIMARY
+
+    # Temporal
+    year: Optional[int] = None
+    runtime: Optional[float] = None
+
+    # Language
+    language: str = ""
+    original_languages: List[str] = Field(default_factory=list)
+
+    # Geographic provenance (exactly one of the three is non-empty per MediaType;
+    # validator enforces exclusivity only, not slot-match — §5.3)
+    production_country: str = ""
+    publication_country: str = ""
+    broadcaster_country: str = ""
+
+    # Episode / series structure
+    season: Optional[int] = None
+    episode: Optional[int] = None
+    series_title: Optional[str] = None
+    episode_orderings: Dict[str, int] = Field(default_factory=dict)
+
+    # Edition (Work-only — restructurings produce new Works)
+    variant_kind: Optional[VariantKind] = None
+    edition: str = ""
+    source_format: str = ""
+
+    # Routing (excluded from work_hash)
+    content_genres: List[str] = Field(default_factory=list)
+    programme_format: Optional[ProgrammeFormat] = None
+    release_status: ReleaseStatus = ReleaseStatus.RELEASED
+
+    # Discovery (not part of identity hash)
+    aka: List[str] = Field(default_factory=list)
+    localized_titles: List[LocalizedTitle] = Field(default_factory=list)
+
+    # Credits and containment
+    credits: List[Credit] = Field(default_factory=list)
+    tracklist: List[Appearance] = Field(default_factory=list)
+    relations: List[WorkRelation] = Field(default_factory=list)
+
+    # Cross-references
+    external_ids: Dict[str, str] = Field(default_factory=dict)
     extra: Dict[str, str] = Field(default_factory=dict)
-    """Provider-specific tags that don't yet warrant a typed field.
-    String values only — see §10.2 escape-hatch contract."""
+
+    @model_validator(mode="after")
+    def _check(self) -> "Work":
+        if self.media_type in PIPELINE_SENTINELS:
+            raise ValueError(
+                f"Work.media_type must be a concrete kind; "
+                f"{self.media_type.value!r} is a pipeline sentinel (T8)"
+            )
+        slots = [self.production_country, self.publication_country, self.broadcaster_country]
+        if sum(1 for s in slots if s) > 1:
+            raise ValueError(
+                "Work: at most one of production_country / publication_country / "
+                "broadcaster_country may be set"
+            )
+        return self
+
+    def country(self) -> str:
+        """Return the one non-empty country slot, or `""` (§6.3 country_slot)."""
+        return (
+            self.production_country
+            or self.publication_country
+            or self.broadcaster_country
+            or ""
+        )
+
+
+class Release(BaseModel):
+    """A specific physical or digital manifestation of a Work (§5.4)."""
+
+    model_config = _CFG
+
+    work: Work
+
+    # Packaging (description-family)
+    packaging: Optional[ReleasePackaging] = None
+    edition: str = ""
+    region: str = ""
+
+    # Format identity (T6)
+    container: str = ""
+    codec: str = ""
+    bitrate: str = ""
+    platform: str = ""
+    resolution: str = ""
+
+    # Audio / video quality (description, not identity)
+    hdr: str = ""
+    audio_channels: str = ""
+    sample_rate: Optional[int] = None
+    frame_rate: Optional[float] = None
+    aspect_ratio: str = ""
+    color: Optional[bool] = None
+    audio_present: Optional[bool] = None
+
+    # Delivery
+    stream_mode: StreamMode = StreamMode.ON_DEMAND
+
+    # Localisation
+    audio_language: str = ""                          # identity (defines the dub/version)
+    subtitle_languages: List[str] = Field(default_factory=list)   # description
+
+    # Lifecycle
+    release_status: ReleaseStatus = ReleaseStatus.RELEASED
+    release_date: Optional[IsoDate] = None
+
+    # Rights and availability
+    license: str = ""
+    region_locked: Optional[bool] = None
+    regions_available: List[str] = Field(default_factory=list)
+    available_from: Optional[IsoDate] = None
+    available_until: Optional[IsoDate] = None
+    availability_windows: List[AvailabilityWindow] = Field(default_factory=list)
+
+    # Playback
+    uri: str = ""
+    image: str = ""
+
+    # Navigation / accessibility
+    chapters: List[Chapter] = Field(default_factory=list)
+    accessibility: List[AccessibilityTrack] = Field(default_factory=list)
+
+    # Composite Releases (box sets, anthology Blu-rays, multi-cut discs)
+    contents: List[Appearance] = Field(default_factory=list)
+
+    # Infrastructure
+    label: Optional[EntityRef] = None
+    distributor: Optional[EntityRef] = None
+
+    # Release→Release lineage
+    relations: List[ReleaseRelation] = Field(default_factory=list)
+
+    # Resolver-side scoring
+    match_confidence: float = 0.0
+
+    # Cross-references
+    external_ids: Dict[str, str] = Field(default_factory=dict)
+    extra: Dict[str, str] = Field(default_factory=dict)
+
+    @model_validator(mode="after")
+    def _check(self) -> "Release":
+        # Availability windows — ordered, non-overlapping, at most one open-ended (must be last)
+        wins = sorted(
+            self.availability_windows,
+            key=lambda w: (w.start is not None, w.start or ""),
+        )
+        for prev, cur in zip(wins, wins[1:]):
+            if prev.end is None or cur.start is None:
+                raise ValueError("open-ended availability_window must be the last entry")
+            if cur.start < prev.end:
+                raise ValueError("availability_windows overlap")
+
+        # region_locked ↔ regions_available invariant
+        if self.region_locked is False and self.regions_available:
+            raise ValueError("region_locked=False requires regions_available to be empty")
+
+        # Positive numeric quality fields
+        if self.sample_rate is not None and self.sample_rate <= 0:
+            raise ValueError("sample_rate must be positive (Hz)")
+        if self.frame_rate is not None and self.frame_rate <= 0:
+            raise ValueError("frame_rate must be positive (fps)")
+        if self.match_confidence < 0.0 or self.match_confidence > 1.0:
+            raise ValueError("match_confidence must be in [0.0, 1.0]")
+        return self
+
+    @property
+    def parsed_license(self) -> "License":  # noqa: F821 — forward type, local import below
+        """Typed view of `self.license` via SPDX parser. Deprecated — prefer
+        `mediavocab.models.license` helper predicates (`is_open`, etc.)."""
+        from mediavocab.models.license import License
+        return License.from_spdx(self.license)
+
+
+class Programme(BaseModel):
+    """A single airing of a Work on a broadcast channel (§5.5).
+
+    Per T4 the channel is a Work (a RADIO or TV station). Both `work` and
+    `channel` here are Works — passed as stubs with only identity fields
+    populated when the consumer doesn't need the full record.
+    """
+
+    model_config = _CFG
+
+    work: "Work"                              # the content Work being aired
+    channel: "Work"                           # the broadcast channel Work (RADIO / TV)
+    starts_at: IsoDate
+    ends_at: Optional[IsoDate] = None
+    runtime: Optional[float] = None
+    is_live: bool = False
+    is_repeat: bool = False
+    extra: Dict[str, str] = Field(default_factory=dict)
 
 
 class Schedule(BaseModel):
-    """An ordered list of ``Programme`` slots for a single broadcast
-    channel over a window of time.
+    """An ordered list of `Programme` slots for a single broadcast channel (§5.5).
 
-    Use for EPG / TV-listings / radio-schedule data. mediavocab
-    deliberately does not model "what's on right now" — query the
-    schedule for the slot whose ``[starts_at, ends_at)`` contains the
-    consumer's clock. Schedules are append-only at the model level;
-    consumers can replace a stale ``Schedule`` wholesale to refresh.
+    Programmes must be sorted by `starts_at` ascending and non-overlapping.
+    Only the trailing slot may have `ends_at = None` (open-ended current programme).
     """
 
     model_config = _CFG
 
-    channel: EntityRef                       # the broadcast channel
+    channel: "Work"
     programmes: List[Programme] = Field(default_factory=list)
-    valid_from: Optional[IsoDate] = None     # start of the schedule window
-    valid_until: Optional[IsoDate] = None    # end of the schedule window
-    source: str = ""                         # provider hint: "tunein", "tvmaze", "epg.xml", …
-    fetched_at: Optional[IsoDate] = None     # when the schedule was retrieved (for staleness)
+    valid_from: Optional[IsoDate] = None
+    valid_until: Optional[IsoDate] = None
+    source: str = ""
+    fetched_at: Optional[IsoDate] = None
     extra: Dict[str, str] = Field(default_factory=dict)
-    """Provider-specific tags that don't yet warrant a typed field.
-    String values only — see §10.2 escape-hatch contract."""
+
+    @model_validator(mode="after")
+    def _check(self) -> "Schedule":
+        progs = self.programmes
+        for prev, cur in zip(progs, progs[1:]):
+            if iso_compare(prev.starts_at, cur.starts_at) > 0:
+                raise ValueError("Schedule.programmes must be sorted by starts_at")
+            if prev.ends_at is None:
+                raise ValueError("only the last programme may have ends_at=None")
+            if iso_compare(prev.ends_at, cur.starts_at) > 0:
+                raise ValueError("Schedule.programmes overlap")
+        return self
 
 
-# Resolve forward references in the cycle Work <-> Appearance and
-# ReleaseRelation -> Release.
+# Resolve forward references in the cycles Work <-> Appearance and
+# Release <-> ReleaseRelation, Work <-> WorkRelation.
 Appearance.model_rebuild()
 Work.model_rebuild()
+WorkRelation.model_rebuild()
+Release.model_rebuild()
 ReleaseRelation.model_rebuild()

@@ -112,21 +112,31 @@ def filmography_of(entity: EntityRef, all_works: Iterable[Work],
 _RESOLUTION_ORDER = ("", "240p", "360p", "480p", "720p", "1080p", "1440p", "2160p", "4320p")
 _HDR_ORDER = ("", "HDR10", "HDR10+", "HLG", "Dolby Vision")
 _AUDIO_CHANNELS_ORDER = ("", "mono", "stereo", "5.1", "7.1", "Atmos")
-_VARIANT_PREF = {
-    # Higher = preferred. Director's / Extended cuts preferred over theatrical
-    # when a consumer asks for "the best version available". Theatrical is the
-    # baseline; remasters / colorizations are improvements; bootlegs lose.
+# Work-level variant preference (the cut / restructuring).
+_WORK_VARIANT_PREF = {
     "directors":     8,
     "extended":      7,
     "preservation":  6,
     "remastered":    5,
     "upscaled":      4,
-    "deluxe":        4,
     "colorized":     3,
     "theatrical":    2,
+    "fanedit":       1,
+    "tv_to_movie":   1,
+    "movie_to_tv":   1,
+    "compilation":   1,
+    "other":         0,
+}
+
+# Release-level packaging preference (how this edition ships).
+_PACKAGING_PREF = {
+    "deluxe":        4,
+    "box_set":       3,
     "reissue":       2,
     "regional":      1,
+    "promo":         0,
     "bootleg":      -1,
+    "other":         0,
 }
 
 
@@ -141,11 +151,15 @@ def _index(value: str, order: tuple) -> int:
 def quality_score(release: Release) -> tuple:
     """Sortable tuple — higher tuples are better releases.
 
-    Order of precedence (highest first): variant preference,
+    Order of precedence (highest first): Work-level variant (director's >
+    theatrical), Release packaging (deluxe > standard, bootleg < anything),
     resolution, HDR, audio channels, sample rate.
     """
+    work_variant = release.work.variant_kind.value if release.work.variant_kind else ""
+    packaging = release.packaging.value if release.packaging else ""
     return (
-        _VARIANT_PREF.get(release.variant_kind.value if release.variant_kind else "", 0),
+        _WORK_VARIANT_PREF.get(work_variant, 0),
+        _PACKAGING_PREF.get(packaging, 0),
         _index(release.resolution, _RESOLUTION_ORDER),
         _index(release.hdr,         _HDR_ORDER),
         _index(release.audio_channels, _AUDIO_CHANNELS_ORDER),

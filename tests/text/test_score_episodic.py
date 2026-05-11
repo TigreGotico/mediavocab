@@ -41,8 +41,10 @@ def test_episodic_self_score_one():
 
 
 def test_country_mismatch_halves():
-    a = Work(title="Office", media_type=MediaType.EPISODIC_SERIES, country="US", year=2005)
-    b = Work(title="Office", media_type=MediaType.EPISODIC_SERIES, country="GB", year=2001)
+    a = Work(title="Office", media_type=MediaType.EPISODIC_SERIES,
+             production_country="US", year=2005)
+    b = Work(title="Office", media_type=MediaType.EPISODIC_SERIES,
+             production_country="GB", year=2001)
     # title matches, year mismatch >1 already halves; we expect country to halve again.
     # So result should be ≤ 0.25.
     assert score(a, b) <= 0.25

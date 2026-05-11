@@ -1,30 +1,25 @@
-"""PlaybackModality — the orthogonal routing axis (spec axiom 13).
+"""PlaybackType — the orthogonal routing axis (A6).
 
-A request verb collapses cleanly onto a modality: *"play X"* ⇒ AUDIO,
-*"watch X"* / *"show me X"* ⇒ VIDEO, *"open X"* ⇒ TEXT or INTERACTIVE.
-The resolver gates providers on ``Signals.modality``, so a
-``MediaType.GENERIC`` query routed with ``modality=AUDIO`` never
-touches video-only providers.
+A request verb collapses cleanly onto a playback type: *"play X"* ⇒ AUDIO,
+*"watch X"* / *"show me X"* ⇒ VIDEO, *"open X"* ⇒ PAGED or INTERACTIVE.
+The resolver gates providers on `Signals.playback_type`, so a
+`MediaType.GENERIC` query routed with `playback_type=AUDIO` never touches
+video-only providers.
 
-Modality is **not on Work** — it's a routing concern, not identity.
-Use :func:`infer_modality` to derive a default from the work's
-``MediaType``.
+PlaybackType is NOT on Work — it's a routing concern, not identity (A6).
+Use `infer_playback_type` to derive a default from `MediaType`.
 """
 from typing import ClassVar, Set
 
 from mediavocab import (
-    MediaType, MetadataProvider, PlaybackModality, ProviderMatch,
-    Signals, infer_modality,
+    MediaType, MetadataProvider, PlaybackType, ProviderMatch,
+    Signals, infer_playback_type,
 )
 
 
-# ---------------------------------------------------------------------------
-# Three stub providers — declare modality alongside media.
-# ---------------------------------------------------------------------------
-
 class AudioOnlyProvider(MetadataProvider):
     name: ClassVar[str] = "stub_audio"
-    modality: ClassVar[Set[PlaybackModality]] = {PlaybackModality.AUDIO}
+    playback_type: ClassVar[Set[PlaybackType]] = {PlaybackType.AUDIO}
 
     def is_available(self) -> bool:
         return True
@@ -35,7 +30,7 @@ class AudioOnlyProvider(MetadataProvider):
 
 class VideoOnlyProvider(MetadataProvider):
     name: ClassVar[str] = "stub_video"
-    modality: ClassVar[Set[PlaybackModality]] = {PlaybackModality.VIDEO}
+    playback_type: ClassVar[Set[PlaybackType]] = {PlaybackType.VIDEO}
 
     def is_available(self) -> bool:
         return True
@@ -57,22 +52,22 @@ class UniversalProvider(MetadataProvider):
 def main() -> None:
     providers = [AudioOnlyProvider(), VideoOnlyProvider(), UniversalProvider()]
 
-    print("Default MediaType → PlaybackModality mapping:")
+    print("Default MediaType → PlaybackType mapping:")
     for mt in (MediaType.MUSIC, MediaType.MOVIE, MediaType.BOOK,
-               MediaType.GAME, MediaType.GENERIC):
-        print(f"  {mt.value:<22} → {infer_modality(mt).value}")
+               MediaType.GAME, MediaType.PLAYLIST):
+        print(f"  {mt.value:<22} → {infer_playback_type(mt).value}")
 
-    print("\nVerb → modality routing demonstration:")
+    print("\nVerb → playback-type routing demonstration:")
     cases = [
         ("\"play me Inception\" — AUDIO intent on a video work",
          Signals(title="Inception", medium=MediaType.MOVIE,
-                 modality=PlaybackModality.AUDIO)),
+                 playback_type=PlaybackType.AUDIO)),
         ("\"watch Inception\" — VIDEO intent on a video work",
          Signals(title="Inception", medium=MediaType.MOVIE,
-                 modality=PlaybackModality.VIDEO)),
+                 playback_type=PlaybackType.VIDEO)),
         ("\"play Daft Punk\" — AUDIO intent, no specific media hint",
-         Signals(title="Daft Punk", modality=PlaybackModality.AUDIO)),
-        ("no modality hint — universal routing",
+         Signals(title="Daft Punk", playback_type=PlaybackType.AUDIO)),
+        ("no playback hint — universal routing",
          Signals(title="Anything", medium=MediaType.MOVIE)),
     ]
     for label, sig in cases:

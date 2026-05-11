@@ -10,8 +10,9 @@ Same shape, three different jobs distinguished by direction of flow:
    hash, no credits, no tracklist).
 
 The duplication with Work is intentional — cross-provider comparison
-needs identical comparable structure. Axiom 13 keeps Signals-only
-fields off Work (``include_variants``, ``fanedit_subtype``, ``modality``).
+needs identical comparable structure. A6 keeps Signals-only fields off
+Work (``include_variants``, ``fanedit_subtype``, ``playback_type``,
+``content_form``).
 """
 from typing import ClassVar
 from mediavocab import (

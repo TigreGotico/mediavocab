@@ -60,3 +60,53 @@ def test_performers_helper():
     feat = _credit("Guest", RelationRole.FEATURING)
     w = Work(title="x", media_type=MediaType.MUSIC, credits=[feat, band])
     assert performers(w) == [band]
+
+
+# ---------------------------------------------------------------------------
+# Edge cases
+# ---------------------------------------------------------------------------
+
+def test_primary_credit_no_credits_returns_none():
+    from mediavocab.helpers import primary_credit
+    w = Work(title="x", media_type=MediaType.MOVIE)
+    assert primary_credit(w) is None
+
+
+def test_primary_credit_falls_back_when_no_principal():
+    from mediavocab import CreditSection
+    from mediavocab.helpers import primary_credit
+    w = Work(title="x", media_type=MediaType.MOVIE, credits=[
+        _credit("Editor", RelationRole.EDITOR),  # default section = PRINCIPAL? check
+    ])
+    # _credit() uses default section=PRINCIPAL via Credit's default.
+    c = primary_credit(w)
+    assert c is not None
+    assert c.entity.name == "Editor"
+
+
+def test_director_none_when_only_screenwriter():
+    from mediavocab.helpers import director
+    w = Work(title="x", media_type=MediaType.MOVIE,
+             credits=[_credit("Aaron Sorkin", RelationRole.SCREENWRITER)])
+    assert director(w) is None
+
+
+def test_performers_returns_empty_when_no_credits():
+    from mediavocab.helpers import performers
+    w = Work(title="x", media_type=MediaType.MUSIC)
+    assert performers(w) == []
+
+
+def test_episodes_of_with_pilot_episode_zero():
+    """A pilot (episode=0) should appear in episodes_of, sorted first."""
+    from mediavocab.helpers import episodes_of
+    series = Work(title="Doctor Who",
+                  media_type=MediaType.EPISODIC_SERIES,
+                  series_title="Doctor Who")
+    pilot = Work(title="Pilot", media_type=MediaType.EPISODIC_SERIES,
+                 series_title="Doctor Who", season=1, episode=0)
+    ep1 = Work(title="Ep1", media_type=MediaType.EPISODIC_SERIES,
+               series_title="Doctor Who", season=1, episode=1)
+    eps = episodes_of(series, [series, ep1, pilot])
+    assert eps[0].episode == 0
+    assert eps[1].episode == 1

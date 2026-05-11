@@ -1,7 +1,8 @@
 # Adult media
 
-Adult content fits the existing model with **no new types or enums**. See
-spec §8.3 for the full reasoning. Quick summary:
+Adult content fits the existing model with **no new types or enums**.
+T1 (genre is not type) does the work — `GENRE_ADULT` is a content tag
+applied across MediaTypes, not a type of its own.
 
 - **Content flag**: `content_genres += [GENRE_ADULT]` on any Work, regardless
   of `MediaType`.
@@ -13,6 +14,7 @@ spec §8.3 for the full reasoning. Quick summary:
 - **Studio / platform / self-publishing**: `EntityKind.ORGANISATION`. Subscription
   feeds (OnlyFans, Fansly) → `Entity` with platform-as-publisher. Per-clip
   posts get their own `Release` if individually addressable.
-- **Hentai**: `MediaType` is TV or MOVIE; `content_genres = [GENRE_ANIME, GENRE_ADULT]`.
+- **Hentai**: `MediaType` is `EPISODIC_SERIES` or `MOVIE`;
+  `content_genres = [GENRE_ANIME, GENRE_ADULT]`.
 - **`external_ids` keys**: `iafd`, `adultfilmdatabase` (constants in
   `mediavocab.models.external_ids`).

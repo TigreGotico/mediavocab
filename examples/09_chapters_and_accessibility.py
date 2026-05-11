@@ -5,13 +5,13 @@ audio-description mix — the underlying Work is unchanged; everything that
 varies lives on the Release.
 """
 from mediavocab import (
-    AccessibilityTrack, Chapter, MediaType, Release, Work,
+    AccessibilityKind, AccessibilityTrack, Chapter, MediaType, Release, Work,
 )
 
 
 def main() -> None:
     work = Work(title="Akira", media_type=MediaType.MOVIE, year=1988,
-                country="JP", language="ja")
+                production_country="JP", language="ja")
 
     bluray = Release(
         work=work,
@@ -25,12 +25,14 @@ def main() -> None:
             Chapter(offset=2700.0, title="The Awakening"),
         ],
         accessibility=[
-            AccessibilityTrack(kind="subtitles", language="en", uri="...en.vtt"),
-            AccessibilityTrack(kind="subtitles", language="en",
-                               uri="...en-sdh.vtt", sdh=True),
-            AccessibilityTrack(kind="subtitles", language="es", uri="...es.vtt"),
-            AccessibilityTrack(kind="audio_description", language="en",
-                               uri="...ad.mp3"),
+            AccessibilityTrack(kind=AccessibilityKind.SUBTITLES,
+                               language="en", uri="...en.vtt"),
+            AccessibilityTrack(kind=AccessibilityKind.SUBTITLES,
+                               language="en", uri="...en-sdh.vtt", sdh=True),
+            AccessibilityTrack(kind=AccessibilityKind.SUBTITLES,
+                               language="es", uri="...es.vtt"),
+            AccessibilityTrack(kind=AccessibilityKind.AUDIO_DESCRIPTION,
+                               language="en", uri="...ad.mp3"),
         ],
     )
 
@@ -43,7 +45,7 @@ def main() -> None:
     print("  accessibility:")
     for t in bluray.accessibility:
         flag = " (SDH)" if t.sdh else ""
-        print(f"    - {t.kind}/{t.language}{flag}")
+        print(f"    - {t.kind.value}/{t.language}{flag}")
 
 
 if __name__ == "__main__":

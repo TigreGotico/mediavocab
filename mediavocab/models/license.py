@@ -108,9 +108,70 @@ class License(BaseModel):
                 commercial=not nc,
                 derivatives=not nd,
             )
+        # Permissive open-source licences (GPL family, MIT, BSD, Apache, MPL).
+        # These are "open" per spec §7.2 even though they're not Creative Commons.
+        upper_alpha = upper.replace("_", "-")
+        if any(upper_alpha.startswith(p) for p in (
+            "GPL-", "LGPL-", "AGPL-", "MIT", "BSD-", "APACHE-", "MPL-",
+            "ISC", "UNLICENSE",
+        )) or upper_alpha in ("MIT", "ISC", "UNLICENSE"):
+            return cls(
+                identifier=s, name=upper_alpha,
+                url="https://spdx.org/licenses/",
+                attribution=True,
+                # GPL / LGPL / AGPL are copyleft → share-alike-like.
+                share_alike=upper_alpha.startswith(("GPL-", "LGPL-", "AGPL-")),
+                commercial=True, derivatives=True,
+            )
+
         # Unknown — preserve the string, default to fully-restricted.
         return cls(
             identifier=s, name=s,
             attribution=True, share_alike=False,
             commercial=False, derivatives=False,
         )
+
+
+# ---------------------------------------------------------------------------
+# Free-function predicates (spec §7.2 — operate directly on SPDX strings)
+# ---------------------------------------------------------------------------
+
+def is_open(spdx: str) -> bool:
+    """True for SPDX identifiers in the open-licence family (CC0, CC-BY*,
+    CC-BY-SA*, GPL family, Apache, MIT, BSD, MPL, ISC, public_domain, PDM).
+    """
+    return License.from_spdx(spdx).is_open() or (
+        License.from_spdx(spdx).commercial and License.from_spdx(spdx).derivatives
+        and bool((spdx or "").strip())
+        and (spdx or "").strip().lower() not in ("all_rights_reserved", "arr", "proprietary")
+        and (spdx or "").upper().replace("_", "-").startswith(
+            ("GPL-", "LGPL-", "AGPL-", "MIT", "BSD-", "APACHE-", "MPL-", "ISC", "UNLICENSE")
+        )
+    )
+
+
+def is_public_domain(spdx: str) -> bool:
+    """True for public-domain / CC0 / PDM identifiers."""
+    return License.from_spdx(spdx).is_public_domain
+
+
+def requires_attribution(spdx: str) -> bool:
+    """True for any licence requiring credit; unknown / unrecognised defaults
+    to True (conservative).
+    """
+    return License.from_spdx(spdx).attribution
+
+
+def allows_commercial(spdx: str) -> bool:
+    """False for NC variants and unknown identifiers; True for permissive."""
+    return License.from_spdx(spdx).commercial
+
+
+def allows_derivatives(spdx: str) -> bool:
+    """False for ND variants and unknown identifiers; True otherwise."""
+    return License.from_spdx(spdx).derivatives
+
+
+def allows_share_alike(spdx: str) -> bool:
+    """True for SA variants (CC-BY-SA*) and copyleft (GPL family)."""
+    return License.from_spdx(spdx).share_alike

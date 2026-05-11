@@ -1,15 +1,16 @@
 """Programme + Schedule — model an EPG (electronic programme guide).
 
-A Programme is one slot on one channel: ``(work, channel, starts_at,
-ends_at)``. A Schedule is the ordered list of Programmes for a channel
-over a window. mediavocab does not model "what's on now" as a function —
-query the schedule for the slot whose ``[starts_at, ends_at)`` contains
-the consumer's clock.
+A Programme is one slot on one channel: `(work, channel, starts_at,
+ends_at)`. A Schedule is the ordered list of Programmes for a channel
+over a window. Per T4, the channel is itself a Work.
+
+mediavocab does not model "what's on now" as a function — query the
+schedule for the slot whose `[starts_at, ends_at)` contains the consumer's
+clock.
 """
 from datetime import datetime, timedelta, timezone
 
-from mediavocab import EntityKind, EntityRef
-from mediavocab.models.work import Programme, Schedule
+from mediavocab import MediaType, Programme, Schedule, Work
 
 
 def now_utc() -> datetime:
@@ -17,14 +18,21 @@ def now_utc() -> datetime:
 
 
 def main() -> None:
-    bbc1 = EntityRef(name="BBC One", kind=EntityKind.SERIES,
-                     external_ids={"tvmaze_network_id": "12"})
-    doctor_who = EntityRef(name="Doctor Who: Pilot",
-                           kind=EntityKind.SERIES,
-                           external_ids={"imdb": "tt0436992"})
-    news_at_six = EntityRef(name="BBC News at Six",
-                            kind=EntityKind.SERIES,
-                            external_ids={"tvmaze_id": "5"})
+    # The channel-as-Work (T4).
+    bbc1 = Work(title="BBC One", media_type=MediaType.TV,
+                broadcaster_country="GB",
+                external_ids={"tvmaze_network_id": "12"})
+
+    doctor_who = Work(title="Doctor Who",
+                      media_type=MediaType.EPISODIC_SERIES,
+                      production_country="GB",
+                      series_title="Doctor Who", season=1, episode=1,
+                      external_ids={"imdb": "tt0436992"})
+    news_at_six = Work(title="BBC News at Six",
+                       media_type=MediaType.EPISODIC_SERIES,
+                       production_country="GB",
+                       series_title="BBC News at Six",
+                       external_ids={"tvmaze_id": "5"})
 
     t = now_utc().replace(minute=0, second=0)
     schedule = Schedule(
@@ -45,7 +53,7 @@ def main() -> None:
         ],
     )
 
-    print(f"Schedule: {schedule.channel.name}")
+    print(f"Schedule: {schedule.channel.title}")
     print(f"  valid {schedule.valid_from} → {schedule.valid_until}")
     print(f"  source={schedule.source}  programmes={len(schedule.programmes)}")
     for p in schedule.programmes:
@@ -55,9 +63,8 @@ def main() -> None:
         if p.is_repeat:
             flags.append("REPEAT")
         flag_str = f" [{','.join(flags)}]" if flags else ""
-        print(f"    {p.starts_at} — {p.work.name}{flag_str}")
+        print(f"    {p.starts_at} — {p.work.title}{flag_str}")
 
-    # "What's on right now" — the consumer's job, not the model's.
     now = now_utc()
     on_air = next(
         (p for p in schedule.programmes
@@ -65,7 +72,7 @@ def main() -> None:
         None,
     )
     print(f"\nOn now ({now.strftime('%H:%M')}): "
-          f"{on_air.work.name if on_air else '(nothing in window)'}")
+          f"{on_air.work.title if on_air else '(nothing in window)'}")
 
 
 if __name__ == "__main__":

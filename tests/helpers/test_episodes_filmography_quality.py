@@ -1,7 +1,7 @@
-"""Tests for new query helpers: episodes_of, filmography_of, best_release."""
+"""Tests for query helpers: episodes_of, filmography_of, best_release."""
 from mediavocab import (
     Credit, CreditSection, EntityKind, EntityRef, MediaType, RelationRole,
-    Release, VariantKind, Work,
+    Release, ReleasePackaging, VariantKind, Work,
 )
 from mediavocab.helpers import (
     best_release, episodes_of, filmography_of, quality_score,
@@ -87,9 +87,9 @@ def test_filmography_falls_back_to_name_when_no_ids():
 # best_release / quality_score
 # ---------------------------------------------------------------------------
 
-def _movie_work():
+def _movie_work(variant=None):
     return Work(title="Blade Runner", media_type=MediaType.MOVIE,
-                year=1982, runtime=117 * 60.0)
+                year=1982, runtime=117 * 60.0, variant_kind=variant)
 
 
 def test_best_release_prefers_higher_resolution():
@@ -101,11 +101,12 @@ def test_best_release_prefers_higher_resolution():
 
 
 def test_best_release_prefers_directors_cut():
-    w = _movie_work()
-    theatrical = Release(work=w, container="Blu-ray", resolution="1080p",
-                         variant_kind=VariantKind.THEATRICAL)
-    directors = Release(work=w, container="Blu-ray", resolution="1080p",
-                        variant_kind=VariantKind.DIRECTORS)
+    """Director's cut is a different Work (§3.4); the Work-level variant_kind
+    drives quality_score's first axis."""
+    theatrical = Release(work=_movie_work(VariantKind.THEATRICAL),
+                         container="Blu-ray", resolution="1080p")
+    directors = Release(work=_movie_work(VariantKind.DIRECTORS),
+                        container="Blu-ray", resolution="1080p")
     assert best_release(theatrical, directors) is directors
 
 
@@ -133,8 +134,9 @@ def test_quality_score_is_sortable():
 
 
 def test_bootleg_loses_to_anything():
+    """Bootleg lives on Release.packaging now, not Work.variant_kind."""
     w = _movie_work()
     bootleg = Release(work=w, resolution="2160p",
-                      variant_kind=VariantKind.BOOTLEG)
+                      packaging=ReleasePackaging.BOOTLEG)
     plain = Release(work=w, resolution="480p")
     assert best_release(bootleg, plain) is plain

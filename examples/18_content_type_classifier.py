@@ -1,36 +1,42 @@
-"""ContentType — the fine-grained classifier output, ported from tutubo.
+"""ContentType — fine-grained classifier output.
 
-``mediavocab.text.classify_video`` returns a ``ContentType`` from a
-title/description. Use ``ContentType.to_routing()`` to project that
-onto ``(MediaType, content_genres)`` — the canonical input shape of
-the resolver two-axis gate.
+`mediavocab.text.classify_video` returns a `ContentType` from a title and
+description. `ContentType.to_routing()` projects that onto the resolver's
+four-axis routing tuple `(MediaType, ContentForm, content_genres,
+ProgrammeFormat)`.
 """
-from mediavocab import MediaType
 from mediavocab.taxonomy import ContentType
 from mediavocab.text import classify_video
 
 
 def main() -> None:
     samples = [
-        ("Cowboy Bebop S01E02 — Stray Dog Strut",  ""),
-        ("Inception (2010) — Official Trailer",     ""),
-        ("Linus Tech Tips reacts to a 1MW PSU",     ""),
-        ("Bohemian Rhapsody — Queen — Live Aid 1985", "concert footage"),
-        ("Brooklyn Nine-Nine S05E14",                ""),
-        ("Behind the Scenes: Mandalorian Season 3", ""),
+        ("Cowboy Bebop S01E02 — Stray Dog Strut",      ""),
+        ("Inception (2010) — Official Trailer",        ""),
+        ("Linus Tech Tips reacts to a 1MW PSU",        ""),
+        ("Bohemian Rhapsody — Queen — Live Aid 1985",  "concert footage"),
+        ("Brooklyn Nine-Nine S05E14",                  ""),
+        ("Behind the Scenes: Mandalorian Season 3",    ""),
+        ("Planet Earth II — Mountains",                "BBC nature documentary"),
+        ("Bo Burnham: Inside",                         "stand-up comedy special"),
     ]
 
-    print(f"{'Title':<46} ContentType            → MediaType + genres")
-    print("-" * 100)
+    print(f"{'Title':<46} ContentType            → routing")
+    print("-" * 110)
     for title, desc in samples:
         ct = classify_video(title, desc)
-        media, genres = ct.to_routing()
-        gtxt = "[" + ", ".join(genres) + "]" if genres else ""
-        print(f"{title:<46} {ct.value:<22} → {media.value} {gtxt}")
+        media, form, genres, pf = ct.to_routing()
+        bits = [f"media={media.value}", f"form={form.value}"]
+        if genres:
+            bits.append(f"genres={genres}")
+        if pf:
+            bits.append(f"programme={pf.value}")
+        print(f"{title:<46} {ct.value:<22} → " + "  ".join(bits))
 
-    print("\nNote: TRAILER and BEHIND_THE_SCENES route to MediaType.GENERIC,")
-    print("not MediaType.MOVIE — they don't have a movie-shaped schema.")
-    print("The genre tag does the discriminating work (axiom 13).")
+    print("\nNotes:")
+    print(" - TRAILER / BEHIND_THE_SCENES emit ContentForm, not MediaType (§3.3).")
+    print(" - DOCUMENTARY / STAND_UP / CONCERT emit ProgrammeFormat (§3.7).")
+    print(" - ANIME stays in content_genres (T1).")
 
 
 if __name__ == "__main__":

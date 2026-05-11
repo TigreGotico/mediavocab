@@ -14,10 +14,10 @@ for a property they don't use.
 1. **Unknown** — not yet resolved by the consumer's pipeline
 2. **Indeterminate** — user-paced or open-ended
 
-Distinguish at the consumer:
+Distinguish at the consumer per the rule in §5.3 (`Work.runtime`):
 
-- `media_type ∈ {BOOK, COMIC, INTERACTIVE_FICTION}` → indeterminate
-- `stream_mode == StreamMode.CONTINUOUS` → indeterminate (open-ended stream)
+- `media_type ∈ {BOOK, COMIC, GAME, INTERACTIVE_FICTION, TV, RADIO, PLAYLIST}` → indeterminate
+- `stream_mode == StreamMode.CONTINUOUS` on any Release → indeterminate (open-ended stream)
 - otherwise → unknown (treat as missing data)
 
 ## Slideshows and photo books
@@ -35,7 +35,7 @@ A motion-comic slideshow with embedded animation is **not** this — it is
 
 ## Branching narratives
 
-The MediaType follows distribution channel (axiom 10), not narrative structure:
+The MediaType follows distribution channel (T7), not narrative structure:
 
 | Distribution | MediaType | Genres |
 |---|---|---|

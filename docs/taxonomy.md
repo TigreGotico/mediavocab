@@ -1,17 +1,18 @@
 # Taxonomy reference
 
 All enums inherit `(str, Enum)` so values compare equal to their string
-representation: `MediaType.MOVIE == "movie"`. This makes them safe to use in
-JSON, env vars, and dict keys without conversion.
+representation: `MediaType.MOVIE == "movie"`. Safe to use in JSON, env
+vars, and dict keys without conversion.
 
-## `MediaType` (18 values)
+## `MediaType` (20 values: 17 concrete + 3 pipeline sentinels)
 
-The top-level classification of a Work. Determines schema, external databases,
-and comparison tolerances.
+The top-level classification of a Work. Determines schema, external
+databases, and comparison tolerances (A1).
 
 | Value | Use for |
 |---|---|
-| `MOVIE` | Feature films, short films, documentaries (with `GENRE_DOCUMENTARY`) |
+| `MOVIE` | Feature films (with `ProgrammeFormat.DOCUMENTARY` for feature documentaries) |
+| `SHORT_FILM` | Festival-circuit short film (≤40 min); disjoint databases per A1(b) |
 | `EPISODIC_SERIES` | On-demand episodic video — anime, drama, sitcom, web series |
 | `TV` | Live linear / IPTV broadcast channel (parallel to `RADIO`; channel-as-Work) |
 | `MUSIC` | Audio with music-pipeline identity (artist, ISRC, MusicBrainz) |
@@ -19,141 +20,180 @@ and comparison tolerances.
 | `PODCAST` | Episodic non-music audio via RSS or podcast platforms |
 | `AUDIOBOOK` | Complete narrated literary work, single narrator |
 | `AUDIO_DRAMA` | Performed audio with cast, director, sound design |
-| `RADIO` | Stations and broadcast programmes |
+| `RADIO` | Live linear audio broadcast channel |
 | `BOOK` | Text-based written works |
 | `COMIC` | Sequential art (singles, GNs, manga, manhwa, manhua, webcomics) |
 | `GAME` | Video games (any platform) |
 | `INTERACTIVE_FICTION` | Text-/voice-driven branching narrative (Inform, Twine, Alexa Skills) |
 | `SOUND_EFFECT` | Short triggered audio clips (one-shots) |
-| `AMBIENT_SOUNDS` | Procedurally generated / looping environment audio |
-| `PLAYLIST` | Cross-media-type curated collection (Spotify / YouTube playlist, M3U); curator credit via `RelationRole.CURATOR` |
-| `GENERIC` | Type unknown; further resolution may clarify |
-| `NOT_MEDIA` | Terminal classifier sentinel — definitely not a media request |
+| `PROCEDURAL_AMBIENT` | Generator-platform ambient audio (myNoise, Moodist, Noisli, Endel) |
+| `PLAYLIST` | Cross-media-type curated collection (Spotify / YouTube playlist, M3U) |
+| `GENERIC` | Pipeline sentinel — type unknown; rejected at Work construction (T8) |
+| `NOT_MEDIA` | Pipeline sentinel — definitely not a media request; rejected on Work |
+| `CONTROL` | Pipeline sentinel — playback-control verb; rejected on Work |
 
-## `VariantKind`
+`PIPELINE_SENTINELS = {GENERIC, NOT_MEDIA, CONTROL}` is exported as a
+frozenset for membership checks.
 
-Cuts: `THEATRICAL`, `DIRECTORS`, `EXTENDED`. Fan: `FANEDIT`, `TV_TO_MOVIE`,
-`MOVIE_TO_TV`. Restoration: `PRESERVATION`, `COLORIZED`, `REMASTERED`,
-`UPSCALED`. Packaging: `DELUXE`, `REISSUE`, `COMPILATION`, `REGIONAL`,
-`BOOTLEG`. Catch-all: `OTHER`.
+## `VariantKind` (Work-only — §3.4)
+
+Restructurings of the canonical artefact. Each cut is its own Work
+linked by `WorkRelation`.
+
+Cuts: `THEATRICAL`, `DIRECTORS`, `EXTENDED`, `FANEDIT`.
+Cross-MediaType transformations: `TV_TO_MOVIE`, `MOVIE_TO_TV`.
+Restoration: `PRESERVATION`, `COLORIZED`, `REMASTERED`, `UPSCALED`.
+Derived aggregations: `COMPILATION`.
+Catch-all: `OTHER`.
 
 A canonical/default edition uses `variant_kind=None` — `STANDARD` is
-intentionally absent.
+intentionally absent (A2).
 
-## `EntityKind` (6 values)
+## `ReleasePackaging` — Release-level packaging (§3.5)
 
-| Value | Use for |
-|---|---|
-| `PERSON` | Any human individual |
-| `GROUP` | Band, ensemble, theatre company, comedy duo (has temporal members) |
-| `ORGANISATION` | Label, publisher, studio, broadcaster, dev studio |
-| `SERIES` | Container: TV franchise, book series, podcast show |
-| `DEVICE` | Physical playback endpoint: smart speaker, smart plug, console |
-| `OTHER` | Catch-all (use `extra["event_type"]="tour"` for tours/festivals) |
+How a Release is packaged independently of the Works it carries.
 
-`Entity.extra["primary_role"]` records professional identity ("primarily an
-actor") when needed; that's not a schema concern.
+`DELUXE`, `REISSUE`, `REGIONAL`, `BOOTLEG`, `BOX_SET`, `PROMO`, `OTHER`.
+
+Description-family (A6); excluded from `release_hash`.
+
+## `ContentForm` — experiential kind (§3.3)
+
+`PRIMARY` (default), `TRAILER`, `TEASER`, `EXCERPT`, `BEHIND_SCENES`,
+`REACTION`, `SOCIAL_CLIP`, `SUPPLEMENT`, `OTHER`.
+
+The one human-perception axis admitted to `work_hash` (A8b) — a trailer
+for *Inception* and the film *Inception* would otherwise collide on
+`(title, year, media_type)`.
+
+## `ProgrammeFormat` — structural format (§3.7)
+
+`CONCERT`, `STAND_UP`, `TALK_SHOW`, `REALITY`, `NEWS`, `SPORTS`, `QUIZ`,
+`DOCUMENTARY`, `OTHER`.
+
+Routing axis on `Work.programme_format`; excluded from `work_hash` (A6).
+
+## `EntityKind` and `OrganisationKind`
+
+`PERSON`, `GROUP`, `ORGANISATION`, `SERIES`, `DEVICE`, `OTHER`.
+
+When `kind == ORGANISATION`, `Entity.org_kind` must be set to one of
+`LABEL`, `PUBLISHER`, `STUDIO`, `BROADCASTER`, `DEVELOPER`,
+`STREAMING_SERVICE`, `DISTRIBUTOR`, `OTHER` (validator enforced).
+
+`PERSON` entities may set `birth_year` / `death_year`; rejected on other
+kinds.
 
 ## `RelationRole`
 
-Music: `PERFORMER`, `COMPOSER`, `LYRICIST`, `PRODUCER`, `FEATURING`, `REMIXER`.
+Music: `PERFORMER`, `COMPOSER`, `LYRICIST`, `PRODUCER`, `FEATURING`,
+`REMIXER`.
 Film/TV: `DIRECTOR`, `SCREENWRITER`, `ACTOR`, `CINEMATOGRAPHER`, `EDITOR`.
 Books/comics: `AUTHOR`, `ILLUSTRATOR`, `TRANSLATOR`, `NARRATOR`.
-Podcast/radio: `HOST`, `GUEST`. Curated collections: `CURATOR` (playlist
-curator, anthology editor — selected and ordered other people's works).
-Game: `DEVELOPER`, `PORTER`. Release
-infrastructure: `PUBLISHER`, `LABEL`, `DISTRIBUTOR`. Generic fallback:
-`CREATOR`, `OTHER`.
+Podcast/radio: `HOST`, `GUEST`, `CURATOR`.
+Game: `DEVELOPER`, `PORTER`.
+Release infrastructure: `PUBLISHER`, `LABEL`, `DISTRIBUTOR`.
+Fallback: `CREATOR`, `OTHER`.
 
-`PRODUCER` means *music producer*. A film producer is `CREATOR` with a free
-text `role`.
+`PRODUCER` means *music producer*. A film producer is `CREATOR` with a
+free-text `role` note.
 
 ## `CreditSection`
 
 `PRINCIPAL` / `GUEST` / `STAFF`. Same three-way split applies to band
-members vs. session players vs. studio crew, and to film cast vs. cameos
-vs. crew.
+members vs. session players vs. studio crew, and to film cast vs.
+cameos vs. crew.
 
-## `MembershipStatus`
+## `MembershipKind` × `TemporalState` (§4.8)
 
-`CURRENT`, `PAST`, `TOURING`, `GUEST`, `INACTIVE`. **`date_to=None` does
-not mean "current"** — check `status` (a defunct band's last member has
-`date_to=None` + `status=INACTIVE`). `TOURING` (renamed from `LIVE`)
-avoids collision with `StreamMode.LIVE` and
-`WorkRelationKind.LIVE_VERSION`.
+Two orthogonal facets (A5). **`date_to=None` does not mean "current"** —
+check `temporal`.
+
+`MembershipKind`: `MEMBER`, `TOURING`, `SESSION`.
+`TemporalState`: `ACTIVE`, `ENDED`, `INACTIVE_GROUP`.
+
+A current touring member is `(kind=TOURING, temporal=ACTIVE,
+date_to=None)`. A defunct band's last guitarist is `(kind=MEMBER,
+temporal=INACTIVE_GROUP, date_to=None)`.
 
 ## `ReleaseStatus`
 
-`RELEASED`, `ANNOUNCED`, `IN_PRODUCTION`, `CANCELLED`, `WITHDRAWN`, `UNKNOWN`.
+`RELEASED`, `ANNOUNCED`, `IN_PRODUCTION`, `CANCELLED`, `WITHDRAWN`,
+`UNKNOWN`.
 
-`WITHDRAWN` is the "shipped, then pulled" state — out of print, removed from
-streaming, rights reverted. Distinct from `CANCELLED` (never shipped).
+`WITHDRAWN` = "shipped, then pulled" (out of print, removed from
+streaming, rights reverted). Distinct from `CANCELLED` (never shipped).
 
 ## `StreamMode`
 
 `ON_DEMAND` (default) / `LIVE` / `CONTINUOUS`. Looping a track is
-`StreamMode` on the Release — *not* an identity property of the Work.
+`StreamMode` on the Release — *not* an identity property of the Work
+(A3).
 
 ## `WorkRelationKind`
 
-`COVERS`, `SAMPLES`, `ADAPTED_FROM`, `SEQUEL_TO`, `PREQUEL_TO`, `PART_OF`,
-`LIVE_VERSION`, `REMIX_OF`, `SOUNDTRACK_FOR`, `BONUS_FOR`, `FANEDIT_OF`.
-Used by the optional `WorkRelation` model.
+`COVERS`, `SAMPLES`, `ADAPTED_FROM`, `SEQUEL_TO`, `PREQUEL_TO`,
+`PART_OF`, `LIVE_VERSION`, `REMIX_OF`, `SOUNDTRACK_FOR`, `BONUS_FOR`,
+`FANEDIT_OF`, `DLC_FOR`, `EXPANSION_OF`, `DERIVED_FROM`.
 
-`BONUS_FOR` is the catch-all for supplementary content: trailers, teasers,
-behind-the-scenes featurettes, gag reels, commentary tracks, and deleted
-scenes. Use the free `WorkRelation.note` field to disambiguate the subtype.
-
-`FANEDIT_OF` links a fanedit Work back to its source. Pair with
-`Work.variant_kind` (`FANEDIT`, `TV_TO_MOVIE`, `MOVIE_TO_TV`) to indicate
-the kind of recut.
+`BONUS_FOR` is the catch-all for supplementary content attached to
+another Work. `FANEDIT_OF` links a fanedit Work back to its source.
+`DERIVED_FROM` is the generic catch-all for cross-channel reissues and
+remasters that produce new Works (§3.4).
 
 ## `ReleaseRelationKind`
 
-`SUPERSEDES`, `REMASTER_OF`, `REISSUE_OF`, `PORT_OF`, `DERIVED_FROM`. See
-`models.md § ReleaseRelation` for semantics.
+`SUPERSEDES`, `PORT_OF`, `MIRROR_OF`, `DERIVED_FROM`. Use sparingly —
+most distinctions are encoded by format / packaging fields plus
+`release_hash`.
 
-## `PlaybackModality` — routing axis
+## `AccessibilityKind`
 
-`mediavocab/taxonomy/modality.py` — orthogonal to `MediaType` (axiom 13).
+`SUBTITLES`, `CAPTIONS`, `AUDIO_DESCRIPTION`, `SIGN_LANGUAGE`,
+`TRANSCRIPT`, `LYRICS`. Used on `AccessibilityTrack.kind`.
+
+## `PlaybackType` — derived routing axis (§3.8, §4.11)
+
+`mediavocab/taxonomy/modality.py` — derived from `MediaType` (A6);
+never persisted on Work or Release.
 
 | Value | Intent |
 |---|---|
-| `AUDIO` | Caller wants audio playback — maps to `MUSIC`, `PODCAST`, `AUDIOBOOK`, `AUDIO_DRAMA`, `RADIO`, `SOUND_EFFECT`, `AMBIENT_SOUNDS` |
-| `VIDEO` | Caller wants video — maps to `MOVIE`, `EPISODIC_SERIES`, `TV`, `MUSIC_VIDEO` |
-| `TEXT` | Caller wants a readable work — maps to `BOOK`, `COMIC` |
-| `INTERACTIVE` | Game or interactive fiction |
-| `UNKNOWN` | `PLAYLIST`, `GENERIC`, `NOT_MEDIA`, or no playback intent |
+| `AUDIO` | `MUSIC`, `PODCAST`, `AUDIOBOOK`, `AUDIO_DRAMA`, `RADIO`, `SOUND_EFFECT`, `PROCEDURAL_AMBIENT` |
+| `VIDEO` | `MOVIE`, `SHORT_FILM`, `EPISODIC_SERIES`, `TV`, `MUSIC_VIDEO` |
+| `PAGED` | `BOOK`, `COMIC` |
+| `INTERACTIVE` | `GAME`, `INTERACTIVE_FICTION` |
+| `UNKNOWN` | `PLAYLIST`, pipeline sentinels, or no playback intent |
 
-`infer_modality(media_type) -> PlaybackModality` returns the default modality
-for a `MediaType` via `MEDIA_TYPE_TO_MODALITY` — `mediavocab/taxonomy/modality.py:55`.
-Pass to `Signals.modality` when the caller has no explicit verb hint and wants
-to constrain the resolver gate.
+`infer_playback_type(media_type) -> PlaybackType` reads
+`MEDIA_TYPE_TO_PLAYBACK_TYPE`. Pass to `Signals.playback_type` when the
+caller has no explicit verb hint and wants to constrain the resolver
+gate.
 
-Provider declaration (`mediavocab/models/protocols.py:112`):
+Provider declaration:
 ```python
-modality: ClassVar[Set[PlaybackModality]] = {PlaybackModality.AUDIO}
+playback_type: ClassVar[Set[PlaybackType]] = {PlaybackType.AUDIO}
 ```
-Empty set means the provider is universal. When non-empty, a `Signals` with
-`modality=None` always passes; a set `Signals.modality` must be a member.
+Empty set means universal. When non-empty, a `Signals` with
+`playback_type=None` always passes; a set `Signals.playback_type` must
+be a member.
 
 ## `genre.py` constants
 
-Canonical lowercase spellings — additive only. The package ships constants for
-the major narrative genres (`HORROR`, `COMEDY`, `DRAMA`, `THRILLER`, `SCI_FI`,
-`FANTASY`, `ROMANCE`, `WESTERN`, `MYSTERY`, `ACTION`, `ADVENTURE`, `CRIME`,
-`WAR`, `HISTORICAL`, `BIOGRAPHY`, `MUSICAL`, `FAMILY`), the major music genres
-(`ROCK`, `POP`, `JAZZ`, `CLASSICAL`, `ELECTRONIC`, `METAL`, `PUNK`, `FOLK`,
-`BLUES`, `COUNTRY`, `INDIE`, `REGGAE`, `LATIN`, `RNB`, `SOUL`, `FUNK`, `DISCO`,
-`HOUSE`, `TECHNO`, `TRANCE`, `DUBSTEP`, `DRUM_AND_BASS`), and niche tags
-(`ASMR`, `AMBIENT`, `MOTION_COMIC`, `VOICE_GAME`, `SFX_NATURE`, etc.).
-Cross-type tags (`ADULT`, `AI_GENERATED`) apply alongside any other.
+Canonical lowercase spellings — additive only. Narrative genres
+(`HORROR`, `COMEDY`, `DRAMA`, `THRILLER`, `SCI_FI`, `FANTASY`,
+`ROMANCE`, `WESTERN`, `MYSTERY`, `ACTION`, `ADVENTURE`, `CRIME`, `WAR`,
+`HISTORICAL`, `BIOGRAPHY`, `MUSICAL`, `FAMILY`, `NOIR`), music genres
+(`ROCK`, `POP`, `JAZZ`, `CLASSICAL`, `ELECTRONIC`, `METAL`, `PUNK`,
+`FOLK`, `BLUES`, `COUNTRY`, `INDIE`, `REGGAE`, `LATIN`, `HIP_HOP`,
+`RNB`, `SOUL`, `FUNK`, `DISCO`, `HOUSE`, `TECHNO`, `TRANCE`, `DUBSTEP`,
+`DRUM_AND_BASS`), and niche tags (`ASMR`, `AMBIENT`, `MOTION_COMIC`,
+`VOICE_GAME`, `SFX_NATURE`, …). Cross-type tags (`ADULT`,
+`AI_GENERATED`) apply alongside any other.
 
+Programme formats (concert, stand-up, talk-show, reality, news, sports,
+documentary) are NOT in `genre.py` — they live in `ProgrammeFormat`.
 
-
-Genre is a free `List[str]` on `Work.content_genres`. The `mediavocab.taxonomy.genre`
-module exposes canonical lowercase spellings as constants
-(`GENRE_ANIME`, `GENRE_ASMR`, `GENRE_ADULT`, `GENRE_MOTION_COMIC`,
-`GENRE_SFX_NATURE`, …) so consumer projects spell the same genres the same
-way. Adding new constants is non-breaking; renaming an existing constant value
-is a breaking change.
+Genre is a free `List[str]` on `Work.content_genres`. Adding new
+constants is non-breaking; renaming an existing constant value is a
+breaking change.

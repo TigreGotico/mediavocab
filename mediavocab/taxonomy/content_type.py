@@ -1,24 +1,31 @@
 """ContentType — fine-grained semantic classification of a single piece of
 content based on title / description / metadata heuristics.
 
-ContentType is *narrower* than ``MediaType``: many ContentType values
-(TRAILER, BEHIND_THE_SCENES, REACTION, KIDS, …) collapse onto a small set
-of MediaType values plus optional genre tags via
+ContentType is the *output* of `mediavocab.text.classify_video` (and
+similar). It maps to the canonical resolver-routing triple
+`(MediaType, ContentForm, content_genres, ProgrammeFormat)` via
 :meth:`ContentType.to_routing`.
 
-This enum is the output of ``mediavocab.text.classify_video`` and the
-input of higher-level routing (e.g. mapping to MediaType + genre tags).
-Use it when you need richer routing than MediaType offers.
+Example mappings::
+
+    ContentType.TRAILER.to_routing()
+        # → (MediaType.MOVIE, ContentForm.TRAILER, [], None)
+    ContentType.ANIME.to_routing()
+        # → (MediaType.EPISODIC_SERIES, ContentForm.PRIMARY, ["anime"], None)
+    ContentType.STAND_UP.to_routing()
+        # → (MediaType.MOVIE, ContentForm.PRIMARY, [], ProgrammeFormat.STAND_UP)
 """
 import enum
-from typing import List, Tuple
+from typing import List, Optional, Tuple
 
 from mediavocab.taxonomy import genre as _genre
+from mediavocab.taxonomy.content_form import ContentForm
 from mediavocab.taxonomy.media_type import MediaType
+from mediavocab.taxonomy.programme_format import ProgrammeFormat
 
 
 class ContentType(str, enum.Enum):
-    """Semantic content type derived from title/description/metadata."""
+    """Semantic content type derived from title / description / metadata."""
 
     VIDEO = "video"
     SOCIAL_CLIP = "social_clip"
@@ -51,94 +58,65 @@ class ContentType(str, enum.Enum):
     MUSIC_AUDIO = "music_audio"
 
     def to_media_type(self) -> MediaType:
-        """Map to the closest mediavocab MediaType.
+        """Return the MediaType only — lossy when other facets matter."""
+        return _CONTENT_TYPE_ROUTING.get(self, _UNKNOWN)[0]
 
-        Lossy when the content type also implies genre tags (anime,
-        stand-up, kids, documentary, …) — prefer
-        :meth:`to_routing` when the caller needs the full
-        ``(media_type, content_genres)`` tuple used by the resolver
-        two-axis gate.
-        """
-        return _CONTENT_TYPE_TO_ROUTING.get(self, (MediaType.GENERIC, []))[0]
-
-    def to_routing(self) -> Tuple[MediaType, List[str]]:
-        """Map to ``(MediaType, content_genres)`` — the canonical input
-        of the resolver two-axis routing gate (``MetadataProvider.media``
-        + ``MetadataProvider.genre_filter``).
-
-        For example::
-
-            ContentType.ANIME.to_routing()
-                # → (MediaType.EPISODIC_SERIES, ["anime"])
-            ContentType.STAND_UP.to_routing()
-                # → (MediaType.MOVIE, ["stand_up"])
-            ContentType.MOVIE.to_routing()
-                # → (MediaType.MOVIE, [])
-        """
-        media, genres = _CONTENT_TYPE_TO_ROUTING.get(
-            self, (MediaType.GENERIC, []),
-        )
-        return media, list(genres)
+    def to_routing(
+        self,
+    ) -> Tuple[MediaType, ContentForm, List[str], Optional[ProgrammeFormat]]:
+        """Return `(MediaType, ContentForm, content_genres, programme_format)`."""
+        media, form, genres, pf = _CONTENT_TYPE_ROUTING.get(self, _UNKNOWN)
+        return media, form, list(genres), pf
 
 
-# Single source of truth for ContentType → (MediaType, content_genres).
-# Pure lookup, no branching. The genre tags are constants from
-# ``mediavocab.taxonomy.genre`` so consumers can match on the same string
-# the lookup emits.
-#
-# Why so many things map to GENERIC: ``MediaType`` only carries a value
-# when the schema actually changes (axiom 1). Trailers, behind-the-scenes
-# clips, reactions, tutorials, vlog content — none of these have a
-# movie-shaped schema (no canonical year, no chapter list, no expected
-# runtime range). They are generic video, with the *kind* of generic
-# captured in ``content_genres``. The resolver routes on
-# ``(media, content_genres)`` so this is enough to pick the right
-# providers without inventing a ``MediaType.VIDEO`` bucket.
-#
-# What stays MOVIE: only feature-length narrative film with a year, a
-# runtime, and a director — short films and recorded stand-up specials
-# qualify; a 90-second trailer does not.
-_CONTENT_TYPE_TO_ROUTING: "dict[ContentType, tuple[MediaType, list[str]]]" = {
+# (MediaType, ContentForm, content_genres, programme_format)
+_UNKNOWN: Tuple[MediaType, ContentForm, List[str], Optional[ProgrammeFormat]] = (
+    MediaType.GENERIC, ContentForm.PRIMARY, [], None,
+)
+
+_CONTENT_TYPE_ROUTING: "dict[ContentType, tuple[MediaType, ContentForm, list[str], Optional[ProgrammeFormat]]]" = {
     # Feature-length narrative ⇒ MOVIE
-    ContentType.MOVIE:             (MediaType.MOVIE,            []),
-    ContentType.SHORT_FILM:        (MediaType.MOVIE,            [_genre.GENRE_SHORT_FILM]),
-    ContentType.DOCUMENTARY:       (MediaType.MOVIE,            [_genre.GENRE_DOCUMENTARY]),
-    ContentType.STAND_UP:          (MediaType.MOVIE,            [_genre.GENRE_STAND_UP]),
+    ContentType.MOVIE:             (MediaType.MOVIE,            ContentForm.PRIMARY,       [],                            None),
+    ContentType.SHORT_FILM:        (MediaType.SHORT_FILM,       ContentForm.PRIMARY,       [],                            None),
+    ContentType.DOCUMENTARY:       (MediaType.MOVIE,            ContentForm.PRIMARY,       [],                            ProgrammeFormat.DOCUMENTARY),
+    ContentType.STAND_UP:          (MediaType.MOVIE,            ContentForm.PRIMARY,       [],                            ProgrammeFormat.STAND_UP),
+    ContentType.CONCERT:           (MediaType.MUSIC_VIDEO,      ContentForm.PRIMARY,       [],                            ProgrammeFormat.CONCERT),
 
-    # Supplemental / non-narrative video ⇒ GENERIC + genre tag
-    ContentType.TRAILER:           (MediaType.GENERIC,          ["trailer"]),
-    ContentType.BEHIND_THE_SCENES: (MediaType.GENERIC,          ["behind_the_scenes"]),
-    ContentType.REACTION:          (MediaType.GENERIC,          ["reaction"]),
-    ContentType.TUTORIAL:          (MediaType.GENERIC,          ["tutorial"]),
-    ContentType.GAMING:            (MediaType.GENERIC,          ["gaming"]),
-    ContentType.COMPILATION:       (MediaType.GENERIC,          ["compilation"]),
-    ContentType.KIDS:              (MediaType.GENERIC,          ["kids"]),
-    ContentType.SOCIAL_CLIP:       (MediaType.GENERIC,          ["social_clip"]),
-    ContentType.SPORT:             (MediaType.GENERIC,          ["sport"]),
-    ContentType.NEWS:              (MediaType.GENERIC,          [_genre.GENRE_NEWS]),
+    # ContentForm-bearing supplements — still MOVIE-shaped, primary kind differs
+    ContentType.TRAILER:           (MediaType.MOVIE,            ContentForm.TRAILER,       [],                            None),
+    ContentType.BEHIND_THE_SCENES: (MediaType.MOVIE,            ContentForm.BEHIND_SCENES, [],                            None),
+    ContentType.REACTION:          (MediaType.GENERIC,          ContentForm.REACTION,      [],                            None),
+    ContentType.SOCIAL_CLIP:       (MediaType.GENERIC,          ContentForm.SOCIAL_CLIP,   [],                            None),
+
+    # Non-narrative GENERIC video — flagged by genre/programme-format tags
+    ContentType.TUTORIAL:          (MediaType.GENERIC,          ContentForm.PRIMARY,       [_genre.GENRE_EDUCATIONAL],    None),
+    ContentType.GAMING:            (MediaType.GENERIC,          ContentForm.PRIMARY,       ["gaming"],                    None),
+    ContentType.COMPILATION:       (MediaType.GENERIC,          ContentForm.PRIMARY,       ["compilation"],               None),
+    ContentType.KIDS:              (MediaType.GENERIC,          ContentForm.PRIMARY,       [_genre.GENRE_FAMILY],         None),
+    ContentType.SPORT:             (MediaType.GENERIC,          ContentForm.PRIMARY,       [],                            ProgrammeFormat.SPORTS),
+    ContentType.NEWS:              (MediaType.GENERIC,          ContentForm.PRIMARY,       [],                            ProgrammeFormat.NEWS),
 
     # Episodic
-    ContentType.TV_EPISODE:        (MediaType.EPISODIC_SERIES,  []),
-    ContentType.ANIME:             (MediaType.EPISODIC_SERIES,  [_genre.GENRE_ANIME]),
+    ContentType.TV_EPISODE:        (MediaType.EPISODIC_SERIES,  ContentForm.PRIMARY,       [],                            None),
+    ContentType.ANIME:             (MediaType.EPISODIC_SERIES,  ContentForm.PRIMARY,       [_genre.GENRE_ANIME],          None),
 
     # Music
-    ContentType.MUSIC_VIDEO:       (MediaType.MUSIC_VIDEO,      []),
-    ContentType.CONCERT:           (MediaType.MUSIC_VIDEO,      [_genre.GENRE_CONCERT]),
-    ContentType.MUSIC_AUDIO:       (MediaType.MUSIC,            []),
+    ContentType.MUSIC_VIDEO:       (MediaType.MUSIC_VIDEO,      ContentForm.PRIMARY,       [],                            None),
+    ContentType.MUSIC_AUDIO:       (MediaType.MUSIC,            ContentForm.PRIMARY,       [],                            None),
 
     # Spoken-word audio
-    ContentType.PODCAST:           (MediaType.PODCAST,          []),
-    ContentType.AUDIOBOOK:         (MediaType.AUDIOBOOK,        []),
-    ContentType.LECTURE:           (MediaType.PODCAST,          ["lecture"]),
-    ContentType.INTERVIEW:         (MediaType.PODCAST,          ["interview"]),
+    ContentType.PODCAST:           (MediaType.PODCAST,          ContentForm.PRIMARY,       [],                            None),
+    ContentType.AUDIOBOOK:         (MediaType.AUDIOBOOK,        ContentForm.PRIMARY,       [],                            None),
+    ContentType.LECTURE:           (MediaType.PODCAST,          ContentForm.PRIMARY,       [_genre.GENRE_EDUCATIONAL],    None),
+    ContentType.INTERVIEW:         (MediaType.PODCAST,          ContentForm.PRIMARY,       [],                            ProgrammeFormat.TALK_SHOW),
 
     # Live broadcast
-    ContentType.LIVE_RADIO:        (MediaType.RADIO,            []),
-    ContentType.LIVE_NEWS:         (MediaType.TV,               [_genre.GENRE_NEWS]),
-    ContentType.IPTV:              (MediaType.TV,               []),
-    ContentType.LIVE:              (MediaType.GENERIC,          ["live"]),
-    ContentType.UPCOMING:          (MediaType.GENERIC,          ["upcoming"]),
+    ContentType.LIVE_RADIO:        (MediaType.RADIO,            ContentForm.PRIMARY,       [],                            None),
+    ContentType.LIVE_NEWS:         (MediaType.TV,               ContentForm.PRIMARY,       [],                            ProgrammeFormat.NEWS),
+    ContentType.IPTV:              (MediaType.TV,               ContentForm.PRIMARY,       [],                            None),
+    ContentType.LIVE:              (MediaType.GENERIC,          ContentForm.PRIMARY,       ["live"],                      None),
+    ContentType.UPCOMING:          (MediaType.GENERIC,          ContentForm.PRIMARY,       ["upcoming"],                  None),
 
-    # Generic catchall
-    ContentType.VIDEO:             (MediaType.GENERIC,          []),
+    # Generic catch-all
+    ContentType.VIDEO:             _UNKNOWN,
 }

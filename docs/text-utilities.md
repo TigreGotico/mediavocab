@@ -26,13 +26,18 @@ TITLE_MIN  = 0.92
 ARTIST_MIN = 0.90
 YEAR_WINDOW = 1
 
-RUNTIME_TOLERANCE_S: dict[MediaType, float]    # per-type tolerance
+# Per-MediaType runtime tolerance == hash quantum (spec §6.2).
+# A positive integer N rounds runtime to the nearest N seconds before hashing
+# and is also the maximum delta `compare` will accept without flagging a
+# conflict. `QUANTUM_SKIP` (-1) excludes runtime from the hash entirely.
+RUNTIME_HASH_QUANTUM_S: dict[MediaType, int]
+RUNTIME_TOLERANCE_S = RUNTIME_HASH_QUANTUM_S   # alias for clarity at call sites
 
 compare(a, b) -> List[Conflict]   # only overlapping disagreements
 score(query, candidate) -> float  # [0, 1] match quality
 merge(*works) -> Work             # first non-empty value wins; aka unioned
-work_hash(w) -> str               # stable SHA-1 over Work identity fields
-release_hash(r) -> str            # stable SHA-1 over Release identity fields
+work_hash(w) -> str               # stable SHA-256 over Work identity fields
+release_hash(r) -> str            # stable SHA-256 over Release identity fields
 ```
 
 `work_hash` deliberately excludes `credits`, `aka`, and
@@ -119,7 +124,7 @@ class MyModel(BaseModel):
 ```
 
 Accepted forms: `YYYY`, `YYYY-MM`, `YYYY-MM-DD`, `YYYY-MM-DDTHH:MM[:SS[.fff]][Z|±HH:MM]`.
-Empty string and `None` pass unchanged (absence is not a value — spec axiom 3).
+Empty string and `None` pass unchanged (absence is not a value — A2).
 The string is returned verbatim; it is never normalised, so dedup hashes remain
 stable even when sources provide different precisions.
 
