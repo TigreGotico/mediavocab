@@ -15,3 +15,4 @@ venv/
 .ruff_cache/
 *.swp
 .DS_Store
+.claude/
