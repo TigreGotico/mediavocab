@@ -1,6 +1,7 @@
 """Tests for ``release_hash``."""
 from mediavocab import (
-    AccessibilityTrack, MediaType, Release, StreamMode, VariantKind, Work,
+    AccessibilityKind, AccessibilityTrack, MediaType, Release,
+    ReleasePackaging, StreamMode, VariantKind, Work,
 )
 from mediavocab.text import release_hash, work_hash
 
@@ -18,12 +19,27 @@ def test_same_release_hashes_equal():
     assert release_hash(a) == release_hash(b)
 
 
-def test_variant_kind_distinguishes_releases():
-    w = _movie_work()
-    theatrical = Release(work=w, container="Blu-ray", region="US")
-    directors = Release(work=w, container="Blu-ray", region="US",
-                        variant_kind=VariantKind.DIRECTORS)
+def test_work_variant_distinguishes_releases():
+    """Director's cut is its own Work (§3.4); the release hash differs because the
+    embedded work_hash differs."""
+    theatrical_work = Work(title="Blade Runner", media_type=MediaType.MOVIE,
+                           year=1982, runtime=117 * 60.0,
+                           variant_kind=VariantKind.THEATRICAL)
+    directors_work = Work(title="Blade Runner", media_type=MediaType.MOVIE,
+                          year=1992, runtime=116 * 60.0,
+                          variant_kind=VariantKind.DIRECTORS)
+    theatrical = Release(work=theatrical_work, container="Blu-ray", region="US")
+    directors = Release(work=directors_work, container="Blu-ray", region="US")
     assert release_hash(theatrical) != release_hash(directors)
+
+
+def test_packaging_does_not_affect_hash():
+    """ReleasePackaging is description-family (§3.5); excluded from release_hash."""
+    w = _movie_work()
+    standard = Release(work=w, container="Blu-ray", region="US")
+    deluxe = Release(work=w, container="Blu-ray", region="US",
+                     packaging=ReleasePackaging.DELUXE)
+    assert release_hash(standard) == release_hash(deluxe)
 
 
 def test_container_distinguishes_releases():
@@ -53,13 +69,13 @@ def test_accessibility_does_not_affect_hash():
     w = _movie_work()
     bare = Release(work=w, container="Blu-ray")
     with_subs = Release(work=w, container="Blu-ray", accessibility=[
-        AccessibilityTrack(kind="subtitles", language="en", uri="x"),
+        AccessibilityTrack(kind=AccessibilityKind.SUBTITLES, language="en", uri="x"),
     ])
     assert release_hash(bare) == release_hash(with_subs)
 
 
 def test_stream_mode_does_not_affect_hash():
-    """stream_mode is delivery, not identity (spec axiom 4)."""
+    """stream_mode is delivery, not identity (A3)."""
     w = _movie_work()
     on_demand = Release(work=w, container="Blu-ray",
                         stream_mode=StreamMode.ON_DEMAND)

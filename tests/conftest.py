@@ -2,8 +2,16 @@
 import pytest
 
 from mediavocab import (
-    MediaType, Work, Release, Entity, EntityKind, EntityRef,
-    Appearance, Membership, MembershipStatus,
+    Appearance,
+    Entity,
+    EntityKind,
+    EntityRef,
+    MediaType,
+    Membership,
+    MembershipKind,
+    Release,
+    TemporalState,
+    Work,
 )
 
 
@@ -14,7 +22,7 @@ def blade_runner() -> Work:
         media_type=MediaType.MOVIE,
         year=1982,
         runtime=117 * 60.0,
-        country="US",
+        production_country="US",
         language="en",
     )
 
@@ -38,14 +46,16 @@ def metallica() -> Entity:
             Membership(
                 entity=EntityRef(name="Cliff Burton", kind=EntityKind.PERSON),
                 roles=["bass"],
-                status=MembershipStatus.PAST,
+                kind=MembershipKind.MEMBER,
+                temporal=TemporalState.ENDED,
                 date_from="1982",
                 date_to="1986",
             ),
             Membership(
                 entity=EntityRef(name="James Hetfield", kind=EntityKind.PERSON),
                 roles=["vocals", "rhythm guitar"],
-                status=MembershipStatus.CURRENT,
+                kind=MembershipKind.MEMBER,
+                temporal=TemporalState.ACTIVE,
                 date_from="1981",
             ),
         ],

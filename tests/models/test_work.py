@@ -2,8 +2,8 @@ from mediavocab import MediaType, ReleaseStatus, Work
 
 
 def test_defaults():
-    w = Work(title="x")
-    assert w.media_type == MediaType.GENERIC
+    w = Work(title="x", media_type=MediaType.MOVIE)
+    assert w.media_type == MediaType.MOVIE
     assert w.release_status == ReleaseStatus.RELEASED
     assert w.content_genres == []
     assert w.aka == []
@@ -12,8 +12,7 @@ def test_defaults():
 
 
 def test_extra_ignored():
-    # Pydantic should silently drop unknown fields per ConfigDict(extra="ignore")
-    w = Work.model_validate({"title": "x", "bogus_field": 123})
+    w = Work.model_validate({"title": "x", "media_type": "movie", "bogus_field": 123})
     assert w.title == "x"
     assert not hasattr(w, "bogus_field")
 
@@ -29,3 +28,28 @@ def test_episode_fields():
              series_title="Show")
     assert (w.season, w.episode) == (1, 3)
     assert w.series_title == "Show"
+
+
+def test_pipeline_sentinels_rejected():
+    import pytest
+    for sentinel in (MediaType.GENERIC, MediaType.NOT_MEDIA, MediaType.CONTROL):
+        with pytest.raises(ValueError):
+            Work(title="x", media_type=sentinel)
+
+
+def test_country_slot_exclusivity():
+    import pytest
+    Work(title="x", media_type=MediaType.MOVIE, production_country="US")  # ok
+    Work(title="x", media_type=MediaType.MUSIC, publication_country="GB")  # ok
+    with pytest.raises(ValueError):
+        Work(
+            title="x", media_type=MediaType.MOVIE,
+            production_country="US", publication_country="GB",
+        )
+
+
+def test_country_slot_helper():
+    w = Work(title="x", media_type=MediaType.MUSIC, publication_country="GB")
+    assert w.country() == "GB"
+    w = Work(title="x", media_type=MediaType.PLAYLIST)
+    assert w.country() == ""
