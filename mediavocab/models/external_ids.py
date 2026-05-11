@@ -12,16 +12,11 @@ acceptable; the model serialises to and from the same dict shape.
 """
 from __future__ import annotations
 
-from typing import Dict, List, Optional, TYPE_CHECKING
+from typing import Dict, List, Optional
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from mediavocab.text.isbn import isbn10_to_13, isbn13_to_10, normalize_isbn
-
-
-if TYPE_CHECKING:
-    # Imported lazily inside Stream.streams to avoid a circular ref
-    pass
 
 
 # ---------------------------------------------------------------------------
@@ -145,16 +140,21 @@ class Stream(BaseModel):
 
     Constructed from :meth:`ExternalIds.streams` — aggregates playable
     URLs and IDs stored in ``ExternalIds.extra`` into a typed, uniform
-    list. Consumers building players should iterate ``release.work
-    .external_ids_typed.streams`` rather than reaching into the raw
-    dict.
+    list. Consumers building players should iterate
+    ``ids.streams`` rather than reaching into the raw dict.
+
+    `kind` is the platform's *asset category* ("track", "album",
+    "video", "playlist", "stream") — distinct from `MediaType` (the
+    canonical mediavocab schema-axis enum). Two different concepts;
+    a YouTube "video" Stream may carry a Work of `MediaType.MOVIE`,
+    `MUSIC_VIDEO`, or `EPISODIC_SERIES`.
     """
 
     model_config = ConfigDict(extra="ignore")
 
     platform: str         # "bandcamp", "soundcloud", "youtube", "youtube_music", "radio", …
     url: str              # fully-formed playable URL
-    media_type: str       # "track", "album", "video", "playlist", "stream"
+    kind: str             # "track", "album", "video", "playlist", "stream"
     id: Optional[str] = None  # raw ID when the URL was constructed from one
 
 
@@ -308,7 +308,7 @@ class ExternalIds(BaseModel):
         directly playable content is listed.
         """
         results: List[Stream] = []
-        for key, platform, media_type, tmpl in _STREAM_MAP:
+        for key, platform, kind, tmpl in _STREAM_MAP:
             val = self.extra.get(key)
             if not val:
                 continue
@@ -316,7 +316,7 @@ class ExternalIds(BaseModel):
             results.append(Stream(
                 platform=platform,
                 url=url,
-                media_type=media_type,
+                kind=kind,
                 id=val if tmpl else None,
             ))
         return results

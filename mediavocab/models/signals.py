@@ -2,7 +2,8 @@
 
 ``Signals`` exists *only* in the resolver pipeline. The taxonomy and
 ``Work`` / ``Release`` / ``Entity`` models do not use it; persisted
-records are ``Work``s. See spec §5.10 for the full scope rules.
+records are ``Work``s. See spec §1.7 (non-goals) and the
+provider-protocol pattern doc for the full scope rules.
 
 The same shape carries three roles, distinguished by *direction of flow*:
 
@@ -25,9 +26,9 @@ The same shape carries three roles, distinguished by *direction of flow*:
 Why the field overlap with ``Work`` is intentional: cross-provider
 comparison needs identical comparable structure. The duplication is
 the reason the comparator can be written once. The orthogonality
-axiom (spec §2 axiom 13) keeps ``Signals``-only fields off ``Work``:
-``include_variants``, ``fanedit_subtype``, ``modality`` are all
-routing hints, not identity claims.
+axiom (A6) keeps ``Signals``-only fields off ``Work``:
+``include_variants``, ``fanedit_subtype``, ``playback_type``,
+``content_form`` are all routing hints, not identity claims.
 
 Comparison rules (encoded in :func:`compare_signals`):
 
@@ -35,7 +36,7 @@ Comparison rules (encoded in :func:`compare_signals`):
 - All overlapping fields must agree → matched.
 - Any single overlapping field disagrees → conflict (caller decides
   whether to quarantine, demote confidence, or accept).
-- ``modality`` is a query hint and is **never** a conflict-eligible
+- ``playback_type`` is a query hint and is **never** a conflict-eligible
   field; providers don't observe it, the comparator skips it.
 """
 from __future__ import annotations
@@ -45,8 +46,8 @@ from typing import Any, Dict, List, Optional
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from mediavocab.taxonomy import MediaType, VariantKind
-from mediavocab.taxonomy.modality import PlaybackModality
+from mediavocab.taxonomy import MediaType, VariantKind, ContentForm
+from mediavocab.taxonomy.modality import PlaybackType
 from mediavocab.text.compare import (
     TITLE_MIN as _TITLE_MIN,
     ARTIST_MIN as _ARTIST_MIN,
@@ -96,11 +97,15 @@ class Signals(BaseModel):
     # variant-aware providers? Defaults to False.
     include_variants: bool = False
 
+    # ContentForm hint (§3.3) — primary vs trailer / supplement / reaction.
+    # Routing field; the consolidator filters providers when set.
+    content_form: Optional[ContentForm] = None
+
     # Routing-axis hint, orthogonal to ``medium``. The resolver gate
-    # filters providers by ``provider.modality`` ∋ ``signals.modality``;
+    # filters providers by ``provider.playback_type`` ∋ ``signals.playback_type``;
     # ``None`` means "no preference". Never participates in identity or
     # in :func:`compare_signals` — it is a query field, never observed.
-    modality: Optional[PlaybackModality] = None
+    playback_type: Optional[PlaybackType] = None
 
 
 class SignalConflict(BaseModel):
