@@ -1,16 +1,7 @@
-"""PlaybackModality — the playback-intent axis.
+"""PlaybackType — the player-surface axis. Spec §3.8, §4.11.
 
-Orthogonal to ``MediaType`` (axiom N: routing axes are orthogonal to identity).
-
-A request verb collapses cleanly onto a modality at the *consumer* side
-("play me X" ⇒ AUDIO; "watch X" / "show me X" ⇒ VIDEO; "open X" ⇒
-TEXT or INTERACTIVE depending on context). The resolver gates providers
-on the modality the caller hints at, so a ``Signals(medium=GENERIC,
-modality=AUDIO)`` never touches TVmaze or pyfanedit.
-
-Devices are NOT a modality — per axiom 4 they are
-``Entity(EntityKind.DEVICE)``, and "turn on the kitchen light" is
-``NOT_MEDIA``. ``PlaybackModality`` is for media-playback intent only.
+Routing axis (A6); orthogonal to identity. Derived from MediaType — never
+persisted on Work or Release.
 """
 from __future__ import annotations
 
@@ -20,51 +11,41 @@ from typing import Dict
 from mediavocab.taxonomy.media_type import MediaType
 
 
-class PlaybackModality(str, Enum):
-    """How the consumer intends to play this work."""
+class PlaybackType(str, Enum):
+    """What player surface a Work needs."""
 
     AUDIO = "audio"
     VIDEO = "video"
+    PAGED = "paged"               # user-paced visual: book, comic, photo book, slideshow
     INTERACTIVE = "interactive"   # game, interactive fiction
-    TEXT = "text"                 # book, comic, ebook
-    UNKNOWN = "unknown"            # GENERIC + no hint, PLAYLIST, NOT_MEDIA
+    UNKNOWN = "unknown"
 
 
-# Default mapping ``MediaType → PlaybackModality``. Used by
-# :func:`infer_modality` and as the lookup the resolver consults when a
-# Signals carries no explicit modality hint.
-MEDIA_TYPE_TO_MODALITY: Dict[MediaType, PlaybackModality] = {
-    MediaType.MUSIC:               PlaybackModality.AUDIO,
-    MediaType.PODCAST:             PlaybackModality.AUDIO,
-    MediaType.AUDIOBOOK:           PlaybackModality.AUDIO,
-    MediaType.AUDIO_DRAMA:         PlaybackModality.AUDIO,
-    MediaType.RADIO:               PlaybackModality.AUDIO,
-    MediaType.SOUND_EFFECT:        PlaybackModality.AUDIO,
-    MediaType.AMBIENT_SOUNDS:      PlaybackModality.AUDIO,
-    MediaType.MOVIE:               PlaybackModality.VIDEO,
-    MediaType.EPISODIC_SERIES:     PlaybackModality.VIDEO,
-    MediaType.TV:                  PlaybackModality.VIDEO,
-    MediaType.MUSIC_VIDEO:         PlaybackModality.VIDEO,
-    MediaType.BOOK:                PlaybackModality.TEXT,
-    MediaType.COMIC:               PlaybackModality.TEXT,
-    MediaType.GAME:                PlaybackModality.INTERACTIVE,
-    MediaType.INTERACTIVE_FICTION: PlaybackModality.INTERACTIVE,
-    # PLAYLIST is decided by membership; consumer infers from the first
-    # track. NOT_MEDIA is by definition not playback. GENERIC is the
-    # case where the modality hint on Signals is exactly the field that
-    # disambiguates the routing.
-    MediaType.PLAYLIST:            PlaybackModality.UNKNOWN,
-    MediaType.GENERIC:             PlaybackModality.UNKNOWN,
-    MediaType.NOT_MEDIA:           PlaybackModality.UNKNOWN,
+MEDIA_TYPE_TO_PLAYBACK_TYPE: Dict[MediaType, PlaybackType] = {
+    MediaType.MUSIC:               PlaybackType.AUDIO,
+    MediaType.PODCAST:             PlaybackType.AUDIO,
+    MediaType.AUDIOBOOK:           PlaybackType.AUDIO,
+    MediaType.AUDIO_DRAMA:         PlaybackType.AUDIO,
+    MediaType.RADIO:               PlaybackType.AUDIO,
+    MediaType.SOUND_EFFECT:        PlaybackType.AUDIO,
+    MediaType.PROCEDURAL_AMBIENT:  PlaybackType.AUDIO,
+    MediaType.MOVIE:               PlaybackType.VIDEO,
+    MediaType.SHORT_FILM:          PlaybackType.VIDEO,
+    MediaType.EPISODIC_SERIES:     PlaybackType.VIDEO,
+    MediaType.TV:                  PlaybackType.VIDEO,
+    MediaType.MUSIC_VIDEO:         PlaybackType.VIDEO,
+    MediaType.BOOK:                PlaybackType.PAGED,
+    MediaType.COMIC:               PlaybackType.PAGED,
+    MediaType.GAME:                PlaybackType.INTERACTIVE,
+    MediaType.INTERACTIVE_FICTION: PlaybackType.INTERACTIVE,
+    # PLAYLIST is membership-dependent; pipeline sentinels never persist on a Work.
+    MediaType.PLAYLIST:            PlaybackType.UNKNOWN,
+    MediaType.GENERIC:             PlaybackType.UNKNOWN,
+    MediaType.NOT_MEDIA:           PlaybackType.UNKNOWN,
+    MediaType.CONTROL:             PlaybackType.UNKNOWN,
 }
 
 
-def infer_modality(media_type: MediaType) -> PlaybackModality:
-    """Default modality for a ``MediaType``.
-
-    Callers pass this to ``Signals.modality`` when they don't have an
-    explicit hint from the request verb. The resolver gate skips
-    modality filtering when ``Signals.modality`` is None, so this is
-    only useful when the caller actively wants to constrain the gate.
-    """
-    return MEDIA_TYPE_TO_MODALITY.get(media_type, PlaybackModality.UNKNOWN)
+def infer_playback_type(media_type: MediaType) -> PlaybackType:
+    """Default playback type for a MediaType (§4.11)."""
+    return MEDIA_TYPE_TO_PLAYBACK_TYPE.get(media_type, PlaybackType.UNKNOWN)
