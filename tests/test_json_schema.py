@@ -1,8 +1,8 @@
 """Tests that every public model generates a valid JSON schema."""
 from mediavocab import (
     AccessibilityTrack, Appearance, AvailabilityWindow, Chapter, Credit,
-    Entity, EntityRef, License, LocalizedTitle, Membership, Programme,
-    ProviderMatch, Release, ReleaseRelation, ResolutionConflict, Schedule,
+    Entity, EntityRef, License, LocalizedTitle, Membership,
+    ProviderMatch, Release, ReleaseRelation, ResolutionConflict,
     SignalConflict, Signals, Work, WorkRelation,
 )
 
@@ -10,7 +10,7 @@ from mediavocab import (
 PUBLIC_MODELS = (
     Work, Release, Entity, EntityRef, Membership, Credit, Appearance,
     Chapter, AccessibilityTrack, AvailabilityWindow, LocalizedTitle,
-    WorkRelation, ReleaseRelation, Programme, Schedule, License,
+    WorkRelation, ReleaseRelation, License,
     Signals, SignalConflict, ProviderMatch, ResolutionConflict,
 )
 

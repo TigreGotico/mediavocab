@@ -41,7 +41,6 @@ from mediavocab.text.isbn import (
     normalize_isbn,
 )
 from mediavocab.text.title_parse import parse_title, TitleParseResult
-from mediavocab.text.classify import classify_video, classify_video_dict, extract_tags
 from mediavocab._iso_date import IsoDate, parse_iso_date
 
 __all__ = [
@@ -58,6 +57,5 @@ __all__ = [
     "normalize_language", "normalize_country",
     "isbn10_to_13", "isbn13_to_10", "normalize_isbn",
     "parse_title", "TitleParseResult",
-    "classify_video", "classify_video_dict", "extract_tags",
     "IsoDate", "parse_iso_date",
 ]

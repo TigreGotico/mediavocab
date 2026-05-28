@@ -343,54 +343,6 @@ class Release(BaseModel):
         return License.from_spdx(self.license)
 
 
-class Programme(BaseModel):
-    """A single airing of a Work on a broadcast channel (§5.5).
-
-    Per T4 the channel is a Work (a RADIO or TV station). Both `work` and
-    `channel` here are Works — passed as stubs with only identity fields
-    populated when the consumer doesn't need the full record.
-    """
-
-    model_config = _CFG
-
-    work: "Work"                              # the content Work being aired
-    channel: "Work"                           # the broadcast channel Work (RADIO / TV)
-    starts_at: IsoDate
-    ends_at: Optional[IsoDate] = None
-    runtime: Optional[float] = None
-    is_live: bool = False
-    is_repeat: bool = False
-    extra: Dict[str, str] = Field(default_factory=dict)
-
-
-class Schedule(BaseModel):
-    """An ordered list of `Programme` slots for a single broadcast channel (§5.5).
-
-    Programmes must be sorted by `starts_at` ascending and non-overlapping.
-    Only the trailing slot may have `ends_at = None` (open-ended current programme).
-    """
-
-    model_config = _CFG
-
-    channel: "Work"
-    programmes: List[Programme] = Field(default_factory=list)
-    valid_from: Optional[IsoDate] = None
-    valid_until: Optional[IsoDate] = None
-    source: str = ""
-    fetched_at: Optional[IsoDate] = None
-    extra: Dict[str, str] = Field(default_factory=dict)
-
-    @model_validator(mode="after")
-    def _check(self) -> "Schedule":
-        progs = self.programmes
-        for prev, cur in zip(progs, progs[1:]):
-            if iso_compare(prev.starts_at, cur.starts_at) > 0:
-                raise ValueError("Schedule.programmes must be sorted by starts_at")
-            if prev.ends_at is None:
-                raise ValueError("only the last programme may have ends_at=None")
-            if iso_compare(prev.ends_at, cur.starts_at) > 0:
-                raise ValueError("Schedule.programmes overlap")
-        return self
 
 
 # Resolve forward references in the cycles Work <-> Appearance and

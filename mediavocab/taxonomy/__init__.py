@@ -10,7 +10,6 @@ from mediavocab.taxonomy.relation import (
     ReleaseRelationKind,
 )
 from mediavocab.taxonomy.membership import MembershipKind, TemporalState
-from mediavocab.taxonomy.content_type import ContentType
 from mediavocab.taxonomy.content_form import ContentForm
 from mediavocab.taxonomy.programme_format import ProgrammeFormat
 from mediavocab.taxonomy.accessibility import AccessibilityKind
@@ -55,7 +54,7 @@ __all__ = [
     "EntityKind", "OrganisationKind",
     "RelationRole", "CreditSection", "WorkRelationKind", "ReleaseRelationKind",
     "MembershipKind", "TemporalState",
-    "ContentType", "ContentForm", "ProgrammeFormat", "AccessibilityKind",
+    "ContentForm", "ProgrammeFormat", "AccessibilityKind",
     "PlaybackType", "MEDIA_TYPE_TO_PLAYBACK_TYPE", "infer_playback_type",
     # genres
     "GENRE_ANIMATION", "GENRE_ANIME", "GENRE_NOIR",

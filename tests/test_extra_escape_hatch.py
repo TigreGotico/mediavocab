@@ -1,14 +1,8 @@
-"""Tests for the `extra` escape hatch (spec §8.3).
-
-Every model surfacing external metadata carries an `extra: Dict[str, str]`.
-Strings only — the validator rejects non-string values. Encode lists as
-comma-joined strings and numbers as decimal representations.
-"""
+"""Tests for the `extra` escape hatch (spec §8.3)."""
 import pytest
 
 from mediavocab import (
-    Entity, EntityKind, MediaType, OrganisationKind, Programme, Release,
-    Schedule, Work,
+    Entity, EntityKind, MediaType, OrganisationKind, Release, Work,
 )
 from mediavocab.text import work_hash, release_hash
 
@@ -75,28 +69,6 @@ def test_extra_excluded_from_release_hash():
     b = Release(work=w, container="Blu-ray",
                 extra={"provider_thing": "value"})
     assert release_hash(a) == release_hash(b)
-
-
-# ---------------------------------------------------------------------------
-# Programme.extra / Schedule.extra also enforce strings-only
-# ---------------------------------------------------------------------------
-
-def test_programme_extra_rejects_non_strings():
-    w = Work(title="X", media_type=MediaType.RADIO,
-             broadcaster_country="GB")
-    with pytest.raises(ValueError):
-        Programme(
-            work=w, channel=w,
-            starts_at="2026-05-06T18:00:00Z",
-            extra={"key": 123},
-        )
-
-
-def test_schedule_extra_rejects_non_strings():
-    w = Work(title="BBC R4", media_type=MediaType.RADIO,
-             broadcaster_country="GB")
-    with pytest.raises(ValueError):
-        Schedule(channel=w, extra={"key": 123})
 
 
 # ---------------------------------------------------------------------------

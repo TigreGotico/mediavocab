@@ -3,7 +3,7 @@ from mediavocab.models.entity import EntityRef, Membership, Credit, Entity
 from mediavocab.models.work import (
     Appearance, Work, Release, WorkRelation, ReleaseRelation,
     Chapter, AccessibilityTrack, AvailabilityWindow, LocalizedTitle,
-    Programme, Schedule, COUNTRY_SLOT_FOR,
+    COUNTRY_SLOT_FOR,
 )
 from mediavocab.models.conflict import Conflict
 from mediavocab.models.external_ids import ExternalIds, Stream
@@ -28,7 +28,7 @@ __all__ = [
     "EntityRef", "Membership", "Credit", "Entity",
     "Appearance", "Work", "Release", "WorkRelation", "ReleaseRelation",
     "Chapter", "AccessibilityTrack", "AvailabilityWindow", "LocalizedTitle",
-    "Programme", "Schedule", "COUNTRY_SLOT_FOR",
+    "COUNTRY_SLOT_FOR",
     "Conflict",
     "ExternalIds", "Stream",
     "License",

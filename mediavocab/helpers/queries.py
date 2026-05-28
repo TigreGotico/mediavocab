@@ -9,7 +9,7 @@ from typing import Iterable, List, Optional
 
 from mediavocab.taxonomy import RelationRole
 from mediavocab.models.entity import Credit, EntityRef
-from mediavocab.models.work import Release, Work
+from mediavocab.models.work import Work
 
 
 def credits_with_role(work: Work, relation_role: RelationRole) -> List[Credit]:
@@ -104,82 +104,6 @@ def filmography_of(entity: EntityRef, all_works: Iterable[Work],
     return out
 
 
-# ---------------------------------------------------------------------------
-# Release ranking — "play me the best version available" preference rules.
-# ---------------------------------------------------------------------------
-
-# Ordered worst→best for ranking; missing values rank at -1.
-_RESOLUTION_ORDER = ("", "240p", "360p", "480p", "720p", "1080p", "1440p", "2160p", "4320p")
-_HDR_ORDER = ("", "HDR10", "HDR10+", "HLG", "Dolby Vision")
-_AUDIO_CHANNELS_ORDER = ("", "mono", "stereo", "5.1", "7.1", "Atmos")
-# Work-level variant preference (the cut / restructuring).
-_WORK_VARIANT_PREF = {
-    "directors":     8,
-    "extended":      7,
-    "preservation":  6,
-    "remastered":    5,
-    "upscaled":      4,
-    "colorized":     3,
-    "theatrical":    2,
-    "fanedit":       1,
-    "tv_to_movie":   1,
-    "movie_to_tv":   1,
-    "compilation":   1,
-    "other":         0,
-}
-
-# Release-level packaging preference (how this edition ships).
-_PACKAGING_PREF = {
-    "deluxe":        4,
-    "box_set":       3,
-    "reissue":       2,
-    "regional":      1,
-    "promo":         0,
-    "bootleg":      -1,
-    "other":         0,
-}
-
-
-def _index(value: str, order: tuple) -> int:
-    """Return the index of ``value`` in ``order``, or -1 if not listed."""
-    try:
-        return order.index(value or "")
-    except ValueError:
-        return -1
-
-
-def quality_score(release: Release) -> tuple:
-    """Sortable tuple — higher tuples are better releases.
-
-    Order of precedence (highest first): Work-level variant (director's >
-    theatrical), Release packaging (deluxe > standard, bootleg < anything),
-    resolution, HDR, audio channels, sample rate.
-    """
-    work_variant = release.work.variant_kind.value if release.work.variant_kind else ""
-    packaging = release.packaging.value if release.packaging else ""
-    return (
-        _WORK_VARIANT_PREF.get(work_variant, 0),
-        _PACKAGING_PREF.get(packaging, 0),
-        _index(release.resolution, _RESOLUTION_ORDER),
-        _index(release.hdr,         _HDR_ORDER),
-        _index(release.audio_channels, _AUDIO_CHANNELS_ORDER),
-        release.sample_rate or 0,
-    )
-
-
-def best_release(*releases: Release) -> Optional[Release]:
-    """Return the highest-quality Release of those given, or ``None``
-    when called with no arguments.
-
-    Releases tied on every comparison axis return the first one
-    given — list order breaks ties so callers can pre-order by
-    preference (e.g. "prefer my local file over a stream").
-    """
-    if not releases:
-        return None
-    return max(releases, key=quality_score)
-
-
 __all__ = [
     "credits_with_role",
     "primary_credit",
@@ -188,6 +112,4 @@ __all__ = [
     "performers",
     "episodes_of",
     "filmography_of",
-    "quality_score",
-    "best_release",
 ]
