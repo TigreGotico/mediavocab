@@ -90,6 +90,27 @@ _EPISODIC_MEDIA = frozenset({
     MediaType.AUDIO_DRAMA, MediaType.TV,
 })
 
+# Fields that, when they disagree, constitute an identity conflict.
+# These are the work_hash inputs (§6.3) — disagreement means two different Works.
+# Used by _check_identity_agreement and documented for downstream consumers.
+IDENTITY_FIELDS: frozenset = frozenset({
+    "title",
+    "media_type",
+    "content_form",
+    "year",
+    "production_country",
+    "publication_country",
+    "broadcaster_country",
+    "language",
+    "runtime",
+    "season",
+    "episode",
+    "series_title",
+    "variant_kind",
+    "edition",
+    "source_format",
+})
+
 
 def _both_set(a: Any, b: Any) -> bool:
     if a is None or b is None:
