@@ -51,6 +51,7 @@ from mediavocab.models import (
     License,
     Signals,
     SignalConflict,
+    SignalsRole,
     MetadataProvider,
     ProviderMatch,
     ResolutionConflict,
@@ -84,7 +85,7 @@ __all__ = [
     "Conflict",
     "ExternalIds", "Stream",
     "License",
-    "Signals", "SignalConflict",
+    "Signals", "SignalConflict", "SignalsRole",
     "MetadataProvider", "ProviderMatch", "ResolutionConflict",
     # Merge / identity-conflict surface
     "MergeStrategy", "DEFAULT_STRATEGY", "IdentityConflict",

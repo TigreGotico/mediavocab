@@ -17,7 +17,7 @@ from mediavocab.models.license import (
     allows_share_alike as license_allows_share_alike,
 )
 from mediavocab.models.signals import (
-    Signals, SignalConflict,
+    Signals, SignalConflict, SignalsRole,
     compare_signals, merge_signals, match_quality, signal_hash,
 )
 from mediavocab.models.protocols import (
@@ -35,7 +35,7 @@ __all__ = [
     "license_is_open", "license_is_public_domain", "license_requires_attribution",
     "license_allows_commercial", "license_allows_derivatives",
     "license_allows_share_alike",
-    "Signals", "SignalConflict",
+    "Signals", "SignalConflict", "SignalsRole",
     "compare_signals", "merge_signals", "match_quality", "signal_hash",
     "MetadataProvider", "ProviderMatch", "ResolutionConflict",
     "provider_matches",

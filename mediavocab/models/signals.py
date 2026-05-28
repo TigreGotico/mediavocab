@@ -42,6 +42,7 @@ Comparison rules (encoded in :func:`compare_signals`):
 from __future__ import annotations
 
 import hashlib
+from enum import Enum
 from typing import Any, Dict, List, Optional
 
 from pydantic import BaseModel, ConfigDict, Field
@@ -59,6 +60,24 @@ from mediavocab.text.normalize import fuzzy_ratio, normalize as _normalize_text
 
 # Default fallback runtime tolerance when no media_type is set.
 RUNTIME_TOLERANCE_S = 5.0
+
+
+class SignalsRole(str, Enum):
+    """Lifecycle role of a Signals bag in the resolver pipeline.
+
+    A single ``Signals`` type carries three roles distinguished by direction
+    of flow (see module docstring §1–3). The ``role`` field makes the current
+    lifecycle phase explicit so callers don't have to infer it from context.
+
+    - ``QUERY``: filled by the caller before dispatch; passed to providers.
+    - ``OBSERVATION``: filled by a provider after lookup; describes what the
+      provider believes the work is.
+    - ``RESULT``: produced by the consolidator; the merged consensus.
+    """
+
+    QUERY = "query"
+    OBSERVATION = "observation"
+    RESULT = "result"
 
 
 class Signals(BaseModel):
@@ -93,6 +112,8 @@ class Signals(BaseModel):
     # (e.g. "fanfix", "fanmix", "fanedit_short").
     fanedit_subtype: Optional[str] = None
 
+    # --- Routing hints: never conflict-eligible, never persisted ---
+
     # Resolver hint — should the cross-source resolver fan out to
     # variant-aware providers? Defaults to False.
     include_variants: bool = False
@@ -106,6 +127,28 @@ class Signals(BaseModel):
     # ``None`` means "no preference". Never participates in identity or
     # in :func:`compare_signals` — it is a query field, never observed.
     playback_type: Optional[PlaybackType] = None
+
+    # Lifecycle role — which phase of the resolver pipeline this bag is in.
+    # Excluded from compare_signals and merge_signals (it is metadata, not data).
+    role: SignalsRole = SignalsRole.QUERY
+
+    # --- Lifecycle constructors ---
+
+    @classmethod
+    def as_query(cls, **kwargs) -> "Signals":
+        """Construct a query-role Signals (caller → resolver)."""
+        kwargs.setdefault("role", SignalsRole.QUERY)
+        return cls(**kwargs)
+
+    @classmethod
+    def as_observation(cls, **kwargs) -> "Signals":
+        """Construct an observation-role Signals (provider → consolidator)."""
+        kwargs.setdefault("role", SignalsRole.OBSERVATION)
+        return cls(**kwargs)
+
+    def as_result(self) -> "Signals":
+        """Return a copy of this Signals marked as the consolidated result."""
+        return self.model_copy(update={"role": SignalsRole.RESULT})
 
 
 class SignalConflict(BaseModel):
@@ -218,7 +261,8 @@ def compare_signals(ours: Signals, theirs: Signals) -> List[SignalConflict]:
 
 def merge_signals(*bags: Signals) -> Signals:
     """First non-empty value wins per field. ``content_genres`` is
-    unioned (insertion order preserved)."""
+    unioned (insertion order preserved). ``role`` is excluded (metadata,
+    not data) — the caller sets it via ``.as_result()``."""
     fields = ("title", "artist", "year", "country", "runtime", "medium",
               "language", "season", "episode",
               "variant_kind", "edition", "region", "source_format",
