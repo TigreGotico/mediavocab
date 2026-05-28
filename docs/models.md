@@ -183,7 +183,11 @@ release_variants(release) -> List[ReleaseRelation]  # all SUPERSEDES relations
 ```
 
 These are non-normative convenience wrappers — every consumer could write
-them in two lines. They are stable for v1.x.
+them in two lines. They are stable for v1.x — signatures will not change
+in minor releases. "Non-normative" means they add no new semantics beyond
+what the models already express; they do not introduce new constraints or
+side effects. Use them for convenience; don't depend on them for correctness
+assertions in your own spec.
 
 ## `WorkRelation` — Work→Work links
 

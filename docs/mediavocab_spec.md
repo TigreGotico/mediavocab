@@ -1230,6 +1230,17 @@ The validator does NOT enforce which slot matches the MediaType; the table
 is editorial guidance for canonical records. Ingestion code may populate
 the slot that best fits the source metadata.
 
+**Edition, packaging, and variant disambiguation.**
+
+| Field | Level | In hash? | Use for |
+|-------|-------|----------|---------|
+| `Work.variant_kind` | Work | ✅ | *Type* of restructuring: DIRECTORS, EXTENDED, THEATRICAL, FANEDIT, REMASTER, etc. |
+| `Work.edition` | Work | ✅ | Free-text label that makes this cut unique: `"Unrated"`, `"4K Restoration"`. Changes the Work identity. |
+| `Release.packaging` | Release | ❌ | How *this release ships*: DELUXE, BOX_SET, REISSUE, BOOTLEG. Distribution format, not content. |
+| `Release.edition` | Release | ❌ | Free-text pressing label: `"Anniversary Edition"`, `"Limited Red Vinyl"`. Description-family. |
+
+Rule of thumb: if two releases differ in *creative content* (different scenes, different runtime, different artistic choices) → they are different Works (`Work.variant_kind` + `Work.edition`). If they differ only in *how they ship* (bonus disc, deluxe packaging, different region) → they are different Releases of the same Work (`Release.packaging` + `Release.edition`).
+
 **Series-vs-episode encoding.** A *series / show / channel / collection*
 Work has `episode = None` (and usually `season = None`). An individual
 *episode / chapter / issue / programme* Work has `episode` set, optionally
