@@ -2,7 +2,7 @@
 from typing import ClassVar, Optional, Set
 
 from mediavocab import (
-    ContentForm, MediaType, MetadataProvider, PlaybackType, ProviderMatch,
+    MediaType, MetadataProvider, PlaybackType, ProviderMatch,
     ResolutionConflict, Signals,
 )
 from mediavocab.models.protocols import provider_matches
@@ -166,24 +166,6 @@ def test_playback_orthogonal_to_media_gate():
 # ---------------------------------------------------------------------------
 # ContentForm gate
 # ---------------------------------------------------------------------------
-
-class _PrimaryOnlyProvider(MetadataProvider):
-    name = "primary_only"
-    content_form = {ContentForm.PRIMARY}
-
-    def is_available(self) -> bool:
-        return True
-
-    def lookup(self, signals: Signals):
-        return None
-
-
-def test_content_form_gate():
-    p = _PrimaryOnlyProvider()
-    assert p.matches(Signals(content_form=ContentForm.PRIMARY)) is True
-    assert p.matches(Signals(content_form=ContentForm.TRAILER)) is False
-    # No hint passes
-    assert p.matches(Signals()) is True
 
 
 # ---------------------------------------------------------------------------

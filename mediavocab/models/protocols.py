@@ -15,7 +15,7 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from mediavocab.models.external_ids import ExternalIds
 from mediavocab.models.signals import Signals, SignalConflict
-from mediavocab.taxonomy import ContentForm, MediaType, PlaybackType
+from mediavocab.taxonomy import MediaType, PlaybackType
 
 
 class ProviderMatch(BaseModel):
@@ -42,25 +42,25 @@ class ResolutionConflict(BaseModel):
 class MetadataProvider(ABC):
     """Abstract base for cross-source resolver providers.
 
-    Routing is four-axis, each axis orthogonal (A6):
+    Routing is three-axis, each axis orthogonal (A6):
 
     - `media`         — set of `MediaType` values handled.
     - `playback_type` — set of `PlaybackType` values handled.
-    - `content_form`  — set of `ContentForm` values handled (PRIMARY / TRAILER / …).
     - `genre_filter`  — set of genre tags from `mediavocab.taxonomy.genre`.
 
-    A provider matches when ALL four hold:
+    A provider matches when ALL three hold:
 
         (no `media`         declared OR signals.medium       in self.media)
         AND (no `playback_type` declared OR signals.playback_type in self.playback_type)
-        AND (no `content_form`  declared OR signals.content_form  in self.content_form)
         AND (no `genre_filter`  declared OR self.genre_filter ∩ signals.content_genres)
+
+    The ``content_form`` axis was removed — no real provider filters on
+    ContentForm, and it added complexity with no real-world benefit.
     """
 
     name: ClassVar[str] = ""
     media: ClassVar[Set[MediaType]] = set()
     playback_type: ClassVar[Set[PlaybackType]] = set()
-    content_form: ClassVar[Set[ContentForm]] = set()
     genre_filter: ClassVar[Set[str]] = set()
 
     @abstractmethod
@@ -72,26 +72,23 @@ class MetadataProvider(ABC):
         """Return the single best match for `signals`, or `None`."""
 
     def matches(self, signals: Signals) -> bool:
-        """Default four-axis routing test."""
-        return _four_axis_gate(
-            self.media, self.playback_type, self.content_form, self.genre_filter,
+        """Default three-axis routing test."""
+        return _three_axis_gate(
+            self.media, self.playback_type, self.genre_filter,
             signals,
         )
 
 
-def _four_axis_gate(
+def _three_axis_gate(
     media: Set[MediaType],
     playback_type: Set[PlaybackType],
-    content_form: Set[ContentForm],
     genre_filter: Set[str],
     signals: Signals,
 ) -> bool:
-    """Single source of truth for the four-axis routing gate (A6)."""
+    """Single source of truth for the three-axis routing gate (A6)."""
     if media and signals.medium and signals.medium not in media:
         return False
     if playback_type and signals.playback_type and signals.playback_type not in playback_type:
-        return False
-    if content_form and signals.content_form and signals.content_form not in content_form:
         return False
     if genre_filter:
         tags = set(signals.content_genres or [])
@@ -101,11 +98,10 @@ def _four_axis_gate(
 
 
 def provider_matches(provider: MetadataProvider, signals: Signals) -> bool:
-    """Standalone gate, callable on any object declaring the four ClassVars."""
-    return _four_axis_gate(
+    """Standalone gate, callable on any object declaring the three ClassVars."""
+    return _three_axis_gate(
         getattr(provider, "media", None) or set(),
         getattr(provider, "playback_type", None) or set(),
-        getattr(provider, "content_form", None) or set(),
         getattr(provider, "genre_filter", None) or set(),
         signals,
     )
