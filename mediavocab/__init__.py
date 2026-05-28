@@ -58,6 +58,9 @@ from mediavocab.text import (
     MergeStrategy,
     DEFAULT_STRATEGY,
     IdentityConflict,
+    ClassificationResult,
+    classify_video,
+    extract_tags,
 )
 
 SPEC_VERSION: str = "1.1"
@@ -88,4 +91,6 @@ __all__ = [
     "MetadataProvider", "ProviderMatch", "ResolutionConflict",
     # Merge / identity-conflict surface
     "MergeStrategy", "DEFAULT_STRATEGY", "IdentityConflict",
+    # Classification
+    "ClassificationResult", "classify_video", "extract_tags",
 ]
