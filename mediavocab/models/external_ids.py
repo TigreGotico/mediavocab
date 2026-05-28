@@ -89,6 +89,27 @@ ADULTFILMDATABASE = "adultfilmdatabase"
 COMIXOLOGY = "comixology"
 ANILIST = "anilist"
 MYANIMELIST = "myanimelist"
+ANIDB = "anidb"
+
+# Film discovery / social cataloguing
+LETTERBOXD = "letterboxd"
+
+# Music streaming / distribution
+BANDCAMP = "bandcamp"
+SOUNDCLOUD = "soundcloud"
+YOUTUBE_CHANNEL = "youtube_channel"
+YOUTUBE_VIDEO = "youtube_video"
+YOUTUBE_MUSIC_ARTIST = "youtube_music_artist"
+
+# Books — additional backends
+HARDCOVER = "hardcover"
+READING_GLASSES = "reading_glasses"        # rreading-glasses API backend
+
+# Podcasts — feed-level ID distinct from episode-level
+PODCAST_INDEX_FEED = "podcast_index_feed"
+
+# Radio — station-level browser UUID
+RADIO_BROWSER_UUID = "radio_browser_uuid"
 
 # Devices and routing
 HOME_ASSISTANT = "home_assistant"
@@ -111,10 +132,17 @@ ALL_KNOWN_KEYS = (
     IFDB, FANEDIT_IFDB, FANEDIT_ORG,
     IFICTION, ALEXA_SKILL, GOOGLE_ACTION, MYCROFT_SKILL,
     IAFD, ADULTFILMDATABASE,
-    COMIXOLOGY, ANILIST, MYANIMELIST,
+    COMIXOLOGY, ANILIST, MYANIMELIST, ANIDB,
+    LETTERBOXD,
+    BANDCAMP, SOUNDCLOUD, YOUTUBE_CHANNEL, YOUTUBE_VIDEO, YOUTUBE_MUSIC_ARTIST,
+    HARDCOVER, READING_GLASSES,
+    PODCAST_INDEX_FEED, RADIO_BROWSER_UUID,
     HOME_ASSISTANT, MQTT_TOPIC,
     WIKIDATA, YOUTUBE,
 )
+
+# frozenset variant for O(1) membership testing
+KNOWN_EXTERNAL_IDS: frozenset = frozenset(ALL_KNOWN_KEYS)
 
 
 # ---------------------------------------------------------------------------

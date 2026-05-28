@@ -6,7 +6,7 @@ from mediavocab.models.work import (
     COUNTRY_SLOT_FOR,
 )
 from mediavocab.models.conflict import Conflict
-from mediavocab.models.external_ids import ExternalIds, Stream
+from mediavocab.models.external_ids import ExternalIds, Stream, KNOWN_EXTERNAL_IDS
 from mediavocab.models.license import (
     License,
     is_open as license_is_open,
@@ -30,7 +30,7 @@ __all__ = [
     "Chapter", "AccessibilityTrack", "AvailabilityWindow", "LocalizedTitle",
     "COUNTRY_SLOT_FOR",
     "Conflict",
-    "ExternalIds", "Stream",
+    "ExternalIds", "Stream", "KNOWN_EXTERNAL_IDS",
     "License",
     "license_is_open", "license_is_public_domain", "license_requires_attribution",
     "license_allows_commercial", "license_allows_derivatives",
