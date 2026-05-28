@@ -115,23 +115,23 @@ def relations_of_kind(work: Work, kind: WorkRelationKind) -> List[WorkRelation]:
 
 
 def is_sequel_of(work: Work) -> bool:
-    """True if the Work has at least one SEQUEL relation."""
-    return any(r.kind == WorkRelationKind.SEQUEL for r in (work.relations or []))
+    """True if the Work has at least one SEQUEL_TO relation."""
+    return any(r.kind == WorkRelationKind.SEQUEL_TO for r in (work.relations or []))
 
 
 def is_part_of_series(work: Work) -> bool:
-    """True if the Work has at least one PART_OF_SERIES relation."""
-    return any(r.kind == WorkRelationKind.PART_OF_SERIES for r in (work.relations or []))
+    """True if the Work has at least one PART_OF relation."""
+    return any(r.kind == WorkRelationKind.PART_OF for r in (work.relations or []))
 
 
 def all_cuts(work: Work) -> List[WorkRelation]:
-    """All ALTERNATIVE_CUT relations on the Work."""
-    return relations_of_kind(work, WorkRelationKind.ALTERNATIVE_CUT)
+    """All DERIVED_FROM relations on the Work (used for alternative cuts)."""
+    return relations_of_kind(work, WorkRelationKind.DERIVED_FROM)
 
 
 def release_variants(release: Release) -> List[ReleaseRelation]:
-    """All VARIANT ReleaseRelations on the Release."""
-    return [r for r in (release.relations or []) if r.kind == ReleaseRelationKind.VARIANT]
+    """All SUPERSEDES ReleaseRelations on the Release."""
+    return [r for r in (release.relations or []) if r.kind == ReleaseRelationKind.SUPERSEDES]
 
 
 __all__ = [
