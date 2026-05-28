@@ -281,6 +281,104 @@ def test_normalise_title_version_is_int():
     assert NORMALISE_TITLE_VERSION >= 1
 
 
+def test_token_sort_ratio_handles_article_reordering():
+    from mediavocab.text import token_sort_ratio
+    assert token_sort_ratio("The Dark Knight", "Dark Knight, The") > 0.95
+    assert token_sort_ratio("Lord of the Rings", "The Lord of the Rings") > 0.85
+    assert token_sort_ratio("Completely Different", "Nothing Similar") < 0.5
+
+
+def test_score_breakdown_total_matches_score():
+    from mediavocab.text import score, score_breakdown
+    a = Work(title="Blade Runner", media_type=MediaType.MOVIE, year=1982)
+    b = Work(title="Blade Runner", media_type=MediaType.MOVIE, year=1982)
+    bd = score_breakdown(a, b)
+    assert abs(bd.total - score(a, b)) < 1e-9
+    assert 0.0 <= bd.title <= 1.0
+    assert 0.0 <= bd.total <= 1.0
+
+
+def test_score_breakdown_year_penalty():
+    from mediavocab.text import score_breakdown
+    a = Work(title="Test", media_type=MediaType.MOVIE, year=2000)
+    b = Work(title="Test", media_type=MediaType.MOVIE, year=2010)
+    bd = score_breakdown(a, b)
+    assert bd.year == 0.5  # 10-year gap → penalty
+
+
+def test_merge_all_batch():
+    from mediavocab.text import merge_all
+    w1 = Work(title="Blade Runner", media_type=MediaType.MOVIE, year=1982)
+    w2 = Work(title="Blade Runner", media_type=MediaType.MOVIE, language="en")
+    merged = merge_all([w1, w2])
+    assert merged.year == 1982
+    assert merged.language == "en"
+
+
+def test_merge_all_empty_raises():
+    from mediavocab.text import merge_all
+    import pytest
+    with pytest.raises(ValueError):
+        merge_all([])
+
+
+def test_group_by_hash_groups_duplicates():
+    from mediavocab.helpers import group_by_hash
+    from mediavocab.text import work_hash
+    w1 = Work(title="Blade Runner", media_type=MediaType.MOVIE, year=1982)
+    w2 = Work(title="Blade Runner", media_type=MediaType.MOVIE, year=1982)
+    w3 = Work(title="Alien", media_type=MediaType.MOVIE, year=1979)
+    groups = group_by_hash([w1, w2, w3])
+    assert len(groups) == 2
+    assert len(groups[work_hash(w1)]) == 2
+
+
+def test_is_available_no_restrictions():
+    from mediavocab.helpers import is_available
+    r = Release(work=Work(title="x", media_type=MediaType.MOVIE))
+    assert is_available(r) is True
+
+
+def test_is_available_region_locked():
+    from mediavocab.helpers import is_available
+    r = Release(work=Work(title="x", media_type=MediaType.MOVIE),
+                region_locked=True, regions_available=["US"])
+    assert is_available(r, region="US") is True
+    assert is_available(r, region="DE") is False
+
+
+def test_is_available_date_bounds():
+    from mediavocab.helpers import is_available
+    r = Release(work=Work(title="x", media_type=MediaType.MOVIE),
+                available_from="2025-01", available_until="2026-12")
+    assert is_available(r, at="2025-06") is True
+    assert is_available(r, at="2024-12") is False
+    assert is_available(r, at="2027-01") is False
+
+
+def test_release_is_open_helpers():
+    from mediavocab.helpers import release_is_open, release_allows_commercial
+    w = Work(title="x", media_type=MediaType.MOVIE)
+    r_open = Release(work=w, license="CC-BY-4.0")
+    r_none = Release(work=w)
+    assert release_is_open(r_open) is True
+    assert release_is_open(r_none) is False
+    assert release_allows_commercial(r_open) is True
+    assert release_allows_commercial(r_none) is False
+
+
+def test_work_from_signals():
+    from mediavocab import Signals, SignalsRole
+    s = Signals.as_observation(title="Inception", medium=MediaType.MOVIE,
+                               year=2010, language="en").as_result()
+    w = Work.from_signals(s, edition="IMAX")
+    assert w.title == "Inception"
+    assert w.year == 2010
+    assert w.language == "en"
+    assert w.edition == "IMAX"
+    assert w.media_type == MediaType.MOVIE
+
+
 def test_normalise_title_golden_values():
     """NORMALISE_TITLE_VERSION=1 golden values — changing any output is a breaking change."""
     from mediavocab.text import normalise_title
