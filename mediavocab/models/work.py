@@ -121,8 +121,9 @@ class AvailabilityWindow(BaseModel):
 
     @model_validator(mode="after")
     def _check(self) -> "AvailabilityWindow":
-        if self.start is not None and self.end is not None and self.end < self.start:
-            raise ValueError("AvailabilityWindow.end precedes start")
+        if self.start is not None and self.end is not None:
+            if iso_compare(self.end, self.start) < 0:
+                raise ValueError("AvailabilityWindow.end precedes start")
         return self
 
 
