@@ -59,6 +59,34 @@ class TestStableKeySpellings:
     def test_interactive_fiction_keys(self):
         assert eid.IFDB == "ifdb"
 
+    def test_new_anime_and_film_keys(self):
+        assert eid.ANIDB == "anidb"
+        assert eid.LETTERBOXD == "letterboxd"
+
+    def test_new_music_streaming_keys(self):
+        assert eid.BANDCAMP == "bandcamp"
+        assert eid.SOUNDCLOUD == "soundcloud"
+        assert eid.YOUTUBE_CHANNEL == "youtube_channel"
+        assert eid.YOUTUBE_VIDEO == "youtube_video"
+        assert eid.YOUTUBE_MUSIC_ARTIST == "youtube_music_artist"
+
+    def test_new_book_keys(self):
+        assert eid.HARDCOVER == "hardcover"
+        assert eid.READING_GLASSES == "reading_glasses"
+
+    def test_new_podcast_radio_keys(self):
+        assert eid.PODCAST_INDEX_FEED == "podcast_index_feed"
+        assert eid.RADIO_BROWSER_UUID == "radio_browser_uuid"
+
+
+def test_known_external_ids_frozenset():
+    from mediavocab import KNOWN_EXTERNAL_IDS
+    assert isinstance(KNOWN_EXTERNAL_IDS, frozenset)
+    assert len(KNOWN_EXTERNAL_IDS) >= 50
+    for key in ("imdb", "bandcamp", "letterboxd", "anidb", "hardcover",
+                "youtube_channel", "podcast_index_feed", "radio_browser_uuid"):
+        assert key in KNOWN_EXTERNAL_IDS, f"{key!r} missing from KNOWN_EXTERNAL_IDS"
+
 
 # ---------------------------------------------------------------------------
 # Keys follow the lowercase / underscore convention

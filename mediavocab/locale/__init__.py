@@ -1,23 +1,16 @@
 """Locale loader for mediavocab keyword vocabularies.
 
-`.voc` files contain one plain phrase per line. Blank lines and lines
-starting with `#` are ignored. The loader builds word-boundary alternation
-regexes and frozensets from these files.
+Backed by ``ovos-spec-tools`` (``LocaleResources``) which implements the
+OVOS-INTENT-2 spec: UTF-8 `.voc` files, one phrase per line, blank lines
+and ``#``-comment lines ignored, fallback chain through language families
+to ``en-us``.
 
-Fallback chain: exact match → language-only → en-us.
-
-Concurrency
------------
-This module exposes **no mutable global state**. Every call accepts an
-explicit ``lang`` parameter; when omitted, the default comes from the
-``MEDIAVOCAB_LANG`` environment variable read once at import time
-(falling back to ``"en-us"``). Concurrent callers in different tenants /
-threads / requests should always pass ``lang=`` explicitly — the cache is
-keyed on ``(name, lang)`` so different languages do not collide.
+Fallback chain: ovos-spec-tools → language-only tag → en-us.
 
 Usage:
-    from mediavocab.locale import voc_regex
+    from mediavocab.locale import voc_regex, voc_set
     rx = voc_regex("cut_directors", lang="pt-pt")
+    phrases = voc_set("cut_directors", lang="pt-pt")
 """
 import os
 import re
@@ -25,8 +18,12 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Optional
 
+from ovos_spec_tools import LocaleResources
+
 _LOCALE_DIR = Path(__file__).parent
 DEFAULT_LANG: str = os.environ.get("MEDIAVOCAB_LANG", "en-us").lower()
+
+_resources = LocaleResources(skill_locale=str(_LOCALE_DIR))
 
 
 def get_default_lang() -> str:
@@ -34,26 +31,19 @@ def get_default_lang() -> str:
     return DEFAULT_LANG
 
 
-def _fallback_chain(lang: str) -> list:
-    chain = [lang]
-    if "-" in lang:
-        chain.append(lang.split("-")[0])
-    if "en-us" not in chain:
-        chain.append("en-us")
-    return chain
-
-
 @lru_cache(maxsize=512)
 def _load_voc(name: str, lang: str) -> tuple:
-    for candidate in _fallback_chain(lang):
-        path = _LOCALE_DIR / candidate / f"{name}.voc"
-        if path.exists():
-            lines = path.read_text(encoding="utf-8-sig", errors="replace").splitlines()
-            return tuple(
-                line.strip()
-                for line in lines
-                if line.strip() and not line.strip().startswith("#")
-            )
+    # Try requested language (ovos-spec-tools handles language-family fallback internally)
+    vocs = _resources.vocabularies(lang)
+    phrases = vocs.get(name)
+    if phrases:
+        return tuple(phrases)
+    # Final fallback: en-us (the canonical source)
+    if lang != "en-us":
+        vocs_en = _resources.vocabularies("en-us")
+        phrases = vocs_en.get(name)
+        if phrases:
+            return tuple(phrases)
     return ()
 
 
@@ -74,12 +64,11 @@ def _voc_set(name: str, lang: str) -> frozenset:
 
 def voc_regex(name: str, lang: Optional[str] = None) -> Optional[re.Pattern]:
     """Compiled regex for the given .voc file. ``lang`` defaults to
-    ``MEDIAVOCAB_LANG`` env (or ``"en-us"``). Always thread-safe — no
-    shared mutable state."""
+    ``MEDIAVOCAB_LANG`` env (or ``"en-us"``). Thread-safe — backed by
+    ``ovos-spec-tools`` ``LocaleResources``."""
     return _voc_regex(name, (lang or DEFAULT_LANG).lower())
 
 
 def voc_set(name: str, lang: Optional[str] = None) -> frozenset:
-    """Frozenset of lowercase phrases from the given .voc file. ``lang``
-    defaults to ``MEDIAVOCAB_LANG`` env (or ``"en-us"``)."""
+    """Frozenset of lowercase phrases from the given .voc file."""
     return _voc_set(name, (lang or DEFAULT_LANG).lower())

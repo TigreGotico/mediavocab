@@ -282,8 +282,25 @@ def test_normalise_title_version_is_int():
 
 
 def test_normalise_title_golden_values():
+    """NORMALISE_TITLE_VERSION=1 golden values — changing any output is a breaking change."""
     from mediavocab.text import normalise_title
+    # ASCII + punctuation
+    assert normalise_title("") == ""
+    assert normalise_title("  Blade  Runner  ") == "blade runner"
+    assert normalise_title("The Lord of the Rings") == "the lord of the rings"
+    # Diacritics
     assert normalise_title("Café Society") == "cafe society"
     assert normalise_title("Pokémon: The Movie") == "pokemon the movie"
-    assert normalise_title("  Blade  Runner  ") == "blade runner"
-    assert normalise_title("") == ""
+    assert normalise_title("Das Boot") == "das boot"
+    assert normalise_title("L'Avventura") == "l avventura"
+    # Parenthetical stripping
+    assert normalise_title("Inception (2010)") == "inception"
+    assert normalise_title("Blade Runner [Final Cut]") == "blade runner"
+    # Featured-artist stripping
+    assert normalise_title("Love Story ft. Taylor Swift") == "love story"
+    assert normalise_title("Empire State of Mind (feat. Alicia Keys)") == "empire state of mind"
+    # Non-Latin scripts — normalise passes through (diacritics are per-script)
+    assert normalise_title("千と千尋の神隠し") == "千と千尋の神隠し"   # Japanese (no diacritics to strip)
+    assert normalise_title("君の名は。") == "君の名は"               # Japanese full-stop stripped as punctuation
+    assert normalise_title("مدينة الألوان") == "مدينة الالوان"     # Arabic hamza-above stripped
+    assert normalise_title("Ἰλιάς") == "ιλιας"                    # Ancient Greek — diacritics stripped, lowercased

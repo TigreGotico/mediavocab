@@ -154,7 +154,9 @@ A concern that doesn't change the schema earns a typed field (typically a
 ClassVar on the provider and an optional hint on the resolver bag), not a
 `MediaType` value. Routing axes are absent from `work_hash` and
 `release_hash`. Identity is `(media + identity-fields)`; the resolver gate
-is `(media, playback_type, content_form, content_genres, …)`.
+is three-axis: `(media × playback_type × genre_filter)`. The `content_form`
+axis was removed — no real provider filters on it, and it added gate complexity
+with no benefit.
 
 **A7 — One source of truth per fact.**
 If a value has a typed home, the provider populates that. The same value
@@ -1222,10 +1224,11 @@ class Work(BaseModel):
 International co-productions and Works without a single origin leave all
 three empty.
 
-The model validator enforces *at most one slot non-empty*, not *which slot*
-matches the MediaType. The table is editorial guidance for canonical
-records; ingestion code may populate the slot that best fits the source
-metadata and downstream callers normalise.
+The model validator enforces *at most one slot non-empty* — it is valid for
+all three slots to be empty (international productions, PLAYLIST, SOUND_EFFECT).
+The validator does NOT enforce which slot matches the MediaType; the table
+is editorial guidance for canonical records. Ingestion code may populate
+the slot that best fits the source metadata.
 
 **Series-vs-episode encoding.** A *series / show / channel / collection*
 Work has `episode = None` (and usually `season = None`). An individual
@@ -1790,8 +1793,12 @@ def work_hash(w: Work) -> str:
     - `series_title` is included because two shows can share season+episode+title
       (S01E01 'Pilot' is a common collision).
 
-    Stability: input list is frozen for the v1.x line. A major-version change
-    uses a new symbol (`work_hash_v2`)."""
+    Stability: input list and `normalise_title()` behaviour are frozen for
+    the v1.x line. `NORMALISE_TITLE_VERSION` (exported from
+    `mediavocab.text.normalize`) pins the normalisation pipeline; any
+    semantic change to `normalise_title()` increments this constant and
+    constitutes a breaking change requiring a major version bump.
+    A major-version change uses a new symbol (`work_hash_v2`)."""
 ```
 
 ### 6.4 `release_hash`

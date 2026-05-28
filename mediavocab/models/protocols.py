@@ -8,6 +8,7 @@ packages (e.g. `metadatarr.resolve`). This module is the shared contract.
 """
 from __future__ import annotations
 
+import logging
 from abc import ABC, abstractmethod
 from typing import ClassVar, List, Optional, Set
 
@@ -16,6 +17,8 @@ from pydantic import BaseModel, ConfigDict, Field
 from mediavocab.models.external_ids import ExternalIds
 from mediavocab.models.signals import Signals, SignalConflict
 from mediavocab.taxonomy import MediaType, PlaybackType
+
+_LOG = logging.getLogger(__name__)
 
 
 class ProviderMatch(BaseModel):
@@ -62,6 +65,18 @@ class MetadataProvider(ABC):
     media: ClassVar[Set[MediaType]] = set()
     playback_type: ClassVar[Set[PlaybackType]] = set()
     genre_filter: ClassVar[Set[str]] = set()
+
+    def __init_subclass__(cls, **kwargs):
+        super().__init_subclass__(**kwargs)
+        if cls.genre_filter:
+            from mediavocab.taxonomy.genre import KNOWN_GENRES
+            for g in cls.genre_filter:
+                if g not in KNOWN_GENRES:
+                    _LOG.warning(
+                        "MetadataProvider %r: genre_filter value %r is not in "
+                        "KNOWN_GENRES — check spelling (expected lowercase_underscore)",
+                        cls.__name__, g,
+                    )
 
     @abstractmethod
     def is_available(self) -> bool:

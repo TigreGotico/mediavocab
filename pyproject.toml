@@ -12,15 +12,17 @@ license = {text = "Apache-2.0"}
 authors = [{name = "JarbasAi", email = "jarbasai@mailfence.com"}]
 keywords = ["media", "metadata", "taxonomy", "pydantic", "vocabulary"]
 classifiers = [
-    "Development Status :: 4 - Beta",
+    "Development Status :: 5 - Production/Stable",
     "Intended Audience :: Developers",
     "License :: OSI Approved :: Apache Software License",
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3 :: Only",
     "Topic :: Software Development :: Libraries",
+    "Topic :: Multimedia",
 ]
 dependencies = [
     "pydantic>=2",
+    "ovos-spec-tools>=0.6.0a1",
 ]
 
 [project.optional-dependencies]

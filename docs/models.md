@@ -129,9 +129,19 @@ Section: `PRINCIPAL` / `GUEST` / `STAFF`.
 ## `EntityRef` — a lightweight pointer
 
 `name`, `kind`, `external_ids`, `localized_names: List[Tuple[str, str]]`.
-Resolve against the consumer's entity store. Distinct from
-`Work` / `Release` references — those pass the full model with identity
-fields populated only.
+
+**When to use `EntityRef` vs `Entity`:**
+
+- `EntityRef` — lightweight reference embedded inside a Work's `credits`
+  list, `Appearance.attributed_to`, or `Membership.entity`. Use it when
+  you know the name and possibly an external ID, but don't have the full
+  entity record. `Work.credits` always contains `EntityRef`, never `Entity`.
+- `Entity` — the full persistent record (aliases, memberships, birth/death
+  years, lifecycle dates). Stored separately in your entity store; linked by
+  matching `external_ids` or name when you need the full record.
+
+Resolve `EntityRef` against the consumer's entity store using
+`external_ids` overlap (authoritative) or `name` equality (fallback).
 
 ## `Membership` — temporal group membership (§5.2)
 
@@ -153,19 +163,27 @@ enforces `ACTIVE → date_to=None`.
 ## Helpers — `mediavocab.helpers.queries`
 
 ```python
+# Credit traversal
+credits_with_role(work, relation_role) -> List[Credit]
+primary_credit(work, relation_role=None) -> Optional[Credit]
+director(work) -> Optional[Credit]
+author(work)   -> Optional[Credit]
+performers(work) -> List[Credit]
+
+# Episode / filmography
 episodes_of(series_work, all_works) -> List[Work]
 filmography_of(entity_ref, all_works, relation_role=None) -> List[Work]
-quality_score(release) -> tuple
-best_release(*releases) -> Optional[Release]
+
+# WorkRelation / ReleaseRelation traversal
+relations_of_kind(work, kind: WorkRelationKind) -> List[WorkRelation]
+is_sequel_of(work) -> bool           # True if any SEQUEL_TO relation
+is_part_of_series(work) -> bool      # True if any PART_OF relation
+all_cuts(work) -> List[WorkRelation] # all DERIVED_FROM relations
+release_variants(release) -> List[ReleaseRelation]  # all SUPERSEDES relations
 ```
 
-`quality_score` is a tuple: Work-level variant preference (director's >
-extended > preservation > remastered > upscaled > colorized >
-theatrical > fanedit > compilation > other), Release packaging (deluxe
-> box_set > reissue > regional > promo > other > bootleg), resolution,
-HDR, audio channels, sample_rate.
-
-`best_release` picks the highest tuple; list order breaks ties.
+These are non-normative convenience wrappers — every consumer could write
+them in two lines. They are stable for v1.x.
 
 ## `WorkRelation` — Work→Work links
 
@@ -176,9 +194,18 @@ class WorkRelation(BaseModel):
     note: Optional[str] = None
 ```
 
-The `target` is a `Work` populated with only identity fields — wire-format
-recursion is bounded by consumer convention (don't recurse into the
-target's own `relations`, `tracklist`, or `credits`).
+**When to use `WorkRelation` vs `variant_kind`:**
+
+- `Work.variant_kind` — describes what *this record* is ("this is the
+  Director's Cut"). Set it on the record that holds the variant.
+- `WorkRelation(kind=DERIVED_FROM, target=original)` — links two records
+  together ("this Director's Cut was derived from the Theatrical Cut").
+  Set it when you have both records and want to trace the lineage.
+- Both can and should coexist: a Director's Cut Work has `variant_kind=DIRECTORS`
+  AND a `WorkRelation(DERIVED_FROM, target=theatrical_work)`.
+
+The `target` is a `Work` populated with only identity fields — don't
+recurse into the target's own `relations`, `tracklist`, or `credits`.
 
 ## `ReleaseRelation` — Release→Release links
 
@@ -189,69 +216,51 @@ class ReleaseRelation(BaseModel):
     note: Optional[str] = None
 ```
 
+**WorkRelation vs ReleaseRelation:**
+
+- `WorkRelation` — conceptual link between *creative works* (this film is a
+  sequel of that film; this cover is derived from the original recording).
+- `ReleaseRelation` — format-level link between *manifested releases* (this
+  4K remaster supersedes the original DVD release; this stream is a mirror of
+  the broadcast).
+
 | `ReleaseRelationKind` | Semantics |
 |---|---|
 | `SUPERSEDES` | Newer release replaces an earlier one |
 | `PORT_OF` | Platform port of the same base game / IF |
-| `MIRROR_OF` | Alternate stream of the same broadcast (different bitrate / transmitter) |
+| `MIRROR_OF` | Alternate stream of the same broadcast |
 | `DERIVED_FROM` | Generic catch-all |
 
 Use sparingly — most distinctions are encoded by format / packaging
 plus `release_hash`.
 
-## `Programme` — broadcast slot
+## `License` — typed rights
 
-A single airing of a Work on a broadcast channel. Per T4 the channel is
-itself a Work (a RADIO or TV station).
-
-| Field | Type | Notes |
-|---|---|---|
-| `work` | `Work` | Content Work being aired |
-| `channel` | `Work` | Broadcast channel Work (RADIO / TV) |
-| `starts_at` | `IsoDate` | RFC 3339 / ISO 8601 with offset |
-| `ends_at` | `Optional[IsoDate]` | Only the trailing slot may be `None` |
-| `runtime` | `Optional[float]` | Seconds |
-| `is_live` | `bool` | |
-| `is_repeat` | `bool` | |
-
-## `Schedule` — EPG window for a channel
-
-| Field | Notes |
-|---|---|
-| `channel` | `Work` |
-| `programmes` | `List[Programme]` — sorted by `starts_at`, non-overlapping |
-| `valid_from`, `valid_until` | `Optional[IsoDate]` |
-| `source` | Provider hint (`"tunein"`, `"tvmaze"`, `"epg.xml"`) |
-| `fetched_at` | `Optional[IsoDate]` |
-
-Validator enforces ordering, non-overlap, and the "only last may be
-open-ended" rule. Schedules are append-only at the model level; replace
-wholesale to refresh.
-
-## `License` — optional typed rights overlay
-
-`mediavocab.models.license.License` is a Pydantic companion to the
-canonical `Release.license: str`. The string stays the source of
-truth (A7); the typed view is parse-only.
+`Release.license` accepts either a plain SPDX-style string or a `License`
+object. Strings are coerced to `License.from_spdx()` on intake:
 
 ```python
-from mediavocab.models.license import License
+from mediavocab import Release, Work, MediaType
 
-lic = License.from_spdx("CC-BY-SA-4.0")
-lic.attribution     # True
-lic.share_alike     # True
-lic.commercial      # True (only NC variants set this False)
-lic.is_open()       # True
+r = Release(work=Work(title="x", media_type=MediaType.MOVIE),
+            license="CC-BY-SA-4.0")
+r.license.attribution   # True
+r.license.share_alike   # True
+r.license.commercial    # True
+r.license.is_open()     # True
 ```
 
-For unrecognised identifiers all flags return the most-restrictive
-answer (see spec §7.2).
+Well-known constants in `mediavocab.models.license`:
+`ALL_RIGHTS_RESERVED`, `PUBLIC_DOMAIN`, `CC0`, `CC_BY`, `CC_BY_SA`,
+`CC_BY_NC`, `CC_BY_NC_SA`, `CC_BY_ND`, `CC_BY_NC_ND`. Free-function
+predicates (`is_open`, `requires_attribution`, `allows_commercial`, etc.)
+operate directly on SPDX strings — see spec §7.2.
 
 ## `ExternalIds` — optional typed external identifiers
 
 `mediavocab.ExternalIds` is a typed companion to the canonical
-`Dict[str, str]` form. Known fields plus an `extra: Dict[str, str]`
-escape hatch.
+`Dict[str, str]` form. Known fields plus an `extra: Dict[str, Any]`
+escape hatch for provider-specific IDs.
 
 ```python
 ids = ExternalIds(isbn_10="0-261-10328-8")
@@ -260,6 +269,13 @@ ids.merge(other)  # first-writer-wins
 ids.streams       # → List[Stream] expanded from URL/ID keys in `extra`
 ids.to_dict()     # plain Dict[str, str]
 ```
+
+`extra` accepts any JSON-serialisable type (str, int, float, bool, list,
+dict). Common keys: `"cover_url"`, `"feed_url"`, `"image_url"`, `"slug"`,
+`"soundcloud_track_url"`, `"bandcamp_track_url"`, `"youtube_video_id"`.
+
+`KNOWN_EXTERNAL_IDS` (exported from `mediavocab`) is a frozenset of all
+55 well-known key strings for O(1) membership testing.
 
 ## `Stream` — playable media stream
 
@@ -271,59 +287,61 @@ optional raw `id`. Aggregated by `ExternalIds.streams`.
 ## `Signals` — resolver pipeline bag
 
 `mediavocab.Signals` exists only in the resolver pipeline — it is not a
-persisted record. Persisted records are `Work`s. The same shape carries
-three roles:
+persisted record. Persisted records are `Work`s. Use lifecycle constructors
+to make the role explicit:
 
-1. **Query** (caller → resolver) — what the caller knows.
-2. **Observation** (provider → consolidator) — what the provider believes.
-3. **Consensus** (consolidator → caller) — the merged result.
+```python
+from mediavocab import Signals, SignalsRole
+
+query = Signals.as_query(title="Inception", year=2010, medium=MediaType.MOVIE)
+obs   = Signals.as_observation(title="Inception", year=2010, runtime=8880.0)
+result = merge_signals(query, obs).as_result()
+
+assert query.role  == SignalsRole.QUERY
+assert obs.role    == SignalsRole.OBSERVATION
+assert result.role == SignalsRole.RESULT
+```
 
 Fields: `title`, `artist`, `year`, `country`, `runtime`, `medium`,
 `language`, `season`, `episode`, `content_genres`, `variant_kind`,
 `edition`, `region`, `source_format`, `fanedit_subtype`,
-`include_variants`, `content_form`, `playback_type`.
+`include_variants`, `playback_type`, `role`.
 
-`Signals.country` is a single field (resolver-side query / observation
-hint), distinct from the three slots on `Work`. The consolidator
-canonicalises onto the correct slot when building a Work from a
-resolved bag.
+`Signals.country` is a single field (resolver-side hint), distinct from the
+three country slots on `Work`.
 
-Comparison helpers in `mediavocab.models.signals`:
+Comparison helpers:
 
 ```python
-compare_signals(a, b) -> List[SignalConflict]   # overlapping disagreements; skips playback_type
+compare_signals(a, b) -> List[SignalConflict]   # overlapping disagreements
 merge_signals(*bags)  -> Signals                # first-non-empty wins; genres unioned
-match_quality(local, candidate) -> float        # [0, 1]; year/medium mismatches halve
-signal_hash(s) -> str                           # canonical-id seed (excludes playback_type)
+match_quality(local, candidate) -> float        # [0, 1]
+signal_hash(s) -> str                           # canonical-id seed
 ```
 
 ## `MetadataProvider` ABC
 
 `mediavocab.MetadataProvider` is the abstract base every concrete
-provider inherits from. Four routing `ClassVar` axes (A6):
+provider inherits from. Three routing `ClassVar` axes (A6):
 
 ```python
 class MyProvider(MetadataProvider):
     name: ClassVar[str] = "my_provider"
     media: ClassVar[Set[MediaType]] = {MediaType.MOVIE}
     playback_type: ClassVar[Set[PlaybackType]] = set()
-    content_form: ClassVar[Set[ContentForm]] = set()
-    genre_filter: ClassVar[Set[str]] = set()
+    genre_filter: ClassVar[Set[str]] = set()   # values from KNOWN_GENRES
 
     def is_available(self) -> bool: ...
     def lookup(self, signals: Signals) -> Optional[ProviderMatch]: ...
 ```
 
-`provider_matches(provider, signals)` is the four-axis gate. A provider
+`provider_matches(provider, signals)` is the three-axis gate. A provider
 with `playback_type = {PlaybackType.AUDIO}` is skipped when
 `signals.playback_type == PlaybackType.VIDEO`. Empty sets are universal
-on that axis.
+on that axis. Genre strings in `genre_filter` should be values from
+`KNOWN_GENRES`; unknown strings emit a `WARNING` at class-definition time.
 
 Full walkthrough: [Writing a metadata provider](./patterns/writing-a-provider.md).
-
-> **Note — ABC evolution.** Adding a new abstract method is a breaking
-> change for every concrete provider. Ship additions in major versions
-> and update all known providers in lockstep.
 
 ## Decision guide: Work vs Release
 
