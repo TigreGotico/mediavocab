@@ -7,9 +7,9 @@ from __future__ import annotations
 
 from typing import Iterable, List, Optional
 
-from mediavocab.taxonomy import RelationRole
+from mediavocab.taxonomy import RelationRole, WorkRelationKind, ReleaseRelationKind
 from mediavocab.models.entity import Credit, EntityRef
-from mediavocab.models.work import Work
+from mediavocab.models.work import Release, Work, WorkRelation, ReleaseRelation
 
 
 def credits_with_role(work: Work, relation_role: RelationRole) -> List[Credit]:
@@ -104,6 +104,36 @@ def filmography_of(entity: EntityRef, all_works: Iterable[Work],
     return out
 
 
+
+# ---------------------------------------------------------------------------
+# WorkRelation / ReleaseRelation traversal helpers
+# ---------------------------------------------------------------------------
+
+def relations_of_kind(work: Work, kind: WorkRelationKind) -> List[WorkRelation]:
+    """All WorkRelations on the Work with the given kind."""
+    return [r for r in (work.relations or []) if r.kind == kind]
+
+
+def is_sequel_of(work: Work) -> bool:
+    """True if the Work has at least one SEQUEL relation."""
+    return any(r.kind == WorkRelationKind.SEQUEL for r in (work.relations or []))
+
+
+def is_part_of_series(work: Work) -> bool:
+    """True if the Work has at least one PART_OF_SERIES relation."""
+    return any(r.kind == WorkRelationKind.PART_OF_SERIES for r in (work.relations or []))
+
+
+def all_cuts(work: Work) -> List[WorkRelation]:
+    """All ALTERNATIVE_CUT relations on the Work."""
+    return relations_of_kind(work, WorkRelationKind.ALTERNATIVE_CUT)
+
+
+def release_variants(release: Release) -> List[ReleaseRelation]:
+    """All VARIANT ReleaseRelations on the Release."""
+    return [r for r in (release.relations or []) if r.kind == ReleaseRelationKind.VARIANT]
+
+
 __all__ = [
     "credits_with_role",
     "primary_credit",
@@ -112,4 +142,9 @@ __all__ = [
     "performers",
     "episodes_of",
     "filmography_of",
+    "relations_of_kind",
+    "is_sequel_of",
+    "is_part_of_series",
+    "all_cuts",
+    "release_variants",
 ]
