@@ -11,7 +11,10 @@ identity fields populated, which is wire-format-equivalent.
 from __future__ import annotations
 
 import logging
-from typing import Any, Dict, List, Optional
+from typing import TYPE_CHECKING, Any, Dict, List, Optional
+
+if TYPE_CHECKING:
+    from mediavocab.models.signals import Signals
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
@@ -246,6 +249,60 @@ class Work(BaseModel):
             or self.broadcaster_country
             or ""
         )
+
+    @classmethod
+    def from_signals(cls, signals: "Signals", **overrides) -> "Work":
+        """Construct a Work from a resolved Signals bag.
+
+        Maps Signals fields to Work fields. Signals-only routing hints
+        (``include_variants``, ``playback_type``, ``role``, ``fanedit_subtype``,
+        ``content_form``) are silently dropped.
+
+        ``**overrides`` are applied last — pass ``credits``, ``external_ids``,
+        ``tracklist``, etc. to enrich the result beyond what Signals carries.
+
+        Raises ``ValueError`` if ``signals.title`` is absent (required on Work).
+        """
+        if not signals.title:
+            raise ValueError("Work.from_signals() requires signals.title to be set")
+
+        media_type = signals.medium
+        if media_type is None:
+            raise ValueError("Work.from_signals() requires signals.medium to be set")
+
+        # Map the Signals country hint to the appropriate Work slot.
+        country_val = getattr(signals, "country", None) or ""
+        country_slot_name = COUNTRY_SLOT_FOR.get(media_type, "production_country")
+        country_kwargs: Dict[str, str] = {}
+        if country_val:
+            country_kwargs[country_slot_name] = country_val
+
+        kwargs: Dict[str, Any] = dict(
+            title=signals.title,
+            media_type=media_type,
+            **country_kwargs,
+        )
+        for src, dst in (
+            ("year",         "year"),
+            ("runtime",      "runtime"),
+            ("language",     "language"),
+            ("season",       "season"),
+            ("episode",      "episode"),
+            ("variant_kind", "variant_kind"),
+            ("edition",      "edition"),
+            ("source_format","source_format"),
+        ):
+            v = getattr(signals, src, None)
+            if v is not None and v != "":
+                kwargs[dst] = v
+        if signals.content_genres:
+            kwargs["content_genres"] = list(signals.content_genres)
+        if signals.artist:
+            # artist is a display-level hint; store it in extra for now
+            kwargs.setdefault("extra", {})["signals_artist"] = signals.artist
+
+        kwargs.update(overrides)
+        return cls(**kwargs)
 
 
 class Release(BaseModel):

@@ -16,7 +16,8 @@ def credits_with_role(work: Work, relation_role: RelationRole) -> List[Credit]:
     """All credits on the Work with the given RelationRole, in list order
     (which is the editorial credit order).
     """
-    return [c for c in (work.credits or []) if c.relation_role == relation_role]
+    return [c for c in (work.credits or [])
+            if c.relation_role is not None and c.relation_role == relation_role]
 
 
 def primary_credit(
@@ -124,9 +125,19 @@ def is_part_of_series(work: Work) -> bool:
     return any(r.kind == WorkRelationKind.PART_OF for r in (work.relations or []))
 
 
-def all_cuts(work: Work) -> List[WorkRelation]:
-    """All DERIVED_FROM relations on the Work (used for alternative cuts)."""
+def derived_from(work: Work) -> List[WorkRelation]:
+    """All DERIVED_FROM WorkRelations on the Work.
+
+    Covers alternative cuts, cover recordings, fanedits, adaptations, and any
+    other work derived from this one — DERIVED_FROM is the generic lineage
+    relation. Use ``relations_of_kind`` for narrower kinds (COVERS, FANEDIT_OF,
+    etc.).
+    """
     return relations_of_kind(work, WorkRelationKind.DERIVED_FROM)
+
+
+#: Backward-compatible alias for derived_from().
+all_cuts = derived_from
 
 
 def release_variants(release: Release) -> List[ReleaseRelation]:
@@ -229,7 +240,7 @@ __all__ = [
     "relations_of_kind",
     "is_sequel_of",
     "is_part_of_series",
-    "all_cuts",
+    "derived_from", "all_cuts",
     "release_variants",
     "group_by_hash",
     "is_available",

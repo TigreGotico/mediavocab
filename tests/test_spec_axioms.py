@@ -209,11 +209,14 @@ def test_country_slot_one_at_a_time():
 
 # -- Organisation requires org_kind -----------------------------------------
 
-def test_organisation_requires_org_kind():
+def test_organisation_requires_org_kind(caplog):
+    import logging
     Entity(name="Elektra", kind=EntityKind.ORGANISATION,
-           org_kind=OrganisationKind.LABEL)  # ok
-    with pytest.raises(ValueError):
-        Entity(name="Elektra", kind=EntityKind.ORGANISATION)  # missing
+           org_kind=OrganisationKind.LABEL)  # ok — no warning
+    # Missing org_kind now warns instead of raising (common ingestion gap)
+    with caplog.at_level(logging.WARNING):
+        Entity(name="Elektra", kind=EntityKind.ORGANISATION)
+    assert any("org_kind" in r.message for r in caplog.records)
 
 
 # -- Region-locked invariant ------------------------------------------------

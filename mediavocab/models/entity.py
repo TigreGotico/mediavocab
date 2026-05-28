@@ -83,14 +83,20 @@ class Credit(BaseModel):
     model_config = _CFG
 
     entity: EntityRef
-    role: str
-    relation_role: RelationRole
+    role: str = ""
+    relation_role: Optional[RelationRole] = None
     section: CreditSection = CreditSection.PRINCIPAL
     note: Optional[str] = None
 
     @model_validator(mode="after")
     def _check_role_consistency(self) -> "Credit":
-        if self.role and self.relation_role:
+        if not self.relation_role and self.role:
+            _LOG.warning(
+                "Credit.relation_role not set for role=%r — consider mapping "
+                "to a RelationRole value for cross-provider interop",
+                self.role,
+            )
+        elif self.role and self.relation_role:
             role_norm = self.role.lower().replace(" ", "_").replace("-", "_")
             rr_val = self.relation_role.value.lower()
             if rr_val not in role_norm and role_norm not in rr_val:
@@ -134,7 +140,11 @@ class Entity(BaseModel):
     @model_validator(mode="after")
     def _check(self) -> "Entity":
         if self.kind == EntityKind.ORGANISATION and self.org_kind is None:
-            raise ValueError("Entity(kind=ORGANISATION) must set org_kind")
+            _LOG.warning(
+                "Entity(kind=ORGANISATION, name=%r) has no org_kind — "
+                "set org_kind to LABEL, STUDIO, PUBLISHER, etc. when known",
+                self.name,
+            )
         if self.kind != EntityKind.ORGANISATION and self.org_kind is not None:
             raise ValueError("org_kind is only valid for ORGANISATION entities")
         if self.kind != EntityKind.PERSON and (
