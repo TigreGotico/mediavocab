@@ -60,8 +60,10 @@ from mediavocab.text import (
     IdentityConflict,
 )
 
+SPEC_VERSION: str = "1.1"
+
 __all__ = [
-    "__version__",
+    "__version__", "SPEC_VERSION",
     # Taxonomy
     "MediaType", "PIPELINE_SENTINELS", "KNOWN_GENRES",
     "VariantKind", "ReleasePackaging",

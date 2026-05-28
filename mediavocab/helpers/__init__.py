@@ -7,6 +7,8 @@ from mediavocab.helpers.queries import (
     episodes_of, filmography_of,
     relations_of_kind, is_sequel_of, is_part_of_series, all_cuts,
     release_variants,
+    group_by_hash, is_available,
+    release_is_open, release_requires_attribution, release_allows_commercial,
 )
 
 __all__ = [
@@ -16,4 +18,6 @@ __all__ = [
     "episodes_of", "filmography_of",
     "relations_of_kind", "is_sequel_of", "is_part_of_series", "all_cuts",
     "release_variants",
+    "group_by_hash", "is_available",
+    "release_is_open", "release_requires_attribution", "release_allows_commercial",
 ]

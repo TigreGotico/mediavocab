@@ -55,7 +55,7 @@ from mediavocab.text.compare import (
     YEAR_WINDOW as _YEAR_WINDOW,
     RUNTIME_TOLERANCE_S as _RUNTIME_TOLERANCE_BY_TYPE,
 )
-from mediavocab.text.normalize import fuzzy_ratio, normalize as _normalize_text
+from mediavocab.text.normalize import fuzzy_ratio, token_sort_ratio, normalize as _normalize_text
 
 
 # Default fallback runtime tolerance when no media_type is set.
@@ -295,7 +295,8 @@ def match_quality(local: Signals, candidate: Signals) -> float:
     """
     score = 1.0
     if local.title and candidate.title:
-        score *= fuzzy_ratio(local.title, candidate.title)
+        score *= max(fuzzy_ratio(local.title, candidate.title),
+                     token_sort_ratio(local.title, candidate.title))
     if local.year is not None and candidate.year is not None:
         if not _agree_year(local.year, candidate.year):
             score *= 0.5

@@ -1,6 +1,6 @@
 """Entity, EntityRef, Membership, Credit. Spec §5.1, §5.2."""
 import logging
-from typing import Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
@@ -129,7 +129,7 @@ class Entity(BaseModel):
     disbanded: Optional[str] = None
 
     external_ids: Dict[str, str] = Field(default_factory=dict)
-    extra: Dict[str, str] = Field(default_factory=dict)
+    extra: Dict[str, Any] = Field(default_factory=dict)
 
     @model_validator(mode="after")
     def _check(self) -> "Entity":

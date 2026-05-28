@@ -10,7 +10,8 @@ identity fields populated, which is wire-format-equivalent.
 """
 from __future__ import annotations
 
-from typing import Dict, List, Optional
+import logging
+from typing import Any, Dict, List, Optional
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
@@ -32,6 +33,7 @@ from mediavocab.taxonomy import (
 )
 
 _CFG = ConfigDict(extra="ignore", populate_by_name=True)
+_LOG = logging.getLogger(__name__)
 
 
 # A MediaType-to-country-slot table. Used for editorial validation and as a
@@ -203,15 +205,23 @@ class Work(BaseModel):
 
     # Cross-references
     external_ids: Dict[str, str] = Field(default_factory=dict)
-    extra: Dict[str, str] = Field(default_factory=dict)
+    extra: Dict[str, Any] = Field(default_factory=dict)
 
     @field_validator("content_genres", mode="before")
     @classmethod
     def _normalise_genres(cls, v):
-        """Lowercase and strip whitespace from each genre tag on intake."""
+        """Lowercase and strip whitespace; warn on unknown genre values."""
         if not v:
             return v
-        return [g.strip().lower() if isinstance(g, str) else g for g in v]
+        from mediavocab.taxonomy.genre import KNOWN_GENRES
+        result = []
+        for g in v:
+            if isinstance(g, str):
+                g = g.strip().lower()
+                if g not in KNOWN_GENRES:
+                    _LOG.warning("Unknown genre %r — not in KNOWN_GENRES", g)
+            result.append(g)
+        return result
 
     @model_validator(mode="after")
     def _check(self) -> "Work":
@@ -308,7 +318,7 @@ class Release(BaseModel):
 
     # Cross-references
     external_ids: Dict[str, str] = Field(default_factory=dict)
-    extra: Dict[str, str] = Field(default_factory=dict)
+    extra: Dict[str, Any] = Field(default_factory=dict)
 
     @field_validator("license", mode="before")
     @classmethod

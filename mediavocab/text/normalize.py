@@ -69,6 +69,27 @@ def fuzzy_ratio(a: str, b: str) -> float:
     return SequenceMatcher(None, na, nb).ratio()
 
 
+def token_sort_ratio(a: str, b: str) -> float:
+    """Sort tokens alphabetically before comparing. [0.0, 1.0].
+
+    Handles leading articles and word-order variants:
+    ``token_sort_ratio("The Dark Knight", "Dark Knight, The")`` → ≥ 0.95
+
+    Normalises both strings first (diacritics, punctuation, lowercasing),
+    splits on whitespace, sorts the token lists, rejoins, then runs
+    SequenceMatcher. More robust than ``fuzzy_ratio`` for media titles
+    where articles, subtitles, and word-order differ across providers.
+    """
+    na, nb = normalize(a), normalize(b)
+    if not na and not nb:
+        return 1.0
+    if not na or not nb:
+        return 0.0
+    sa = " ".join(sorted(na.split()))
+    sb = " ".join(sorted(nb.split()))
+    return SequenceMatcher(None, sa, sb).ratio()
+
+
 def best_match(query: str, candidates: List[str]) -> Tuple[str, float]:
     """Return (best_candidate, score). Empty candidates → ("", 0.0)."""
     best, score = "", 0.0

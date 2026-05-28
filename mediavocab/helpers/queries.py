@@ -5,7 +5,7 @@ are the most-rewritten loop in the package's surface area.
 """
 from __future__ import annotations
 
-from typing import Iterable, List, Optional
+from typing import Dict, Iterable, List, Optional
 
 from mediavocab.taxonomy import RelationRole, WorkRelationKind, ReleaseRelationKind
 from mediavocab.models.entity import Credit, EntityRef
@@ -134,6 +134,90 @@ def release_variants(release: Release) -> List[ReleaseRelation]:
     return [r for r in (release.relations or []) if r.kind == ReleaseRelationKind.SUPERSEDES]
 
 
+
+# ---------------------------------------------------------------------------
+# Deduplication
+# ---------------------------------------------------------------------------
+
+def group_by_hash(works: Iterable[Work]) -> Dict[str, List[Work]]:
+    """Group Works by `work_hash` — returns {hash: [works]} in insertion order.
+
+    Works that share a hash are likely duplicates (same title, year, media_type,
+    etc.). Inspect each group to resolve conflicts or pick a canonical record.
+    """
+    from mediavocab.text.compare import work_hash
+    groups: Dict[str, List[Work]] = {}
+    for w in works:
+        h = work_hash(w)
+        groups.setdefault(h, []).append(w)
+    return groups
+
+
+# ---------------------------------------------------------------------------
+# Availability
+# ---------------------------------------------------------------------------
+
+def is_available(release: Release, region: str = "", at: Optional[str] = None) -> bool:
+    """Return True iff `release` is available in `region` at time `at`.
+
+    Args:
+        release: the Release to check.
+        region: ISO 3166-1 alpha-2 country code. Empty string = region not checked.
+        at: ISO date string (year, year-month, or full date). None = time not checked.
+
+    Rules applied in order:
+    1. If `region` given and release is region-locked and `region` not in
+       `regions_available` → False.
+    2. If `at` given and `available_from` set and `at` precedes it → False.
+    3. If `at` given and `available_until` set and `at` follows it → False.
+    4. If `at` given and `availability_windows` non-empty → True only if `at`
+       falls within at least one window (start ≤ at ≤ end).
+    5. Otherwise → True.
+    """
+    from mediavocab._iso_date import iso_compare
+
+    if region and release.region_locked is True:
+        if region.upper() not in [r.upper() for r in release.regions_available]:
+            return False
+
+    if at is not None:
+        if release.available_from and iso_compare(at, str(release.available_from)) < 0:
+            return False
+        if release.available_until and iso_compare(at, str(release.available_until)) > 0:
+            return False
+        if release.availability_windows:
+            in_window = False
+            for w in release.availability_windows:
+                start_ok = w.start is None or iso_compare(at, w.start) >= 0
+                end_ok = w.end is None or iso_compare(at, w.end) <= 0
+                if start_ok and end_ok:
+                    in_window = True
+                    break
+            if not in_window:
+                return False
+
+    return True
+
+
+# ---------------------------------------------------------------------------
+# License helpers (guard against Optional[License] = None)
+# ---------------------------------------------------------------------------
+
+def release_is_open(release: Release) -> bool:
+    """True iff the release has a license and that license is open."""
+    return release.license.is_open() if release.license else False
+
+
+def release_requires_attribution(release: Release) -> bool:
+    """True iff the release license requires attribution (unknown → True)."""
+    return release.license.attribution if release.license else True
+
+
+def release_allows_commercial(release: Release) -> bool:
+    """True iff the release license permits commercial use (unknown → False)."""
+    return release.license.commercial if release.license else False
+
+
 __all__ = [
     "credits_with_role",
     "primary_credit",
@@ -147,4 +231,9 @@ __all__ = [
     "is_part_of_series",
     "all_cuts",
     "release_variants",
+    "group_by_hash",
+    "is_available",
+    "release_is_open",
+    "release_requires_attribution",
+    "release_allows_commercial",
 ]
