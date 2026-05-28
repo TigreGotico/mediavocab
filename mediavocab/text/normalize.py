@@ -1,4 +1,11 @@
-"""Text normalisation and fuzzy matching. Spec §7.1. Stdlib only."""
+"""Text normalisation and fuzzy matching. Spec §7.1. Stdlib only.
+
+``NORMALISE_TITLE_VERSION`` pins the behaviour of :func:`normalise_title`.
+The ``work_hash`` and ``release_hash`` stability contract (§6.3) depends on
+this function being frozen: any semantic change to ``normalise_title`` MUST
+increment this constant and constitutes a breaking change requiring a major
+version bump.
+"""
 from __future__ import annotations
 
 import re
@@ -6,6 +13,11 @@ import unicodedata
 from difflib import SequenceMatcher
 from typing import List, Tuple
 
+
+#: Version pin for normalise_title() behaviour.
+#: Increment when the normalisation pipeline changes in a way that would
+#: alter existing work_hash values.
+NORMALISE_TITLE_VERSION: int = 1
 
 _FEAT_RE = re.compile(
     r"[\(\[]?\s*(?:feat\.?|ft\.?|featuring)\s+[^\)\]]*[\)\]]?",

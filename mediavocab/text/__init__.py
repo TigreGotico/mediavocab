@@ -1,5 +1,6 @@
 """Text utilities. Stdlib only — zero external dependencies."""
 from mediavocab.text.normalize import (
+    NORMALISE_TITLE_VERSION,
     strip_diacritics,
     normalize,
     fuzzy_ratio,
@@ -45,6 +46,7 @@ from mediavocab.text.title_parse import parse_title, TitleParseResult
 from mediavocab._iso_date import IsoDate, parse_iso_date
 
 __all__ = [
+    "NORMALISE_TITLE_VERSION",
     "strip_diacritics", "normalize", "fuzzy_ratio", "best_match", "title_words",
     "normalise_title", "normalise_edition", "normalise_format",
     "normalise_country", "normalise_language",
