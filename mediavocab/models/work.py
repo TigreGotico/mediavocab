@@ -16,6 +16,7 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator, model_valida
 
 from mediavocab._iso_date import IsoDate, iso_compare
 from mediavocab.models.entity import Credit, EntityRef
+from mediavocab.models.license import License
 from mediavocab.taxonomy import (
     AccessibilityKind,
     ContentForm,
@@ -277,7 +278,7 @@ class Release(BaseModel):
     release_date: Optional[IsoDate] = None
 
     # Rights and availability
-    license: str = ""
+    license: Optional[License] = None
     region_locked: Optional[bool] = None
     regions_available: List[str] = Field(default_factory=list)
     available_from: Optional[IsoDate] = None
@@ -309,6 +310,16 @@ class Release(BaseModel):
     external_ids: Dict[str, str] = Field(default_factory=dict)
     extra: Dict[str, str] = Field(default_factory=dict)
 
+    @field_validator("license", mode="before")
+    @classmethod
+    def _coerce_license(cls, v):
+        """Accept plain SPDX strings; coerce to License on intake."""
+        if v is None or isinstance(v, License):
+            return v
+        if isinstance(v, str):
+            return License.from_spdx(v) if v.strip() else None
+        return v
+
     @model_validator(mode="after")
     def _check(self) -> "Release":
         # Availability windows — ordered, non-overlapping, at most one open-ended (must be last)
@@ -335,12 +346,6 @@ class Release(BaseModel):
             raise ValueError("match_confidence must be in [0.0, 1.0]")
         return self
 
-    @property
-    def parsed_license(self) -> "License":  # noqa: F821 — forward type, local import below
-        """Typed view of `self.license` via SPDX parser. Deprecated — prefer
-        `mediavocab.models.license` helper predicates (`is_open`, etc.)."""
-        from mediavocab.models.license import License
-        return License.from_spdx(self.license)
 
 
 

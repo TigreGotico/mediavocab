@@ -265,10 +265,16 @@ def test_availability_window_end_before_start_raises():
         AvailabilityWindow(start="2025-01-01", end="2024-01-01")
 
 
-def test_release_parsed_license_property_returns_license():
+def test_release_license_coerces_string_to_license_object():
     from mediavocab import MediaType, Release, Work
     r = Release(work=Work(title="x", media_type=MediaType.MOVIE),
                 license="CC-BY-SA-4.0")
-    lic = r.parsed_license
-    assert lic.share_alike is True
-    assert lic.identifier == "CC-BY-SA-4.0"
+    assert r.license is not None
+    assert r.license.share_alike is True
+    assert r.license.identifier == "CC-BY-SA-4.0"
+
+
+def test_release_license_none_when_empty():
+    from mediavocab import MediaType, Release, Work
+    r = Release(work=Work(title="x", media_type=MediaType.MOVIE))
+    assert r.license is None
