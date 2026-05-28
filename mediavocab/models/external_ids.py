@@ -12,7 +12,7 @@ acceptable; the model serialises to and from the same dict shape.
 """
 from __future__ import annotations
 
-from typing import Dict, List, Optional
+from typing import Any, Dict, List, Optional
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
@@ -248,7 +248,10 @@ class ExternalIds(BaseModel):
     igdb_id: Optional[int] = None
 
     # Anything else a provider produced that we don't have a slot for.
-    extra: Dict[str, str] = Field(default_factory=dict)
+    # Values may be any JSON-serialisable type — str, int, float, bool, list,
+    # or dict. Common keys: "cover_url", "feed_url", "image_url", "slug",
+    # "soundcloud_track_url", "bandcamp_track_url", "youtube_video_id".
+    extra: Dict[str, Any] = Field(default_factory=dict)
 
     @model_validator(mode="after")
     def _normalize_and_pair_isbn(self) -> "ExternalIds":
@@ -350,6 +353,6 @@ class ExternalIds(BaseModel):
             if k in known:
                 kwargs[k] = v
             else:
-                extras[k] = str(v)
+                extras[k] = v
         kwargs["extra"] = extras
         return cls(**kwargs)
