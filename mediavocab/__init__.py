@@ -7,6 +7,7 @@ from mediavocab.version import __version__
 from mediavocab.taxonomy import (
     MediaType,
     PIPELINE_SENTINELS,
+    KNOWN_GENRES,
     VariantKind,
     ReleasePackaging,
     EntityKind,
@@ -63,7 +64,7 @@ from mediavocab.text import (
 __all__ = [
     "__version__",
     # Taxonomy
-    "MediaType", "PIPELINE_SENTINELS",
+    "MediaType", "PIPELINE_SENTINELS", "KNOWN_GENRES",
     "VariantKind", "ReleasePackaging",
     "EntityKind", "OrganisationKind",
     "RelationRole", "CreditSection",

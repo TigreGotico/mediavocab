@@ -103,3 +103,29 @@ GENRE_DRUM_AND_BASS = "drum_and_bass"
 # Cross-type
 GENRE_ADULT = "adult"
 GENRE_AI_GENERATED = "ai_generated"
+
+# Television / non-fiction formats (use with EPISODIC_SERIES / TV / PODCAST)
+GENRE_VARIETY = "variety"
+GENRE_TALK = "talk"
+GENRE_COMPILATION = "compilation"
+GENRE_INSTRUCTIONAL = "instructional"
+GENRE_NATURE = "nature"
+GENRE_TRAVEL = "travel"
+GENRE_COOKING = "cooking"
+GENRE_FITNESS = "fitness"
+GENRE_TRUE_CRIME = "true_crime"
+GENRE_SELF_HELP = "self_help"
+
+# J-music / anime adjacent
+GENRE_VOCALOID = "vocaloid"
+GENRE_CITY_POP = "city_pop"
+
+# ---------------------------------------------------------------------------
+# Registry — frozenset of every canonical genre value defined above.
+# Use KNOWN_GENRES to validate or normalise genre tags at ingestion.
+# ---------------------------------------------------------------------------
+
+KNOWN_GENRES: frozenset = frozenset(
+    v for k, v in globals().items()
+    if k.startswith("GENRE_") and isinstance(v, str)
+)

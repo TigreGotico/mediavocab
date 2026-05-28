@@ -12,7 +12,7 @@ from __future__ import annotations
 
 from typing import Dict, List, Optional
 
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from mediavocab._iso_date import IsoDate, iso_compare
 from mediavocab.models.entity import Credit, EntityRef
@@ -202,6 +202,14 @@ class Work(BaseModel):
     # Cross-references
     external_ids: Dict[str, str] = Field(default_factory=dict)
     extra: Dict[str, str] = Field(default_factory=dict)
+
+    @field_validator("content_genres", mode="before")
+    @classmethod
+    def _normalise_genres(cls, v):
+        """Lowercase and strip whitespace from each genre tag on intake."""
+        if not v:
+            return v
+        return [g.strip().lower() if isinstance(g, str) else g for g in v]
 
     @model_validator(mode="after")
     def _check(self) -> "Work":
