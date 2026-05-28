@@ -34,11 +34,18 @@ MUSICBRAINZ_ARTIST = "musicbrainz_artist"
 MUSICBRAINZ_RECORDING = "musicbrainz_recording"
 MUSICBRAINZ_RELEASE = "musicbrainz_release"
 MUSICBRAINZ_RELEASE_GROUP = "musicbrainz_release_group"
+MUSICBRAINZ_LABEL = "musicbrainz_label"
 DISCOGS_ARTIST = "discogs_artist"
 DISCOGS_RELEASE = "discogs_release"
 SPOTIFY = "spotify"
 ISRC = "isrc"
 LASTFM = "lastfm"
+AUDIODB_ARTIST = "audiodb_artist_id"
+AUDIODB_ALBUM = "audiodb_album_id"
+AUDIODB_TRACK = "audiodb_track_id"
+BANDCAMP_ARTIST = "bandcamp_band_id"
+SOUNDCLOUD_USER = "soundcloud_user_id"
+YOUTUBE_MUSIC_ARTIST_BROWSE = "youtube_music_artist_browse_id"
 
 # Books
 ISBN = "isbn"
@@ -98,6 +105,7 @@ LETTERBOXD = "letterboxd"
 BANDCAMP = "bandcamp"
 SOUNDCLOUD = "soundcloud"
 YOUTUBE_CHANNEL = "youtube_channel"
+YOUTUBE_CHANNEL_ID = "youtube_channel_id"
 YOUTUBE_VIDEO = "youtube_video"
 YOUTUBE_MUSIC_ARTIST = "youtube_music_artist"
 
@@ -111,6 +119,14 @@ PODCAST_INDEX_FEED = "podcast_index_feed"
 # Radio — station-level browser UUID
 RADIO_BROWSER_UUID = "radio_browser_uuid"
 
+# iHeartRadio
+IHEART_STATION = "iheart_station_id"
+IHEART_PODCAST = "iheart_podcast_id"
+IHEART_EPISODE = "iheart_episode_id"
+IHEART_ARTIST = "iheart_artist_id"
+IHEART_TRACK = "iheart_track_id"
+IHEART_PLAYLIST = "iheart_playlist_id"
+
 # Devices and routing
 HOME_ASSISTANT = "home_assistant"
 MQTT_TOPIC = "mqtt_topic"
@@ -122,8 +138,10 @@ YOUTUBE = "youtube"
 ALL_KNOWN_KEYS = (
     IMDB, TMDB, TVMAZE, TVDB,
     MUSICBRAINZ_ARTIST, MUSICBRAINZ_RECORDING, MUSICBRAINZ_RELEASE,
-    MUSICBRAINZ_RELEASE_GROUP, DISCOGS_ARTIST, DISCOGS_RELEASE, SPOTIFY,
-    ISRC, LASTFM,
+    MUSICBRAINZ_RELEASE_GROUP, MUSICBRAINZ_LABEL,
+    DISCOGS_ARTIST, DISCOGS_RELEASE, SPOTIFY, ISRC, LASTFM,
+    AUDIODB_ARTIST, AUDIODB_ALBUM, AUDIODB_TRACK,
+    BANDCAMP_ARTIST, SOUNDCLOUD_USER, YOUTUBE_MUSIC_ARTIST_BROWSE,
     ISBN, OPENLIBRARY, GOODREADS,
     AUDIBLE, LIBRIVOX, PODCAST_INDEX, APPLE_PODCASTS,
     TUNEIN, RADIO_BROWSER, RDS_PI,
@@ -134,9 +152,12 @@ ALL_KNOWN_KEYS = (
     IAFD, ADULTFILMDATABASE,
     COMIXOLOGY, ANILIST, MYANIMELIST, ANIDB,
     LETTERBOXD,
-    BANDCAMP, SOUNDCLOUD, YOUTUBE_CHANNEL, YOUTUBE_VIDEO, YOUTUBE_MUSIC_ARTIST,
+    BANDCAMP, SOUNDCLOUD, YOUTUBE_CHANNEL, YOUTUBE_CHANNEL_ID,
+    YOUTUBE_VIDEO, YOUTUBE_MUSIC_ARTIST,
     HARDCOVER, READING_GLASSES,
     PODCAST_INDEX_FEED, RADIO_BROWSER_UUID,
+    IHEART_STATION, IHEART_PODCAST, IHEART_EPISODE,
+    IHEART_ARTIST, IHEART_TRACK, IHEART_PLAYLIST,
     HOME_ASSISTANT, MQTT_TOPIC,
     WIKIDATA, YOUTUBE,
 )
@@ -212,12 +233,14 @@ class ExternalIds(BaseModel):
     musicbrainz_release_group: Optional[str] = None
     musicbrainz_work: Optional[str] = None
     musicbrainz_artist: Optional[str] = None
+    musicbrainz_label: Optional[str] = None
 
     # Video
     imdb: Optional[str] = None             # tt-id
     tmdb_movie: Optional[int] = None
     tmdb_tv: Optional[int] = None
     tvdb: Optional[int] = None
+    tvmaze: Optional[int] = None
     trakt_id: Optional[int] = None
 
     # Books
@@ -233,6 +256,16 @@ class ExternalIds(BaseModel):
     # People
     tmdb_person: Optional[int] = None
     imdb_person: Optional[str] = None      # nm-id
+
+    # Music platform IDs — artist / release / track
+    discogs_artist: Optional[int] = None
+    audiodb_artist_id: Optional[int] = None
+    audiodb_album_id: Optional[int] = None
+    audiodb_track_id: Optional[int] = None
+    bandcamp_band_id: Optional[int] = None
+    soundcloud_user_id: Optional[str] = None
+    youtube_channel_id: Optional[str] = None
+    youtube_music_artist_browse_id: Optional[str] = None
 
     # Encyclopaedia Metallum (metal-archives.com) ids
     metal_archives_band: Optional[int] = None
@@ -274,6 +307,14 @@ class ExternalIds(BaseModel):
     opencritic_id: Optional[int] = None
     rawg_id: Optional[int] = None
     igdb_id: Optional[int] = None
+
+    # iHeartRadio
+    iheart_station_id: Optional[str] = None
+    iheart_podcast_id: Optional[str] = None
+    iheart_episode_id: Optional[str] = None
+    iheart_artist_id: Optional[str] = None
+    iheart_track_id: Optional[str] = None
+    iheart_playlist_id: Optional[str] = None
 
     # Anything else a provider produced that we don't have a slot for.
     # Values may be any JSON-serialisable type — str, int, float, bool, list,

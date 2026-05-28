@@ -78,6 +78,24 @@ class TestStableKeySpellings:
         assert eid.PODCAST_INDEX_FEED == "podcast_index_feed"
         assert eid.RADIO_BROWSER_UUID == "radio_browser_uuid"
 
+    def test_music_platform_artist_keys(self):
+        assert eid.AUDIODB_ARTIST == "audiodb_artist_id"
+        assert eid.AUDIODB_ALBUM == "audiodb_album_id"
+        assert eid.AUDIODB_TRACK == "audiodb_track_id"
+        assert eid.BANDCAMP_ARTIST == "bandcamp_band_id"
+        assert eid.SOUNDCLOUD_USER == "soundcloud_user_id"
+        assert eid.YOUTUBE_MUSIC_ARTIST_BROWSE == "youtube_music_artist_browse_id"
+        assert eid.YOUTUBE_CHANNEL_ID == "youtube_channel_id"
+        assert eid.MUSICBRAINZ_LABEL == "musicbrainz_label"
+
+    def test_iheart_keys(self):
+        assert eid.IHEART_STATION == "iheart_station_id"
+        assert eid.IHEART_PODCAST == "iheart_podcast_id"
+        assert eid.IHEART_EPISODE == "iheart_episode_id"
+        assert eid.IHEART_ARTIST == "iheart_artist_id"
+        assert eid.IHEART_TRACK == "iheart_track_id"
+        assert eid.IHEART_PLAYLIST == "iheart_playlist_id"
+
 
 def test_known_external_ids_frozenset():
     from mediavocab import KNOWN_EXTERNAL_IDS
@@ -128,3 +146,88 @@ def test_unknown_keys_land_in_extra():
     assert obj.extra["some_obscure_provider_id"] == "x"
     # Round-trip
     assert obj.to_dict()["some_obscure_provider_id"] == "x"
+
+
+# ---------------------------------------------------------------------------
+# New first-class fields — tvmaze, music platform IDs, iHeart
+# ---------------------------------------------------------------------------
+
+def test_tvmaze_is_first_class_field():
+    from mediavocab import ExternalIds
+    ids = ExternalIds(tvmaze=1234)
+    d = ids.to_dict()
+    assert d["tvmaze"] == "1234"
+    ids2 = ExternalIds.from_dict(d)
+    assert ids2.tvmaze == 1234
+
+
+def test_discogs_artist_is_first_class_field():
+    from mediavocab import ExternalIds
+    ids = ExternalIds(discogs_artist=999)
+    d = ids.to_dict()
+    assert d["discogs_artist"] == "999"
+    ids2 = ExternalIds.from_dict(d)
+    assert ids2.discogs_artist == 999
+
+
+def test_musicbrainz_label_is_first_class_field():
+    from mediavocab import ExternalIds
+    ids = ExternalIds(musicbrainz_label="mb-label-uuid")
+    d = ids.to_dict()
+    assert d["musicbrainz_label"] == "mb-label-uuid"
+    ids2 = ExternalIds.from_dict(d)
+    assert ids2.musicbrainz_label == "mb-label-uuid"
+
+
+def test_audiodb_fields_are_first_class():
+    from mediavocab import ExternalIds
+    ids = ExternalIds(audiodb_artist_id=10, audiodb_album_id=20, audiodb_track_id=30)
+    d = ids.to_dict()
+    assert d["audiodb_artist_id"] == "10"
+    assert d["audiodb_album_id"] == "20"
+    assert d["audiodb_track_id"] == "30"
+
+
+def test_bandcamp_band_id_is_first_class():
+    from mediavocab import ExternalIds
+    ids = ExternalIds(bandcamp_band_id=555)
+    d = ids.to_dict()
+    assert d["bandcamp_band_id"] == "555"
+    ids2 = ExternalIds.from_dict(d)
+    assert ids2.bandcamp_band_id == 555
+
+
+def test_soundcloud_user_id_is_first_class():
+    from mediavocab import ExternalIds
+    ids = ExternalIds(soundcloud_user_id="my-band")
+    d = ids.to_dict()
+    assert d["soundcloud_user_id"] == "my-band"
+    ids2 = ExternalIds.from_dict(d)
+    assert ids2.soundcloud_user_id == "my-band"
+
+
+def test_youtube_channel_id_is_first_class():
+    from mediavocab import ExternalIds
+    ids = ExternalIds(youtube_channel_id="UCxyz123")
+    d = ids.to_dict()
+    assert d["youtube_channel_id"] == "UCxyz123"
+    ids2 = ExternalIds.from_dict(d)
+    assert ids2.youtube_channel_id == "UCxyz123"
+
+
+def test_iheart_station_round_trips():
+    from mediavocab import ExternalIds
+    ids = ExternalIds(iheart_station_id="7556")
+    d = ids.to_dict()
+    assert d["iheart_station_id"] == "7556"
+    ids2 = ExternalIds.from_dict(d)
+    assert ids2.iheart_station_id == "7556"
+
+
+def test_iheart_episode_carries_podcast_link():
+    from mediavocab import ExternalIds
+    ids = ExternalIds(iheart_episode_id="9999", iheart_podcast_id="1234")
+    d = ids.to_dict()
+    ids2 = ExternalIds.from_dict(d)
+    assert ids2.iheart_episode_id == "9999"
+    assert ids2.iheart_podcast_id == "1234"
