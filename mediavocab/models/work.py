@@ -15,6 +15,7 @@ from typing import TYPE_CHECKING, Any, Dict, List, Optional
 
 if TYPE_CHECKING:
     from mediavocab.models.signals import Signals
+    from mediavocab.models.external_ids import ExternalIds
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
@@ -210,6 +211,17 @@ class Work(BaseModel):
     external_ids: Dict[str, str] = Field(default_factory=dict)
     extra: Dict[str, Any] = Field(default_factory=dict)
 
+    @property
+    def external_ids_model(self) -> ExternalIds:
+        """Access `external_ids` as a typed `ExternalIds` model."""
+        from mediavocab.models.external_ids import ExternalIds
+        return ExternalIds.from_dict(self.external_ids)
+
+    @external_ids_model.setter
+    def external_ids_model(self, value: ExternalIds) -> None:
+        """Update `external_ids` from a typed `ExternalIds` model."""
+        self.external_ids = value.to_dict()
+
     @field_validator("content_genres", mode="before")
     @classmethod
     def _normalise_genres(cls, v):
@@ -298,7 +310,9 @@ class Work(BaseModel):
         if signals.content_genres:
             kwargs["content_genres"] = list(signals.content_genres)
         if signals.artist:
-            # artist is a display-level hint; store it in extra for now
+            # artist is a display-level hint; store it in structured signals_meta
+            kwargs.setdefault("extra", {}).setdefault("signals_meta", {})["artist"] = signals.artist
+            # Backward compatibility
             kwargs.setdefault("extra", {})["signals_artist"] = signals.artist
 
         kwargs.update(overrides)
@@ -376,6 +390,17 @@ class Release(BaseModel):
     # Cross-references
     external_ids: Dict[str, str] = Field(default_factory=dict)
     extra: Dict[str, Any] = Field(default_factory=dict)
+
+    @property
+    def external_ids_model(self) -> ExternalIds:
+        """Access `external_ids` as a typed `ExternalIds` model."""
+        from mediavocab.models.external_ids import ExternalIds
+        return ExternalIds.from_dict(self.external_ids)
+
+    @external_ids_model.setter
+    def external_ids_model(self, value: ExternalIds) -> None:
+        """Update `external_ids` from a typed `ExternalIds` model."""
+        self.external_ids = value.to_dict()
 
     @field_validator("license", mode="before")
     @classmethod

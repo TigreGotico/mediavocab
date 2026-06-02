@@ -171,3 +171,26 @@ def test_extra_forbid_on_unknown_top_level_key():
     """Unknown keys at the top level must be rejected — they belong in extra."""
     with pytest.raises(Exception):
         ExternalIds(unknown_provider_id="x")
+
+
+# ---------------------------------------------------------------------------
+# Work / Release `external_ids_model` typed accessor
+# ---------------------------------------------------------------------------
+
+def test_work_external_ids_model_roundtrip():
+    from mediavocab import Work, MediaType
+    w = Work(title="X", media_type=MediaType.MUSIC,
+             external_ids={"tmdb": "1", "soundcloud_track_id": "7"})
+    m = w.external_ids_model
+    assert isinstance(m, ExternalIds)
+    assert m.extra["soundcloud_track_id"] == "7"
+    w.external_ids_model = ExternalIds(igdb_id=5)
+    assert w.external_ids == {"igdb_id": "5"}
+
+
+def test_release_external_ids_model_roundtrip():
+    from mediavocab import Work, Release, MediaType
+    r = Release(work=Work(title="X", media_type=MediaType.MUSIC))
+    r.external_ids_model = ExternalIds(trakt_id=9)
+    assert r.external_ids == {"trakt_id": "9"}
+    assert isinstance(r.external_ids_model, ExternalIds)

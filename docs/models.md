@@ -274,12 +274,29 @@ ids.streams       # → List[Stream] expanded from URL/ID keys in `extra`
 ids.to_dict()     # plain Dict[str, str]
 ```
 
+On `Work` and `Release` models, use the `external_ids_model` property
+to dynamically access or update `external_ids` using this typed model
+instance:
+
+```python
+# Access
+typed_ids = my_work.external_ids_model
+# Update
+my_work.external_ids_model = typed_ids
+```
+
 `extra` accepts any JSON-serialisable type (str, int, float, bool, list,
 dict). Common keys: `"cover_url"`, `"feed_url"`, `"image_url"`, `"slug"`,
 `"soundcloud_track_url"`, `"bandcamp_track_url"`, `"youtube_video_id"`.
 
-`KNOWN_EXTERNAL_IDS` (exported from `mediavocab`) is a frozenset of all
-55 well-known key strings for O(1) membership testing.
+Note: when using `Work.from_signals()` to construct a Work, non-standard
+signal hints (like display-level artist names) are stored in the `extra`
+field under a structured `signals_meta` dictionary (e.g.,
+`extra["signals_meta"]["artist"]`).
+
+`KNOWN_EXTERNAL_IDS` (exported from `mediavocab`) is a frozenset of every
+well-known key string — the `ALL_KNOWN_KEYS` constants plus every typed
+`ExternalIds` field name — for O(1) membership testing.
 
 ## `Stream` — playable media stream
 
