@@ -18,17 +18,17 @@ from mediavocab.text import work_hash
 def test_movie_canonical_uses_production_country():
     w = Work(title="x", media_type=MediaType.MOVIE, production_country="US")
     assert w.production_country == "US"
-    assert w.country() == "US"
+    assert w.country == "US"
 
 
 def test_music_canonical_uses_publication_country():
     w = Work(title="x", media_type=MediaType.MUSIC, publication_country="GB")
-    assert w.country() == "GB"
+    assert w.country == "GB"
 
 
 def test_radio_canonical_uses_broadcaster_country():
     w = Work(title="x", media_type=MediaType.RADIO, broadcaster_country="JP")
-    assert w.country() == "JP"
+    assert w.country == "JP"
 
 
 def test_no_country_set_returns_empty():
@@ -36,7 +36,7 @@ def test_no_country_set_returns_empty():
     for mt in (MediaType.SOUND_EFFECT, MediaType.PROCEDURAL_AMBIENT,
                MediaType.PLAYLIST):
         w = Work(title="x", media_type=mt)
-        assert w.country() == ""
+        assert w.country == ""
 
 
 # ---------------------------------------------------------------------------
@@ -67,7 +67,7 @@ def test_non_canonical_slot_is_allowed():
     table is editorial guidance, not a constraint (D11)."""
     w = Work(title="x", media_type=MediaType.MOVIE,
              publication_country="US")  # "wrong" slot for MOVIE
-    assert w.country() == "US"
+    assert w.country == "US"
 
 
 # ---------------------------------------------------------------------------

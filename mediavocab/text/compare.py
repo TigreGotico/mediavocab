@@ -123,7 +123,7 @@ def _both_set(a: Any, b: Any) -> bool:
 
 def country_slot(w: Work) -> str:
     """Return the one non-empty country slot, or `""` (§6.3)."""
-    return w.country()
+    return w.country
 
 
 def _runtime_quantum(media_type: MediaType) -> int:

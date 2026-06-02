@@ -253,8 +253,15 @@ class Work(BaseModel):
             )
         return self
 
+    @property
     def country(self) -> str:
-        """Return the one non-empty country slot, or `""` (§6.3 country_slot)."""
+        """The one non-empty country slot, or `""` (§6.3 country_slot).
+
+        A read-only resolver over the per-MediaType slots
+        (`production_country` / `publication_country` / `broadcaster_country`)
+        — attribute-style for parity with the other Work fields. Not a stored
+        field and not serialised, so it never double-emits the slot value (A7).
+        """
         return (
             self.production_country
             or self.publication_country

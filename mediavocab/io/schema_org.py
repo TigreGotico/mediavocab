@@ -86,7 +86,7 @@ def work_to_schema_org(work: "Work", **extra_props) -> Dict[str, Any]:
     if work.content_genres:
         out["genre"] = list(work.content_genres)
 
-    country = work.country()
+    country = work.country
     if country:
         out["countryOfOrigin"] = {"@type": "Country", "name": country}
 

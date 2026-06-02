@@ -50,6 +50,6 @@ def test_country_slot_exclusivity():
 
 def test_country_slot_helper():
     w = Work(title="x", media_type=MediaType.MUSIC, publication_country="GB")
-    assert w.country() == "GB"
+    assert w.country == "GB"
     w = Work(title="x", media_type=MediaType.PLAYLIST)
-    assert w.country() == ""
+    assert w.country == ""
