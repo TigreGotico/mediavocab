@@ -127,6 +127,25 @@ IHEART_ARTIST = "iheart_artist_id"
 IHEART_TRACK = "iheart_track_id"
 IHEART_PLAYLIST = "iheart_playlist_id"
 
+# Music streaming — asset-level IDs emitted by clients
+# (nuvem_de_som, py_bandcamp, tutubo). URLs / logos stay in `extra`; these are
+# identifiers, not delivery addresses (T6, A7).
+SOUNDCLOUD_TRACK = "soundcloud_track_id"
+SOUNDCLOUD_PLAYLIST = "soundcloud_playlist_id"
+BANDCAMP_TRACK = "bandcamp_track_id"
+BANDCAMP_ALBUM = "bandcamp_album_id"
+YOUTUBE_PLAYLIST = "youtube_playlist"
+YOUTUBE_BROWSE = "youtube_browse"
+YOUTUBE_ALBUM_BROWSE = "youtube_album_browse"
+
+# Radio — station-level IDs emitted by clients (tunein, radiosoma)
+TUNEIN_STATION = "tunein_station_id"
+SOMA_FM_CHANNEL = "soma_fm_channel_id"
+
+# Audiobook / fan edit — client-emitted IDs (audiobooker, pyfanedit)
+AUDIOBOOKER_ID = "audiobooker_id"
+FANEDIT_SLUG = "fanedit_slug"
+
 # Devices and routing
 HOME_ASSISTANT = "home_assistant"
 MQTT_TOPIC = "mqtt_topic"
@@ -158,11 +177,18 @@ ALL_KNOWN_KEYS = (
     PODCAST_INDEX_FEED, RADIO_BROWSER_UUID,
     IHEART_STATION, IHEART_PODCAST, IHEART_EPISODE,
     IHEART_ARTIST, IHEART_TRACK, IHEART_PLAYLIST,
+    SOUNDCLOUD_TRACK, SOUNDCLOUD_PLAYLIST, BANDCAMP_TRACK, BANDCAMP_ALBUM,
+    YOUTUBE_PLAYLIST, YOUTUBE_BROWSE, YOUTUBE_ALBUM_BROWSE,
+    TUNEIN_STATION, SOMA_FM_CHANNEL,
+    AUDIOBOOKER_ID, FANEDIT_SLUG,
     HOME_ASSISTANT, MQTT_TOPIC,
     WIKIDATA, YOUTUBE,
 )
 
-# frozenset variant for O(1) membership testing
+# frozenset variant for O(1) membership testing. Augmented at the end of the
+# module (after `ExternalIds` is defined) with the typed model's own field
+# names, so `ExternalIds.to_dict()` output never validates as "unknown" — one
+# source of truth for the key vocabulary (A7).
 KNOWN_EXTERNAL_IDS: frozenset = frozenset(ALL_KNOWN_KEYS)
 
 
@@ -425,3 +451,10 @@ class ExternalIds(BaseModel):
                 extras[k] = v
         kwargs["extra"] = extras
         return cls(**kwargs)
+
+
+# Reconcile the dict-key vocabulary with the typed model (A7): every typed
+# `ExternalIds` field name is, by construction, a known key — so a record
+# round-tripped through `to_dict()` never carries a key that fails membership.
+# Kept in sync automatically rather than by hand-maintaining two lists.
+KNOWN_EXTERNAL_IDS = KNOWN_EXTERNAL_IDS | (frozenset(ExternalIds.model_fields) - {"extra"})

@@ -14,6 +14,9 @@ class RelationRole(str, Enum):
     PRODUCER = "producer"
     FEATURING = "featuring"
     REMIXER = "remixer"
+    CONDUCTOR = "conductor"     # leads orchestral performance — not the composer
+    ARRANGER = "arranger"       # re-orchestrates an existing composition
+    DJ = "dj"                   # selects and mixes a continuous set
 
     # Film and TV
     DIRECTOR = "director"
@@ -64,8 +67,12 @@ class WorkRelationKind(str, Enum):
     PART_OF = "part_of"            # ad-hoc thematic / curatorial grouping
     LIVE_VERSION = "live_version"
     REMIX_OF = "remix_of"
+    MIX_OF = "mix_of"               # a DJ set / continuous mix sequences this source Work
     SOUNDTRACK_FOR = "soundtrack_for"
     BONUS_FOR = "bonus_for"
+    TRAILER_FOR = "trailer_for"     # promo cut (ContentForm.TRAILER) → the work it promotes
+    REACTION_TO = "reaction_to"     # commentary (ContentForm.REACTION) → the work it reacts to
+    CLIP_OF = "clip_of"             # short excerpt (ContentForm.EXCERPT/SOCIAL_CLIP) → source work
     FANEDIT_OF = "fanedit_of"
     DLC_FOR = "dlc_for"
     EXPANSION_OF = "expansion_of"
@@ -78,4 +85,6 @@ class ReleaseRelationKind(str, Enum):
     SUPERSEDES = "supersedes"
     PORT_OF = "port_of"
     MIRROR_OF = "mirror_of"
+    REMASTER_OF = "remaster_of"   # remastered edition of an earlier release (no obsolescence)
+    REISSUE_OF = "reissue_of"     # re-release of an earlier edition (no obsolescence)
     DERIVED_FROM = "derived_from"

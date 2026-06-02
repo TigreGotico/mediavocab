@@ -154,9 +154,13 @@ A concern that doesn't change the schema earns a typed field (typically a
 ClassVar on the provider and an optional hint on the resolver bag), not a
 `MediaType` value. Routing axes are absent from `work_hash` and
 `release_hash`. Identity is `(media + identity-fields)`; the resolver gate
-is three-axis: `(media × playback_type × genre_filter)`. The `content_form`
-axis was removed — no real provider filters on it, and it added gate complexity
-with no benefit.
+is three-axis: `(media × playback_type × genre_filter)`. `content_form` was
+removed *from the resolver gate* — no real provider filters on it, and it
+added gate complexity with no benefit. It is **not** removed from the model:
+`content_form` remains a typed field on `Work` and `Signals` and is an
+identity-hash input via A8b (a trailer must not collide with the primary
+work). The distinction is deliberate — `content_form` routes nothing at the
+gate, yet still separates identity once a `Work` exists.
 
 **A7 — One source of truth per fact.**
 If a value has a typed home, the provider populates that. The same value

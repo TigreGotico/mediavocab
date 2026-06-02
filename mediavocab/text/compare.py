@@ -636,8 +636,8 @@ def work_hash(w: Work) -> str:
 # Release identity fields (§6.4). Packaging is description-family — excluded.
 _RELEASE_HASH_FIELDS = (
     "region",          # normalise_country
-    "container",       # normalise_format
-    "codec",           # normalise_format
+    "container",       # normalise_container (alias-canonicalised)
+    "codec",           # normalise_codec (alias-canonicalised)
     "bitrate",         # normalise_format
     "platform",        # normalise_format
     "resolution",      # normalise_format
@@ -647,7 +647,11 @@ _RELEASE_HASH_FIELDS = (
 
 def release_hash(r: Release) -> str:
     """Stable SHA-256 over Release identity fields. 64 hex chars. Spec §6.4."""
-    from mediavocab.text.normalize import normalise_format as _fmt
+    from mediavocab.text.normalize import (
+        normalise_format as _fmt,
+        normalise_codec as _codec,
+        normalise_container as _container,
+    )
     parts = [work_hash(r.work)]
     for f in _RELEASE_HASH_FIELDS:
         v = getattr(r, f, "")
@@ -655,6 +659,10 @@ def release_hash(r: Release) -> str:
             v = (v or "").upper()
         elif f == "audio_language":
             v = (v or "").lower()
+        elif f == "codec":
+            v = _codec(v)
+        elif f == "container":
+            v = _container(v)
         else:
             v = _fmt(v)
         parts.append(str(v))

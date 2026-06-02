@@ -10,6 +10,8 @@ from mediavocab.text.normalize import (
     normalise_title,
     normalise_edition,
     normalise_format,
+    normalise_codec,
+    normalise_container,
     normalise_country,
     normalise_language,
 )
@@ -55,6 +57,7 @@ __all__ = [
     "strip_diacritics", "normalize", "fuzzy_ratio", "token_sort_ratio",
     "best_match", "title_words",
     "normalise_title", "normalise_edition", "normalise_format",
+    "normalise_codec", "normalise_container",
     "normalise_country", "normalise_language",
     "TITLE_MIN", "ARTIST_MIN", "YEAR_WINDOW",
     "RUNTIME_TOLERANCE_S", "RUNTIME_HASH_QUANTUM_S", "QUANTUM_SKIP",

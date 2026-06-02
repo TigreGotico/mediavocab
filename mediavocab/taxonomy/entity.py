@@ -23,6 +23,7 @@ class OrganisationKind(str, Enum):
     PUBLISHER = "publisher"
     STUDIO = "studio"
     BROADCASTER = "broadcaster"
+    NETWORK = "network"          # umbrella grouping multiple broadcasters under shared branding
     DEVELOPER = "developer"
     STREAMING_SERVICE = "streaming_service"
     DISTRIBUTOR = "distributor"

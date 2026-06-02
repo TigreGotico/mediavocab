@@ -129,6 +129,62 @@ def normalise_format(s: str) -> str:
     return "".join(ch for ch in (s or "").lower() if ch.isalnum())
 
 
+# Canonical short-forms for the free-text Release.codec / Release.container
+# fields (T6). These stay strings — there is no controlled enum — but
+# providers emit the same codec under many spellings ("mp3", "audio/mpeg",
+# "MPEG-1 Layer III") and bare `normalise_format` does not collide them, so
+# release-level dedup is unreliable without an alias map.
+_CODEC_ALIASES = {
+    "audiompeg": "mp3", "mpeg": "mp3", "mpeg1layeriii": "mp3", "mp3": "mp3",
+    "audioaac": "aac", "mp4a": "aac", "aac": "aac", "aaclc": "aac",
+    "heaac": "heaac", "heaacv2": "heaac",
+    "audioopus": "opus", "opus": "opus",
+    "audioogg": "vorbis", "oggvorbis": "vorbis", "vorbis": "vorbis",
+    "audioflac": "flac", "flac": "flac",
+    "alac": "alac",
+    "audiowav": "pcm", "wav": "pcm", "pcm": "pcm", "lpcm": "pcm",
+    "ac3": "ac3", "eac3": "eac3",
+    "avc": "h264", "h264": "h264", "x264": "h264",
+    "hevc": "h265", "h265": "h265", "x265": "h265",
+    "vp9": "vp9", "av1": "av1",
+}
+
+_CONTAINER_ALIASES = {
+    "mp3": "mp3",
+    "m4a": "m4a", "mp4a": "m4a",
+    "mp4": "mp4", "videomp4": "mp4",
+    "mkv": "mkv", "matroska": "mkv",
+    "webm": "webm",
+    "ogg": "ogg", "oga": "ogg",
+    "flac": "flac",
+    "wav": "wav",
+    "avi": "avi",
+    "ts": "mpegts", "mpegts": "mpegts", "m2ts": "mpegts",
+    "m3u8": "hls", "hls": "hls",
+    "applicationxmpegurl": "hls", "applicationvndapplempegurl": "hls",
+    "audiompegurl": "hls", "vndapplempegurl": "hls",
+}
+
+
+def normalise_codec(s: str) -> str:
+    """Canonicalise a free-text codec string for release-level dedup.
+
+    Maps MIME types and common synonyms to a stable short-form
+    (`"audio/mpeg"`, `"MPEG-1 Layer III"`, `"mp3"` → `"mp3"`). Unknown
+    codecs fall through to bare `normalise_format`. Empty → empty."""
+    key = normalise_format(s)
+    return _CODEC_ALIASES.get(key, key)
+
+
+def normalise_container(s: str) -> str:
+    """Canonicalise a free-text container/format string for release-level
+    dedup. (`"M4A"`, `"mp4a"` → `"m4a"`; `"application/x-mpegURL"`,
+    `".m3u8"` → `"hls"`). Unknown containers fall through to bare
+    `normalise_format`. Empty → empty."""
+    key = normalise_format(s)
+    return _CONTAINER_ALIASES.get(key, key)
+
+
 def normalise_country(s: str) -> str:
     """ISO 3166-1 alpha-2 uppercase via `text.iso.normalize_country` (§6.1).
     Empty / None → empty; unrecognised input raises `ValueError`."""
