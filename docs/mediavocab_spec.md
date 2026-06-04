@@ -264,6 +264,17 @@ The classifier may report `MediaType.GENERIC`, `NOT_MEDIA`, or `CONTROL`
 during resolution. A `Work` constructed with any of these raises at
 validation. By the time a Work exists, the classifier has committed.
 
+**T9 — A channel / feed is an Entity or a Work, never a relation role.** (← T4, A9)
+A YouTube channel, podcast feed, or radio/TV station is a *publishing
+container*, not a way an entity participates in a work. When it has stable
+cataloguable identity with playable streams it is a Work (T4 — a station is a
+Work, its stream URLs are Releases); otherwise it is an Entity (an
+`OrganisationKind`, e.g. `BROADCASTER` or `NETWORK`). Its link to content is
+expressed through an existing `RelationRole` such as `PUBLISHER` or `CREATOR`,
+or through a Work/Entity reference — never a bespoke `CHANNEL` role, which A9
+would reject as not-a-participation. This is why `RelationRole` has no
+`CHANNEL` value.
+
 ---
 
 ## 3. Axes

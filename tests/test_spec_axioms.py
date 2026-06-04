@@ -151,9 +151,22 @@ def test_a9_episode_membership_is_not_a_relation():
 
 
 def test_a9_a_channel_is_not_a_participation_role():
-    """A channel is an Entity / Work (T4), not a way an entity participates,
-    so it never reaches A9 as a RelationRole."""
+    """T9 / A9: a channel is an Entity or a Work (T4), not a way an entity
+    participates, so there is no CHANNEL RelationRole."""
     assert not hasattr(RelationRole, "CHANNEL")
+
+
+def test_t9_channel_modelled_as_entity_with_publisher_role():
+    """T9: a publishing channel is an Entity (an OrganisationKind), linked to
+    content through an existing role such as PUBLISHER — not a bespoke role."""
+    channel = Entity(
+        name="BBC Radio 4",
+        kind=EntityKind.ORGANISATION,
+        org_kind=OrganisationKind.BROADCASTER,
+    )
+    assert channel.org_kind == OrganisationKind.BROADCASTER
+    # The participation role for a publishing container already exists.
+    assert RelationRole.PUBLISHER.value == "publisher"
 
 
 def test_a9_relations_are_navigation_not_identity():
