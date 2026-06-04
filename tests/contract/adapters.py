@@ -108,13 +108,31 @@ def _build_audiobooker():
 # ---------------------------------------------------------------------------
 
 CONSUMERS: List[Consumer] = [
+    # Build + import contract — converter is offline-drivable on synthetic input.
     Consumer("radiosoma",     "radiosoma",     ["radiosoma.converters"],        _build_radiosoma),
     Consumer("tunein",        "tunein",        ["tunein"],                      _build_tunein),
     Consumer("tutubo",        "tutubo",        ["tutubo.mediavocab_bridge"],    _build_tutubo),
     Consumer("nuvem_de_som",  "nuvem_de_som",  ["nuvem_de_som"],                _build_nuvem_de_som),
     Consumer("audiobooker",   "audiobooker",   ["audiobooker.converters"],      _build_audiobooker),
-    # Network-coupled converters — import-level contract only.
-    Consumer("py_bandcamp",   "py_bandcamp",   ["py_bandcamp"]),
-    Consumer("pymetal",       "pymetal",       ["pymetal.endpoints.releases"]),
-    Consumer("pyfanedit",     "pyfanedit",     ["pyfanedit.converters"]),
+
+    # Import-level contract — network-coupled or domain-object converters.
+    # (catches the common failure: a removed/renamed mediavocab symbol.)
+    Consumer("py_bandcamp",    "py_bandcamp",    ["py_bandcamp"]),
+    Consumer("pyfanedit",      "pyfanedit",      ["pyfanedit.converters"]),
+    Consumer("pymal",          "pymal",          ["pymal.arm"]),
+    Consumer("pyhentaisea",    "pyhentaisea",    ["pyhentaisea"]),
+    Consumer("media_archivist","media_archivist",["media_archivist.canonicalize"]),
+    Consumer("metadatarr",     "metadatarr",     ["metadatarr.resolve"]),
+    # Adult vertical (PrivateAssistant house standard) — same mediavocab contract.
+    Consumer("pyalphaporno",   "pyalphaporno",   ["pyalphaporno"]),
+    Consumer("pyhellporno",    "pyhellporno",    ["pyhellporno"]),
+    Consumer("pypornoxo",      "pypornoxo",      ["pypornoxo"]),
+    Consumer("pyredtube",      "pyredtube",      ["pyredtube"]),
+    Consumer("pyspankbang",    "pyspankbang",    ["pyspankbang"]),
+    Consumer("pysunporno",     "pysunporno",     ["pysunporno"]),
+    Consumer("pyxhamster",     "pyxhamster",     ["pyxhamster"]),
+    Consumer("pyxnxx",         "pyxnxx",         ["pyxnxx"]),
+    Consumer("pyxvideos",      "pyxvideos",      ["pyxvideos"]),
+    Consumer("pyyoujizz",      "pyyoujizz",      ["pyyoujizz"]),
+    Consumer("pyyouporn",      "pyyouporn",      ["pyyouporn"]),
 ]

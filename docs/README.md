@@ -9,6 +9,8 @@ lives in the repo [README](../README.md).
 - [Taxonomy reference](./taxonomy.md) — every enum value
 - [Models reference](./models.md) — every field, decision guides
 - [Text utilities](./text-utilities.md) — normalize / compare / iso
+- [Stability policy](./stability.md) — what's frozen for 1.x and how it's enforced
+- [Migrating to 1.0](./migration-1.0.md) — removals / renames consumers must handle
 
 ### Pattern guides
 
