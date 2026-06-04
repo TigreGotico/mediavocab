@@ -1,9 +1,15 @@
-"""RelationRole, CreditSection, WorkRelationKind, ReleaseRelationKind. Spec §4.6, §4.7, §4.13."""
+"""RelationRole, CreditSection, WorkRelationKind, ReleaseRelationKind. Spec §4.6, §4.7, §4.13.
+
+Every value in these enums is admitted by A9: a relation kind earns its place
+only when (a) the connection is not already implied by an identity field and
+(b) it is not subsumed by an existing kind of the same family. Relation kinds
+are navigation/description, never identity (A6) — keep them non-redundant.
+"""
 from enum import Enum
 
 
 class RelationRole(str, Enum):
-    """How an entity participates in a specific Work or Release."""
+    """How an entity participates in a specific Work or Release (A9)."""
 
     CREATOR = "creator"
 
@@ -57,7 +63,9 @@ class CreditSection(str, Enum):
 
 
 class WorkRelationKind(str, Enum):
-    """How one Work relates to another (§4.13)."""
+    """How one Work relates to another (§4.13). Admitted by A9 — each kind links
+    to a *different* Work and is not implied by an identity field (e.g. there is
+    no ``EPISODE_OF``: ``season``/``episode``/``series_title`` already carry it)."""
 
     COVERS = "covers"
     SAMPLES = "samples"
@@ -80,7 +88,9 @@ class WorkRelationKind(str, Enum):
 
 
 class ReleaseRelationKind(str, Enum):
-    """How one Release relates to another (§4.13)."""
+    """How one Release relates to another (§4.13). Admitted by A9 — a more
+    specific kind (``REMASTER_OF`` vs ``DERIVED_FROM``) earns its place only when
+    consumers traverse it as a distinct edge."""
 
     SUPERSEDES = "supersedes"
     PORT_OF = "port_of"

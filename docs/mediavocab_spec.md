@@ -187,6 +187,34 @@ A8 has two consequences, applied in order:
 because `(title, year, media_type)` cannot separate a trailer from the
 primary work.
 
+**A9 — A relation kind earns its place.**
+A `RelationRole`, `WorkRelationKind`, or `ReleaseRelationKind` value is
+admitted only when both of the following hold:
+- (a) the connection it expresses is **not already implied by an identity
+  field**. `season` / `episode` / `series_title` already place an episode
+  within its series; a relation that restates that double-writes (A7) and
+  inflates merge scores. A relation earns its place only when it carries a
+  link the fields cannot — typically an edge from one Work/Release/Entity to
+  a *different* one.
+- (b) it is **not subsumed by an existing relation kind of the same
+  family**. A more specific kind is admitted only when consumers
+  systematically traverse it as a distinct edge (the A8 threshold):
+  "humans sometimes name it differently" is not enough; "consumers navigate
+  it differently, and conflating it with the existing kind would merge two
+  real links" is.
+
+Relation kinds are navigation and description, never identity — they are
+absent from `work_hash` and `release_hash` (A6), so this axiom is about
+non-redundancy, not hashing. Two relations pointing the same direction with
+the same navigational meaning are the same relation. The same admission
+discipline A1 gives `MediaType` and A8 gives typed fields, A9 gives the
+relation enums — without it the relation vocabulary sprawls.
+
+`EPISODE_OF` is rejected by A9(a): episode membership is already carried by
+the `season` / `episode` / `series_title` identity fields. A *channel* is
+rejected as a `RelationRole` for a different reason — it is an Entity (a
+Work, per T4), not a way an entity participates — so it never reaches A9.
+
 ### 2.2 Theorems
 
 Each theorem is a direct consequence of the axioms; the citation says which.

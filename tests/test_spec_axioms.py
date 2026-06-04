@@ -140,6 +140,41 @@ def test_a8b_content_form_separates_trailer_from_primary():
     assert work_hash(primary) != work_hash(trailer)
 
 
+# -- A9: a relation kind earns its place ------------------------------------
+
+def test_a9_episode_membership_is_not_a_relation():
+    """A9(a): episode membership is implied by season/episode/series_title
+    identity fields, so there is no EPISODE_OF relation to double-write it."""
+    assert not hasattr(WorkRelationKind, "EPISODE_OF")
+    from mediavocab.text.compare import IDENTITY_FIELDS
+    assert {"season", "episode", "series_title"} <= IDENTITY_FIELDS
+
+
+def test_a9_a_channel_is_not_a_participation_role():
+    """A channel is an Entity / Work (T4), not a way an entity participates,
+    so it never reaches A9 as a RelationRole."""
+    assert not hasattr(RelationRole, "CHANNEL")
+
+
+def test_a9_relations_are_navigation_not_identity():
+    """A9: relation kinds are navigation/description (A6) — no relation-enum
+    value name leaks into the work_hash identity fields."""
+    from mediavocab.text.compare import IDENTITY_FIELDS
+    relation_values = (
+        {r.value for r in WorkRelationKind}
+        | {r.value for r in ReleaseRelationKind}
+        | {r.value for r in RelationRole}
+    )
+    assert relation_values.isdisjoint(IDENTITY_FIELDS)
+
+
+def test_a9_no_redundant_relation_kinds():
+    """A9(b): a family admits no two kinds with the same string value."""
+    for enum in (RelationRole, WorkRelationKind, ReleaseRelationKind):
+        values = [m.value for m in enum]
+        assert len(values) == len(set(values)), f"{enum.__name__} has duplicate values"
+
+
 # -- T1: genre is not type --------------------------------------------------
 
 def test_t1_documentary_is_programme_format_not_media_type():
