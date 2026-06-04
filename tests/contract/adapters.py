@@ -103,6 +103,17 @@ def _build_audiobooker():
     return audiobook_to_release(book)
 
 
+def _build_pyfanedit():
+    from pyfanedit.models import FaneditDetail
+    from pyfanedit.converters import fanedit_to_release
+    detail = FaneditDetail(
+        fanedit_id=1, slug="example", title="Example Fan Edit",
+        url="https://fanedit.org/example", fanedit_type="fanfix",
+        genre=["Action"],
+    )
+    return fanedit_to_release(detail)
+
+
 # ---------------------------------------------------------------------------
 # Registry. Add a row when a new package converts to mediavocab.
 # ---------------------------------------------------------------------------
@@ -114,11 +125,11 @@ CONSUMERS: List[Consumer] = [
     Consumer("tutubo",        "tutubo",        ["tutubo.mediavocab_bridge"],    _build_tutubo),
     Consumer("nuvem_de_som",  "nuvem_de_som",  ["nuvem_de_som"],                _build_nuvem_de_som),
     Consumer("audiobooker",   "audiobooker",   ["audiobooker.converters"],      _build_audiobooker),
+    Consumer("pyfanedit",     "pyfanedit",     ["pyfanedit.converters"],        _build_pyfanedit),
 
     # Import-level contract — network-coupled or domain-object converters.
     # (catches the common failure: a removed/renamed mediavocab symbol.)
     Consumer("py_bandcamp",    "py_bandcamp",    ["py_bandcamp"]),
-    Consumer("pyfanedit",      "pyfanedit",      ["pyfanedit.converters"]),
     Consumer("pymal",          "pymal",          ["pymal.arm"]),
     Consumer("pyhentaisea",    "pyhentaisea",    ["pyhentaisea"]),
     Consumer("media_archivist","media_archivist",["media_archivist.canonicalize"]),
