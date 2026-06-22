@@ -1,9 +1,7 @@
 """Typed License — filter Releases by openness, commercial use, share-alike.
 
-``Release.license`` is a free-form SPDX-style string for persistence.
-``Release.parsed_license`` is the typed overlay parsed via
-:meth:`License.from_spdx`. Use it to filter on rights without
-string-matching every CC variant.
+``Release.license`` accepts an SPDX-style string or a ``License`` object.
+Strings are coerced to ``License`` on intake via :meth:`License.from_spdx`.
 """
 from mediavocab import MediaType, Release, Work
 from mediavocab.models.license import License
@@ -27,6 +25,7 @@ def main() -> None:
 
     work = Work(title="Big Buck Bunny", media_type=MediaType.MOVIE,
                 year=2008, runtime=596.0)
+    # Strings are coerced to License objects on intake
     r1 = Release(work=work, container="WebM", license="CC-BY-3.0",
                  uri="https://example.org/bbb.webm")
     r2 = Release(work=work, container="MP4", license="all_rights_reserved",
@@ -34,9 +33,9 @@ def main() -> None:
 
     print("\nFilter Releases by openness:")
     for r in (r1, r2):
-        lic = r.parsed_license
-        flag = "✓" if lic.is_open() else "✗"
-        print(f"  {flag}  {r.uri}  ({lic.identifier})")
+        lic = r.license  # already a License object
+        flag = "✓" if lic and lic.is_open() else "✗"
+        print(f"  {flag}  {r.uri}  ({lic.identifier if lic else 'unknown'})")
 
 
 if __name__ == "__main__":

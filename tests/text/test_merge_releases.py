@@ -33,9 +33,10 @@ def test_merge_releases_first_non_empty_wins_on_scalars():
     a = Release(work=w, container="Blu-ray", region="US",
                 license="all_rights_reserved")
     b = Release(work=w, container="Blu-ray", region="US",
-                license="", packaging=ReleasePackaging.DELUXE)
+                packaging=ReleasePackaging.DELUXE)
     m = merge_releases(a, b)
-    assert m.license == "all_rights_reserved"
+    assert m.license is not None
+    assert m.license.identifier == "all_rights_reserved"
     assert m.packaging is ReleasePackaging.DELUXE
 
 

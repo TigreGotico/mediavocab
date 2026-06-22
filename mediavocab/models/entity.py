@@ -1,5 +1,6 @@
 """Entity, EntityRef, Membership, Credit. Spec §5.1, §5.2."""
-from typing import Dict, List, Optional, Tuple
+import logging
+from typing import Any, Dict, List, Optional, Tuple
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
@@ -15,6 +16,7 @@ from mediavocab.taxonomy import (
 
 
 _CFG = ConfigDict(extra="ignore", populate_by_name=True)
+_LOG = logging.getLogger(__name__)
 
 
 class EntityRef(BaseModel):
@@ -69,15 +71,41 @@ class Credit(BaseModel):
     """An entity's contribution to a specific Work (§5.2).
 
     Order in the list is the editorial credit order (poster billing, liner notes).
+
+    `role` is a free-text editorial label (e.g. "Executive Producer", "ADR
+    Director"). `relation_role` is the canonical typed role from the taxonomy.
+    When both are set they should agree — `role` is the human-readable
+    expansion of `relation_role`. A validator logs a WARNING when they visibly
+    disagree, but does not reject the record (cross-provider ingestion often
+    uses provider-specific labels before normalisation).
     """
 
     model_config = _CFG
 
     entity: EntityRef
-    role: str
-    relation_role: RelationRole
+    role: str = ""
+    relation_role: Optional[RelationRole] = None
     section: CreditSection = CreditSection.PRINCIPAL
     note: Optional[str] = None
+
+    @model_validator(mode="after")
+    def _check_role_consistency(self) -> "Credit":
+        if not self.relation_role and self.role:
+            _LOG.warning(
+                "Credit.relation_role not set for role=%r — consider mapping "
+                "to a RelationRole value for cross-provider interop",
+                self.role,
+            )
+        elif self.role and self.relation_role:
+            role_norm = self.role.lower().replace(" ", "_").replace("-", "_")
+            rr_val = self.relation_role.value.lower()
+            if rr_val not in role_norm and role_norm not in rr_val:
+                _LOG.warning(
+                    "Credit role mismatch: role=%r does not obviously match "
+                    "relation_role=%r — consider aligning them",
+                    self.role, self.relation_role.value,
+                )
+        return self
 
 
 class Entity(BaseModel):
@@ -107,12 +135,16 @@ class Entity(BaseModel):
     disbanded: Optional[str] = None
 
     external_ids: Dict[str, str] = Field(default_factory=dict)
-    extra: Dict[str, str] = Field(default_factory=dict)
+    extra: Dict[str, Any] = Field(default_factory=dict)
 
     @model_validator(mode="after")
     def _check(self) -> "Entity":
         if self.kind == EntityKind.ORGANISATION and self.org_kind is None:
-            raise ValueError("Entity(kind=ORGANISATION) must set org_kind")
+            _LOG.warning(
+                "Entity(kind=ORGANISATION, name=%r) has no org_kind — "
+                "set org_kind to LABEL, STUDIO, PUBLISHER, etc. when known",
+                self.name,
+            )
         if self.kind != EntityKind.ORGANISATION and self.org_kind is not None:
             raise ValueError("org_kind is only valid for ORGANISATION entities")
         if self.kind != EntityKind.PERSON and (

@@ -10,7 +10,6 @@ from mediavocab.taxonomy.relation import (
     ReleaseRelationKind,
 )
 from mediavocab.taxonomy.membership import MembershipKind, TemporalState
-from mediavocab.taxonomy.content_type import ContentType
 from mediavocab.taxonomy.content_form import ContentForm
 from mediavocab.taxonomy.programme_format import ProgrammeFormat
 from mediavocab.taxonomy.accessibility import AccessibilityKind
@@ -41,6 +40,11 @@ from mediavocab.taxonomy.genre import (  # noqa: F401  (re-exported)
     GENRE_FUNK, GENRE_DISCO, GENRE_HOUSE, GENRE_TECHNO, GENRE_TRANCE,
     GENRE_DUBSTEP, GENRE_DRUM_AND_BASS,
     GENRE_ADULT, GENRE_AI_GENERATED,
+    GENRE_VARIETY, GENRE_TALK, GENRE_COMPILATION, GENRE_INSTRUCTIONAL,
+    GENRE_NATURE, GENRE_TRAVEL, GENRE_COOKING, GENRE_FITNESS,
+    GENRE_TRUE_CRIME, GENRE_SELF_HELP,
+    GENRE_VOCALOID, GENRE_CITY_POP,
+    KNOWN_GENRES,
 )
 
 __all__ = [
@@ -50,7 +54,7 @@ __all__ = [
     "EntityKind", "OrganisationKind",
     "RelationRole", "CreditSection", "WorkRelationKind", "ReleaseRelationKind",
     "MembershipKind", "TemporalState",
-    "ContentType", "ContentForm", "ProgrammeFormat", "AccessibilityKind",
+    "ContentForm", "ProgrammeFormat", "AccessibilityKind",
     "PlaybackType", "MEDIA_TYPE_TO_PLAYBACK_TYPE", "infer_playback_type",
     # genres
     "GENRE_ANIMATION", "GENRE_ANIME", "GENRE_NOIR",
@@ -75,4 +79,9 @@ __all__ = [
     "GENRE_HOUSE", "GENRE_TECHNO", "GENRE_TRANCE", "GENRE_DUBSTEP",
     "GENRE_DRUM_AND_BASS",
     "GENRE_ADULT", "GENRE_AI_GENERATED",
+    "GENRE_VARIETY", "GENRE_TALK", "GENRE_COMPILATION", "GENRE_INSTRUCTIONAL",
+    "GENRE_NATURE", "GENRE_TRAVEL", "GENRE_COOKING", "GENRE_FITNESS",
+    "GENRE_TRUE_CRIME", "GENRE_SELF_HELP",
+    "GENRE_VOCALOID", "GENRE_CITY_POP",
+    "KNOWN_GENRES",
 ]

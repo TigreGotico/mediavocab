@@ -30,7 +30,8 @@ def test_rights_and_availability():
                 region_locked=True,
                 regions_available=["US", "CA"],
                 available_until="2026-01-31")
-    assert r.license == "cc_by_sa"
+    assert r.license is not None
+    assert r.license.identifier == "cc_by_sa"
     assert r.region_locked is True
     assert r.regions_available == ["US", "CA"]
     assert r.available_until == "2026-01-31"

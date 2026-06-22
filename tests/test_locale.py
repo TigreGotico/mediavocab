@@ -1,37 +1,9 @@
-"""Tests for `mediavocab.locale` — vocabulary loader and fallback chain."""
+"""Tests for `mediavocab.locale` — vocabulary loader backed by ovos-spec-tools."""
 from mediavocab.locale import (
-    _fallback_chain,
     get_default_lang,
     voc_regex,
     voc_set,
 )
-
-
-# ---------------------------------------------------------------------------
-# Fallback chain
-# ---------------------------------------------------------------------------
-
-def test_fallback_chain_full_locale():
-    """A full locale falls back through language-only to en-us."""
-    chain = _fallback_chain("pt-pt")
-    assert chain[0] == "pt-pt"
-    assert "pt" in chain
-    assert "en-us" in chain
-    # en-us must always be terminal
-    assert chain[-1] == "en-us"
-
-
-def test_fallback_chain_language_only():
-    """A language-only code falls back directly to en-us."""
-    chain = _fallback_chain("fr")
-    assert chain[0] == "fr"
-    assert "en-us" in chain
-
-
-def test_fallback_chain_en_us_includes_self_first():
-    """When 'en-us' is the active lang, it's first in the chain."""
-    chain = _fallback_chain("en-us")
-    assert chain[0] == "en-us"
 
 
 # ---------------------------------------------------------------------------
@@ -48,12 +20,12 @@ def test_voc_regex_loads_english_keywords():
 def test_voc_regex_falls_back_to_en_us():
     """A locale without its own .voc file should fall back to en-us."""
     rx_pt = voc_regex("cut_directors", lang="pt-pt")
-    # If pt-pt doesn't ship this file, falls back to en-us match.
+    # If pt-pt doesn't ship this file, falls back via ovos-spec-tools smart fallback.
     assert rx_pt is not None
 
 
 def test_voc_regex_returns_none_for_unknown_voc():
-    """An unknown .voc name returns None across every locale."""
+    """An unknown .voc name returns None."""
     assert voc_regex("absolutely_nonexistent_voc_name") is None
 
 
@@ -61,6 +33,12 @@ def test_voc_set_lowercases():
     """voc_set lowercases all phrases."""
     s = voc_set("cut_directors", lang="en-us")
     assert all(p == p.lower() for p in s)
+
+
+def test_voc_set_extended_edition():
+    s = voc_set("cut_extended", lang="en-us")
+    assert "extended cut" in s
+    assert "special edition" in s
 
 
 # ---------------------------------------------------------------------------

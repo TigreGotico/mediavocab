@@ -1,280 +1,213 @@
-"""Tests for `mediavocab.text.classify` — title/description heuristics."""
+"""Tests for classify_video and extract_tags."""
 import pytest
 
-from mediavocab import ContentForm, MediaType, ProgrammeFormat
-from mediavocab.taxonomy import ContentType
-from mediavocab.text import classify_video
+from mediavocab import classify_video, extract_tags, MediaType
+from mediavocab.taxonomy import ContentForm, ProgrammeFormat
+from mediavocab.text.classify import ClassificationResult
 
 
 # ---------------------------------------------------------------------------
-# Liveness / upcoming sentinels
+# Result type
 # ---------------------------------------------------------------------------
 
-def test_is_live_overrides_title():
-    """A `is_live=True` content is LIVE regardless of title cues."""
-    ct = classify_video("Inception", is_live=True)
-    assert ct in (ContentType.LIVE, ContentType.LIVE_RADIO, ContentType.LIVE_NEWS, ContentType.IPTV)
-
-
-def test_is_upcoming_marks_premiere():
-    ct = classify_video("Premiere in 24h", is_upcoming=True)
-    assert ct == ContentType.UPCOMING
+def test_returns_classification_result():
+    r = classify_video("Some video")
+    assert isinstance(r, ClassificationResult)
+    assert 0.0 <= r.confidence <= 1.0
 
 
 # ---------------------------------------------------------------------------
-# Trailer / behind-the-scenes / reaction
+# Trailer / content_form
 # ---------------------------------------------------------------------------
 
-def test_official_trailer():
-    assert classify_video("Inception (2010) — Official Trailer") == ContentType.TRAILER
+def test_trailer_sets_content_form():
+    r = classify_video("Official Trailer - Blade Runner 2049", length=120)
+    assert r.content_form == ContentForm.TRAILER
 
 
-def test_teaser_classified_as_trailer():
-    assert classify_video("Inception - Teaser") == ContentType.TRAILER
+def test_teaser_sets_trailer_form():
+    r = classify_video("Spider-Man: No Way Home - Teaser Trailer")
+    assert r.content_form == ContentForm.TRAILER
 
+
+# ---------------------------------------------------------------------------
+# Behind the scenes / reaction
+# ---------------------------------------------------------------------------
 
 def test_behind_the_scenes():
-    assert classify_video("Behind the Scenes: Mandalorian S3") == ContentType.BEHIND_THE_SCENES
+    r = classify_video("Inception - Behind the Scenes Featurette")
+    assert r.content_form == ContentForm.BEHIND_SCENES
 
 
 def test_reaction():
-    """Reaction is detected from explicit 'reaction' keyword in the title."""
-    ct = classify_video("My Reaction Video: 1MW PSU")
-    assert ct == ContentType.REACTION
+    r = classify_video("We React to the Dune Trailer for the First Time")
+    assert r.content_form == ContentForm.REACTION
 
 
 # ---------------------------------------------------------------------------
-# Episodic
+# Music video
 # ---------------------------------------------------------------------------
 
-def test_tv_episode_via_season_episode_marker():
-    assert classify_video("Cowboy Bebop S01E02") == ContentType.TV_EPISODE
-    assert classify_video("Brooklyn Nine-Nine S05E14") == ContentType.TV_EPISODE
+def test_official_music_video():
+    r = classify_video("Metallica - Enter Sandman (Official Music Video)", length=330)
+    assert r.media_type == MediaType.MUSIC_VIDEO
 
 
-def test_anime_with_episodic_marker():
-    """Anime in the title with episodic markers routes to ANIME."""
-    ct = classify_video("Cowboy Bebop S01E02 — Stray Dog Strut")
-    # ANIME or TV_EPISODE depending on tagging strength
-    assert ct in (ContentType.ANIME, ContentType.TV_EPISODE)
+def test_official_artist_channel():
+    r = classify_video("Shape of You", is_official_artist=True)
+    assert r.media_type == MediaType.MUSIC_VIDEO
 
 
-# ---------------------------------------------------------------------------
-# Music
-# ---------------------------------------------------------------------------
-
-def test_official_artist_is_music_video():
-    """OAC badge biases toward MUSIC_VIDEO when title is short."""
-    ct = classify_video("Hotline Bling", is_official_artist=True, length=240)
-    assert ct in (ContentType.MUSIC_VIDEO, ContentType.MUSIC_AUDIO)
+def test_lyric_video():
+    r = classify_video("Bohemian Rhapsody - Official Lyric Video")
+    assert r.media_type == MediaType.MUSIC_VIDEO
 
 
 # ---------------------------------------------------------------------------
-# Podcast / lecture
+# Episodic / series
 # ---------------------------------------------------------------------------
 
-def test_podcast_flag_routes_to_podcast():
-    ct = classify_video("Some Episode", is_podcast=True)
-    assert ct == ContentType.PODCAST
+def test_episode_s01e01_pattern():
+    r = classify_video("Breaking Bad S01E01 - Pilot", length=3000)
+    assert r.media_type == MediaType.EPISODIC_SERIES
 
 
-def test_lecture_keyword():
-    ct = classify_video("MIT 6.001 Lecture 3: Recursion")
-    assert ct == ContentType.LECTURE
+def test_episode_season_x_pattern():
+    r = classify_video("Doctor Who 1x01 Rose", length=2700)
+    assert r.media_type == MediaType.EPISODIC_SERIES
+
+
+def test_episode_not_downgraded_to_short_film():
+    """An episode shorter than 60 min should not be classified as SHORT_FILM."""
+    r = classify_video("Attack on Titan S04E12", length=1440)
+    assert r.media_type == MediaType.EPISODIC_SERIES
 
 
 # ---------------------------------------------------------------------------
-# Concert / stand-up
+# Movie
 # ---------------------------------------------------------------------------
 
-def test_concert_in_title():
-    ct = classify_video("Queen — Live in Concert (Wembley 1986)")
-    assert ct == ContentType.CONCERT
+def test_full_movie_keyword():
+    r = classify_video("The Dark Knight - Full Movie HD", length=9180)
+    assert r.media_type == MediaType.MOVIE
+
+
+def test_movie_by_duration():
+    r = classify_video("Something without keywords", length=7200)
+    assert r.media_type == MediaType.MOVIE
+
+
+# ---------------------------------------------------------------------------
+# Programme formats
+# ---------------------------------------------------------------------------
+
+def test_documentary():
+    r = classify_video("Planet Earth III - Full Documentary", length=5400)
+    assert r.media_type == MediaType.MOVIE
+    assert r.programme_format == ProgrammeFormat.DOCUMENTARY
+
+
+def test_concert():
+    r = classify_video("Full Concert: Radiohead Live at Glastonbury", length=7200)
+    assert r.media_type == MediaType.MOVIE
+    assert r.programme_format == ProgrammeFormat.CONCERT
 
 
 def test_stand_up():
-    ct = classify_video("Bo Burnham: Inside (Stand-Up)", description="comedy special")
-    assert ct == ContentType.STAND_UP
+    r = classify_video("Dave Chappelle: The Closer - Comedy Special", length=4500)
+    assert r.media_type == MediaType.MOVIE
+    assert r.programme_format == ProgrammeFormat.STAND_UP
 
 
 # ---------------------------------------------------------------------------
-# Routing to (MediaType, ContentForm, content_genres, ProgrammeFormat)
+# Live
 # ---------------------------------------------------------------------------
 
-class TestRouting:
-    def test_trailer_routes_to_movie_with_trailer_form(self):
-        media, form, genres, pf = ContentType.TRAILER.to_routing()
-        assert media == MediaType.MOVIE
-        assert form == ContentForm.TRAILER
-        assert genres == []
-        assert pf is None
+def test_live_news():
+    r = classify_video("BBC Breaking News Live", is_live=True)
+    assert r.media_type == MediaType.TV
+    assert r.programme_format == ProgrammeFormat.NEWS
 
-    def test_documentary_routes_to_movie_with_documentary_format(self):
-        media, form, genres, pf = ContentType.DOCUMENTARY.to_routing()
-        assert media == MediaType.MOVIE
-        assert form == ContentForm.PRIMARY
-        assert pf == ProgrammeFormat.DOCUMENTARY
 
-    def test_anime_routes_to_episodic_series_with_genre(self):
-        media, form, genres, pf = ContentType.ANIME.to_routing()
-        assert media == MediaType.EPISODIC_SERIES
-        assert "anime" in genres
+def test_live_radio():
+    r = classify_video("Radio Paradise - Live Stream", is_live=True)
+    assert r.media_type == MediaType.RADIO
 
-    def test_stand_up_routes_with_programme_format(self):
-        media, form, genres, pf = ContentType.STAND_UP.to_routing()
-        assert pf == ProgrammeFormat.STAND_UP
 
-    def test_concert_routes_to_music_video(self):
-        media, form, genres, pf = ContentType.CONCERT.to_routing()
-        assert media == MediaType.MUSIC_VIDEO
-        assert pf == ProgrammeFormat.CONCERT
-
-    def test_unknown_routes_to_generic(self):
-        media, form, genres, pf = ContentType.VIDEO.to_routing()
-        assert media == MediaType.GENERIC
-        assert form == ContentForm.PRIMARY
-        assert genres == []
-        assert pf is None
+def test_live_sport():
+    r = classify_video("Premier League Match Highlights Live", is_live=True,
+                        channel_tags=["sports"])
+    assert r.media_type == MediaType.TV
+    assert r.programme_format == ProgrammeFormat.SPORTS
 
 
 # ---------------------------------------------------------------------------
-# Lang parameter passes through
+# Podcast
 # ---------------------------------------------------------------------------
 
-def test_lang_parameter_accepted():
-    """The lang parameter should not raise even when the locale doesn't match."""
-    ct = classify_video("Bande-annonce officielle", lang="fr-fr")
-    # Either TRAILER (locale matched) or VIDEO (fallback); both acceptable.
-    assert ct in (ContentType.TRAILER, ContentType.VIDEO)
+def test_podcast_flag():
+    r = classify_video("Episode 123: Elon Musk", is_podcast=True)
+    assert r.media_type == MediaType.PODCAST
 
 
-# ---------------------------------------------------------------------------
-# extract_tags — orthogonal freeform labels
-# ---------------------------------------------------------------------------
-
-class TestExtractTags:
-    def test_detects_silent_era(self):
-        from mediavocab.text.classify import extract_tags
-        tags = extract_tags("Steamboat Willie 1928 silent cartoon")
-        assert "silent-era" in tags
-
-    def test_returns_sorted_list(self):
-        from mediavocab.text.classify import extract_tags
-        tags = extract_tags("Some 1985 horror crime thriller")
-        # Must be alphabetically sorted
-        assert tags == sorted(tags)
-
-    def test_empty_input_returns_empty(self):
-        from mediavocab.text.classify import extract_tags
-        assert extract_tags("") == []
-
-    def test_no_keywords_returns_empty(self):
-        from mediavocab.text.classify import extract_tags
-        tags = extract_tags("Random text with no matches")
-        assert isinstance(tags, list)
+def test_podcast_channel_tag():
+    r = classify_video("Latest Episode", channel_tags=["podcast"])
+    assert r.media_type == MediaType.PODCAST
 
 
 # ---------------------------------------------------------------------------
-# classify_video_dict — dict-shaped wrapper
+# Gaming
 # ---------------------------------------------------------------------------
 
-class TestClassifyVideoDict:
-    def test_dict_with_title(self):
-        from mediavocab.text.classify import classify_video_dict
-        ct = classify_video_dict({"title": "Inception Trailer"})
-        assert ct == ContentType.TRAILER
+def test_gameplay():
+    r = classify_video("Minecraft Speedrun Any% World Record", length=1200)
+    assert r.media_type == MediaType.GAME
 
-    def test_dict_with_is_live(self):
-        from mediavocab.text.classify import classify_video_dict
-        ct = classify_video_dict({"title": "Concert", "is_live": True})
-        assert ct in (ContentType.LIVE, ContentType.LIVE_NEWS,
-                      ContentType.LIVE_RADIO, ContentType.IPTV)
 
-    def test_dict_with_podcast_flag(self):
-        from mediavocab.text.classify import classify_video_dict
-        ct = classify_video_dict({"title": "Some Episode", "is_podcast": True})
-        assert ct == ContentType.PODCAST
-
-    def test_empty_dict_returns_video(self):
-        from mediavocab.text.classify import classify_video_dict
-        ct = classify_video_dict({})
-        assert ct == ContentType.VIDEO
-
-    def test_extra_keys_ignored(self):
-        from mediavocab.text.classify import classify_video_dict
-        ct = classify_video_dict({"title": "Movie", "random_key": "ignored"})
-        assert isinstance(ct, ContentType)
+def test_gaming_channel_tag():
+    r = classify_video("Elden Ring Boss Fight", channel_tags=["gaming"])
+    assert r.media_type == MediaType.GAME
 
 
 # ---------------------------------------------------------------------------
-# Classifier dispatch branches (one test per uncovered branch)
+# Audiobook
 # ---------------------------------------------------------------------------
 
-class TestClassifierBranches:
-    def test_short_clip_routes_to_social_clip(self):
-        ct = classify_video("Snippet", length=30)
-        assert ct == ContentType.SOCIAL_CLIP
+def test_audiobook():
+    r = classify_video("Harry Potter Full Audiobook Chapter 1")
+    assert r.media_type == MediaType.AUDIOBOOK
 
-    def test_long_movie_via_channel_tag(self):
-        """A long-runtime clip on a movie-tagged channel routes to MOVIE."""
-        ct = classify_video("Untitled", length=120 * 60,
-                            channel_tags=["movie"])
-        # Channel-tag dispatch + length gate route to MOVIE
-        assert ct in (ContentType.MOVIE, ContentType.VIDEO)
 
-    def test_documentary_via_channel_tags(self):
-        ct = classify_video("Untitled", channel_tags=["documentary"])
-        # Channel-tag dispatch should route to DOCUMENTARY
-        assert ct in (ContentType.DOCUMENTARY, ContentType.VIDEO)
+# ---------------------------------------------------------------------------
+# Anime
+# ---------------------------------------------------------------------------
 
-    def test_audiobook_keyword(self):
-        ct = classify_video("Project Hail Mary — Audiobook")
-        assert ct == ContentType.AUDIOBOOK
+def test_anime_keyword():
+    r = classify_video("Naruto Shippuden Anime Full Episode Sub", length=1440)
+    assert r.media_type is not None
+    assert "anime" in r.content_genres
 
-    def test_interview_keyword(self):
-        ct = classify_video("Interview with Carl Sagan on PBS")
-        assert ct == ContentType.INTERVIEW
 
-    def test_news_via_channel_tag(self):
-        ct = classify_video("Untitled headline", channel_tags=["news"])
-        assert ct in (ContentType.NEWS, ContentType.VIDEO)
+# ---------------------------------------------------------------------------
+# extract_tags
+# ---------------------------------------------------------------------------
 
-    def test_sport_via_channel_tag(self):
-        ct = classify_video("Untitled", channel_tags=["sport"])
-        assert ct in (ContentType.SPORT, ContentType.VIDEO)
+def test_extract_tags_finds_genre():
+    tags = extract_tags("Rock and Metal Festival 2024")
+    assert "rock" in tags
+    assert "metal" in tags
 
-    def test_gaming_via_channel_tag(self):
-        ct = classify_video("Untitled", channel_tags=["gaming"])
-        assert ct in (ContentType.GAMING, ContentType.VIDEO)
 
-    def test_kids_via_channel_tag(self):
-        ct = classify_video("Untitled", channel_tags=["kids"])
-        assert ct in (ContentType.KIDS, ContentType.VIDEO)
+def test_extract_tags_empty():
+    tags = extract_tags("Random Unrelated Title")
+    assert isinstance(tags, list)
 
-    def test_tutorial_keyword(self):
-        ct = classify_video("How to fix a printer — Tutorial")
-        assert ct == ContentType.TUTORIAL
 
-    def test_live_news_via_channel_tag(self):
-        ct = classify_video("Untitled", is_live=True, channel_tags=["news"])
-        assert ct == ContentType.LIVE_NEWS
+# ---------------------------------------------------------------------------
+# Channel tags
+# ---------------------------------------------------------------------------
 
-    def test_iptv_via_keyword(self):
-        ct = classify_video("Channel 4 IPTV stream", is_live=True)
-        # IPTV keyword may or may not be in en-us voc; fall back is LIVE
-        assert ct in (ContentType.IPTV, ContentType.LIVE)
-
-    def test_short_film_via_keyword(self):
-        ct = classify_video("Short film festival entry")
-        assert ct in (ContentType.SHORT_FILM, ContentType.VIDEO)
-
-    def test_compilation_top_n(self):
-        ct = classify_video("Top 10 Funniest Moments")
-        assert ct == ContentType.COMPILATION
-
-    def test_music_video_with_oac_long_runtime_falls_back(self):
-        """An official-artist channel with a long runtime exceeds MUSIC_VIDEO max
-        and falls through to MUSIC_AUDIO or VIDEO."""
-        ct = classify_video("Album Track", is_official_artist=True, length=600)
-        # 600s > _MUSIC_VIDEO_MAX_SECONDS; falls through
-        assert ct in (ContentType.MUSIC_VIDEO, ContentType.MUSIC_AUDIO, ContentType.VIDEO)
+def test_channel_tag_overrides_heuristic():
+    r = classify_video("Untitled", channel_tags=["documentary"])
+    assert r.media_type == MediaType.MOVIE
+    assert r.programme_format == ProgrammeFormat.DOCUMENTARY

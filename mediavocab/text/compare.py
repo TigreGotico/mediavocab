@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import hashlib
+from dataclasses import dataclass
 from typing import Any, Dict, List, Optional
 
 from pydantic import BaseModel, ConfigDict, Field
@@ -9,7 +10,7 @@ from pydantic import BaseModel, ConfigDict, Field
 from mediavocab.taxonomy import MediaType, PIPELINE_SENTINELS, ReleaseStatus
 from mediavocab.models.work import Work, Release
 from mediavocab.models.conflict import Conflict
-from mediavocab.text.normalize import normalize, fuzzy_ratio
+from mediavocab.text.normalize import normalize, fuzzy_ratio, token_sort_ratio
 
 
 class IdentityConflict(ValueError):
@@ -90,6 +91,27 @@ _EPISODIC_MEDIA = frozenset({
     MediaType.AUDIO_DRAMA, MediaType.TV,
 })
 
+# Fields that, when they disagree, constitute an identity conflict.
+# These are the work_hash inputs (§6.3) — disagreement means two different Works.
+# Used by _check_identity_agreement and documented for downstream consumers.
+IDENTITY_FIELDS: frozenset = frozenset({
+    "title",
+    "media_type",
+    "content_form",
+    "year",
+    "production_country",
+    "publication_country",
+    "broadcaster_country",
+    "language",
+    "runtime",
+    "season",
+    "episode",
+    "series_title",
+    "variant_kind",
+    "edition",
+    "source_format",
+})
+
 
 def _both_set(a: Any, b: Any) -> bool:
     if a is None or b is None:
@@ -101,7 +123,7 @@ def _both_set(a: Any, b: Any) -> bool:
 
 def country_slot(w: Work) -> str:
     """Return the one non-empty country slot, or `""` (§6.3)."""
-    return w.country()
+    return w.country
 
 
 def _runtime_quantum(media_type: MediaType) -> int:
@@ -137,7 +159,7 @@ def compare(a: Work, b: Work) -> List[Conflict]:
     """
     conflicts: List[Conflict] = []
 
-    if _both_set(a.title, b.title) and fuzzy_ratio(a.title, b.title) < TITLE_MIN:
+    if _both_set(a.title, b.title) and max(fuzzy_ratio(a.title, b.title), token_sort_ratio(a.title, b.title)) < TITLE_MIN:
         conflicts.append(Conflict(field="title", ours=a.title, theirs=b.title))
 
     if _both_set(a.year, b.year) and abs(int(a.year) - int(b.year)) > YEAR_WINDOW:
@@ -183,7 +205,8 @@ def score(query: Work, candidate: Work) -> float:
         + [lt.title for lt in (candidate.localized_titles or [])]
     )
     title_score = max(
-        (fuzzy_ratio(query.title, t) for t in titles_to_try if t),
+        (max(fuzzy_ratio(query.title, t), token_sort_ratio(query.title, t))
+         for t in titles_to_try if t),
         default=0.0,
     )
     s = title_score
@@ -239,6 +262,115 @@ def score(query: Work, candidate: Work) -> float:
             s = min(1.0, s + 0.02)
 
     return max(0.0, min(1.0, s))
+
+
+@dataclass
+class ScoreBreakdown:
+    """Per-field contributions to the `score()` result.
+
+    Each axis is a multiplier applied to the running score; values < 1.0
+    indicate a penalty. `bonus` is the cumulative additive bonus from
+    matching optional fields (variant_kind, content_genres, programme_format).
+    `total` equals `score(query, candidate)` for the same pair.
+    """
+    title: float      # fuzzy-ratio on best title match
+    year: float       # 0.5 if mismatch beyond YEAR_WINDOW, else 1.0
+    media_type: float # 0.5 if mismatch, else 1.0
+    content_form: float
+    runtime: float    # 0.5 if outside quantum tolerance, else 1.0
+    country: float    # 0.5 if mismatch, else 1.0
+    language: float   # 0.5 if mismatch, else 1.0
+    series: float     # combined season/episode/series_title penalties
+    bonus: float      # additive bonus (capped at 1.0 total)
+    total: float      # == score(query, candidate)
+
+
+def score_breakdown(query: Work, candidate: Work) -> ScoreBreakdown:
+    """Decompose `score()` into per-field contributions for debugging."""
+    titles_to_try = (
+        [candidate.title]
+        + list(candidate.aka or [])
+        + [lt.title for lt in (candidate.localized_titles or [])]
+    )
+    title_s = max(
+        (max(fuzzy_ratio(query.title, t), token_sort_ratio(query.title, t))
+         for t in titles_to_try if t),
+        default=0.0,
+    )
+    s = title_s
+
+    year_s = 1.0
+    if _both_set(query.year, candidate.year):
+        if abs(int(query.year) - int(candidate.year)) > YEAR_WINDOW:
+            year_s = 0.5
+    s *= year_s
+
+    mt_s = 1.0
+    if _both_set(query.media_type, candidate.media_type):
+        if query.media_type != candidate.media_type:
+            mt_s = 0.5
+    s *= mt_s
+
+    cf_s = 1.0
+    if _both_set(query.content_form, candidate.content_form):
+        if query.content_form != candidate.content_form:
+            cf_s = 0.5
+    s *= cf_s
+
+    rt_s = 1.0
+    if _both_set(query.runtime, candidate.runtime):
+        mt = query.media_type if query.media_type not in PIPELINE_SENTINELS else candidate.media_type
+        tol = RUNTIME_TOLERANCE_S.get(mt, 0)
+        if tol != QUANTUM_SKIP and abs(float(query.runtime) - float(candidate.runtime)) > tol:
+            rt_s = 0.5
+    s *= rt_s
+
+    country_s = 1.0
+    qc, cc = country_slot(query), country_slot(candidate)
+    if _both_set(qc, cc) and qc != cc:
+        country_s = 0.5
+    s *= country_s
+
+    lang_s = 1.0
+    if _both_set(query.language, candidate.language):
+        if query.language != candidate.language:
+            lang_s = 0.5
+    s *= lang_s
+
+    series_s = 1.0
+    is_episodic = (
+        query.media_type in _EPISODIC_MEDIA
+        or candidate.media_type in _EPISODIC_MEDIA
+    )
+    if is_episodic:
+        if _both_set(query.series_title, candidate.series_title):
+            if fuzzy_ratio(query.series_title, candidate.series_title) < TITLE_MIN:
+                series_s *= 0.5
+        if _both_set(query.season, candidate.season):
+            if int(query.season) != int(candidate.season):
+                series_s *= 0.5
+        if _both_set(query.episode, candidate.episode):
+            if int(query.episode) != int(candidate.episode):
+                series_s *= 0.5
+    s *= series_s
+
+    bonus = 0.0
+    if _both_set(query.variant_kind, candidate.variant_kind):
+        if query.variant_kind == candidate.variant_kind:
+            bonus += 0.02
+    if query.content_genres and candidate.content_genres:
+        overlap = set(query.content_genres) & set(candidate.content_genres)
+        bonus += 0.01 * len(overlap)
+    if _both_set(query.programme_format, candidate.programme_format):
+        if query.programme_format == candidate.programme_format:
+            bonus += 0.02
+    total = max(0.0, min(1.0, s + bonus))
+
+    return ScoreBreakdown(
+        title=title_s, year=year_s, media_type=mt_s, content_form=cf_s,
+        runtime=rt_s, country=country_s, language=lang_s, series=series_s,
+        bonus=bonus, total=total,
+    )
 
 
 # Release-status confidence ordering for merge() collapse (spec §6.6 rule 5).
@@ -374,6 +506,22 @@ def merge(*works: Work, strategy: MergeStrategy = DEFAULT_STRATEGY,
     return base
 
 
+def merge_all(works: List[Work], strategy: MergeStrategy = DEFAULT_STRATEGY,
+              strict: bool = False) -> Work:
+    """Reduce an iterable of Works into one via `merge()`.
+
+    Convenience wrapper for ``functools.reduce(merge, works)`` with a
+    clean error on empty input. Accepts the same `strategy` and `strict`
+    arguments as `merge()`.
+    """
+    works = list(works)
+    if not works:
+        raise ValueError("merge_all() requires at least one Work")
+    if len(works) == 1:
+        return works[0]
+    return merge(*works, strategy=strategy, strict=strict)
+
+
 def merge_releases(*releases: Release,
                    strategy: MergeStrategy = DEFAULT_STRATEGY) -> Release:
     """Combine partial Release records. Same contract as `merge` scoped to
@@ -488,8 +636,8 @@ def work_hash(w: Work) -> str:
 # Release identity fields (§6.4). Packaging is description-family — excluded.
 _RELEASE_HASH_FIELDS = (
     "region",          # normalise_country
-    "container",       # normalise_format
-    "codec",           # normalise_format
+    "container",       # normalise_container (alias-canonicalised)
+    "codec",           # normalise_codec (alias-canonicalised)
     "bitrate",         # normalise_format
     "platform",        # normalise_format
     "resolution",      # normalise_format
@@ -499,7 +647,11 @@ _RELEASE_HASH_FIELDS = (
 
 def release_hash(r: Release) -> str:
     """Stable SHA-256 over Release identity fields. 64 hex chars. Spec §6.4."""
-    from mediavocab.text.normalize import normalise_format as _fmt
+    from mediavocab.text.normalize import (
+        normalise_format as _fmt,
+        normalise_codec as _codec,
+        normalise_container as _container,
+    )
     parts = [work_hash(r.work)]
     for f in _RELEASE_HASH_FIELDS:
         v = getattr(r, f, "")
@@ -507,6 +659,10 @@ def release_hash(r: Release) -> str:
             v = (v or "").upper()
         elif f == "audio_language":
             v = (v or "").lower()
+        elif f == "codec":
+            v = _codec(v)
+        elif f == "container":
+            v = _container(v)
         else:
             v = _fmt(v)
         parts.append(str(v))

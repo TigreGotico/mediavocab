@@ -1,9 +1,0 @@
-# Production-type signals — MUSIC_AUDIO unless OAC (Official Artist Channel), in which
-# case the OAC flag promotes these to MUSIC_VIDEO (they're individual track releases)
-official audio
-lyric video
-lyrics video
-visualizer
-visualiser
-auto-generated
-auto generated

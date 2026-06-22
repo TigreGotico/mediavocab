@@ -154,7 +154,13 @@ A concern that doesn't change the schema earns a typed field (typically a
 ClassVar on the provider and an optional hint on the resolver bag), not a
 `MediaType` value. Routing axes are absent from `work_hash` and
 `release_hash`. Identity is `(media + identity-fields)`; the resolver gate
-is `(media, playback_type, content_form, content_genres, …)`.
+is three-axis: `(media × playback_type × genre_filter)`. `content_form` was
+removed *from the resolver gate* — no real provider filters on it, and it
+added gate complexity with no benefit. It is **not** removed from the model:
+`content_form` remains a typed field on `Work` and `Signals` and is an
+identity-hash input via A8b (a trailer must not collide with the primary
+work). The distinction is deliberate — `content_form` routes nothing at the
+gate, yet still separates identity once a `Work` exists.
 
 **A7 — One source of truth per fact.**
 If a value has a typed home, the provider populates that. The same value
@@ -180,6 +186,34 @@ A8 has two consequences, applied in order:
 `ContentForm` is admitted by A8a; it enters `work_hash` (§6.3) by A8b
 because `(title, year, media_type)` cannot separate a trailer from the
 primary work.
+
+**A9 — A relation kind earns its place.**
+A `RelationRole`, `WorkRelationKind`, or `ReleaseRelationKind` value is
+admitted only when both of the following hold:
+- (a) the connection it expresses is **not already implied by an identity
+  field**. `season` / `episode` / `series_title` already place an episode
+  within its series; a relation that restates that double-writes (A7) and
+  inflates merge scores. A relation earns its place only when it carries a
+  link the fields cannot — typically an edge from one Work/Release/Entity to
+  a *different* one.
+- (b) it is **not subsumed by an existing relation kind of the same
+  family**. A more specific kind is admitted only when consumers
+  systematically traverse it as a distinct edge (the A8 threshold):
+  "humans sometimes name it differently" is not enough; "consumers navigate
+  it differently, and conflating it with the existing kind would merge two
+  real links" is.
+
+Relation kinds are navigation and description, never identity — they are
+absent from `work_hash` and `release_hash` (A6), so this axiom is about
+non-redundancy, not hashing. Two relations pointing the same direction with
+the same navigational meaning are the same relation. The same admission
+discipline A1 gives `MediaType` and A8 gives typed fields, A9 gives the
+relation enums — without it the relation vocabulary sprawls.
+
+`EPISODE_OF` is rejected by A9(a): episode membership is already carried by
+the `season` / `episode` / `series_title` identity fields. A *channel* is
+rejected as a `RelationRole` for a different reason — it is an Entity (a
+Work, per T4), not a way an entity participates — so it never reaches A9.
 
 ### 2.2 Theorems
 
@@ -229,6 +263,17 @@ if distributed through a label, `PODCAST` if distributed via RSS.
 The classifier may report `MediaType.GENERIC`, `NOT_MEDIA`, or `CONTROL`
 during resolution. A `Work` constructed with any of these raises at
 validation. By the time a Work exists, the classifier has committed.
+
+**T9 — A channel / feed is an Entity or a Work, never a relation role.** (← T4, A9)
+A YouTube channel, podcast feed, or radio/TV station is a *publishing
+container*, not a way an entity participates in a work. When it has stable
+cataloguable identity with playable streams it is a Work (T4 — a station is a
+Work, its stream URLs are Releases); otherwise it is an Entity (an
+`OrganisationKind`, e.g. `BROADCASTER` or `NETWORK`). Its link to content is
+expressed through an existing `RelationRole` such as `PUBLISHER` or `CREATOR`,
+or through a Work/Entity reference — never a bespoke `CHANNEL` role, which A9
+would reject as not-a-participation. This is why `RelationRole` has no
+`CHANNEL` value.
 
 ---
 
@@ -1222,10 +1267,22 @@ class Work(BaseModel):
 International co-productions and Works without a single origin leave all
 three empty.
 
-The model validator enforces *at most one slot non-empty*, not *which slot*
-matches the MediaType. The table is editorial guidance for canonical
-records; ingestion code may populate the slot that best fits the source
-metadata and downstream callers normalise.
+The model validator enforces *at most one slot non-empty* — it is valid for
+all three slots to be empty (international productions, PLAYLIST, SOUND_EFFECT).
+The validator does NOT enforce which slot matches the MediaType; the table
+is editorial guidance for canonical records. Ingestion code may populate
+the slot that best fits the source metadata.
+
+**Edition, packaging, and variant disambiguation.**
+
+| Field | Level | In hash? | Use for |
+|-------|-------|----------|---------|
+| `Work.variant_kind` | Work | ✅ | *Type* of restructuring: DIRECTORS, EXTENDED, THEATRICAL, FANEDIT, REMASTER, etc. |
+| `Work.edition` | Work | ✅ | Free-text label that makes this cut unique: `"Unrated"`, `"4K Restoration"`. Changes the Work identity. |
+| `Release.packaging` | Release | ❌ | How *this release ships*: DELUXE, BOX_SET, REISSUE, BOOTLEG. Distribution format, not content. |
+| `Release.edition` | Release | ❌ | Free-text pressing label: `"Anniversary Edition"`, `"Limited Red Vinyl"`. Description-family. |
+
+Rule of thumb: if two releases differ in *creative content* (different scenes, different runtime, different artistic choices) → they are different Works (`Work.variant_kind` + `Work.edition`). If they differ only in *how they ship* (bonus disc, deluxe packaging, different region) → they are different Releases of the same Work (`Release.packaging` + `Release.edition`).
 
 **Series-vs-episode encoding.** A *series / show / channel / collection*
 Work has `episode = None` (and usually `season = None`). An individual
@@ -1790,8 +1847,12 @@ def work_hash(w: Work) -> str:
     - `series_title` is included because two shows can share season+episode+title
       (S01E01 'Pilot' is a common collision).
 
-    Stability: input list is frozen for the v1.x line. A major-version change
-    uses a new symbol (`work_hash_v2`)."""
+    Stability: input list and `normalise_title()` behaviour are frozen for
+    the v1.x line. `NORMALISE_TITLE_VERSION` (exported from
+    `mediavocab.text.normalize`) pins the normalisation pipeline; any
+    semantic change to `normalise_title()` increments this constant and
+    constitutes a breaking change requiring a major version bump.
+    A major-version change uses a new symbol (`work_hash_v2`)."""
 ```
 
 ### 6.4 `release_hash`

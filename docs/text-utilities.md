@@ -38,7 +38,17 @@ score(query, candidate) -> float  # [0, 1] match quality
 merge(*works) -> Work             # first non-empty value wins; aka unioned
 work_hash(w) -> str               # stable SHA-256 over Work identity fields
 release_hash(r) -> str            # stable SHA-256 over Release identity fields
+
+IDENTITY_FIELDS: frozenset[str]   # fields that trigger IdentityConflict on disagreement
 ```
+
+`IDENTITY_FIELDS` is the authoritative set of 15 field names whose disagreement
+constitutes two different Works (and raises `IdentityConflict` in strict merge):
+`title`, `media_type`, `content_form`, `year`, `production_country`,
+`publication_country`, `broadcaster_country`, `language`, `runtime`,
+`season`, `episode`, `series_title`, `variant_kind`, `edition`, `source_format`.
+Import via `from mediavocab.text import IDENTITY_FIELDS` or
+`from mediavocab.text.compare import IDENTITY_FIELDS`.
 
 `work_hash` deliberately excludes `credits`, `aka`, and
 `content_genres` — those are mutable, not part of canonical identity.

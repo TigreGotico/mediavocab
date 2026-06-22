@@ -48,15 +48,18 @@ def test_organisation_requires_org_kind():
     assert org.org_kind is OrganisationKind.LABEL
 
 
-def test_organisation_org_kind_validator():
-    import pytest
-    with pytest.raises(ValueError):
-        Entity(name="Elektra", kind=EntityKind.ORGANISATION)  # missing org_kind
+def test_organisation_org_kind_validator(caplog):
+    import logging, pytest
+    # Missing org_kind on ORGANISATION → warns, does not raise
+    with caplog.at_level(logging.WARNING):
+        Entity(name="Elektra", kind=EntityKind.ORGANISATION)
+    assert any("org_kind" in r.message for r in caplog.records)
+    # org_kind on non-ORGANISATION → still raises
     with pytest.raises(ValueError):
         Entity(
             name="Alice",
             kind=EntityKind.PERSON,
-            org_kind=OrganisationKind.LABEL,  # org_kind on PERSON
+            org_kind=OrganisationKind.LABEL,
         )
 
 

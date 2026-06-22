@@ -10,12 +10,18 @@ identity fields populated, which is wire-format-equivalent.
 """
 from __future__ import annotations
 
-from typing import Dict, List, Optional
+import logging
+from typing import TYPE_CHECKING, Any, Dict, List, Optional
 
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+if TYPE_CHECKING:
+    from mediavocab.models.signals import Signals
+    from mediavocab.models.external_ids import ExternalIds
+
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from mediavocab._iso_date import IsoDate, iso_compare
 from mediavocab.models.entity import Credit, EntityRef
+from mediavocab.models.license import License
 from mediavocab.taxonomy import (
     AccessibilityKind,
     ContentForm,
@@ -31,6 +37,7 @@ from mediavocab.taxonomy import (
 )
 
 _CFG = ConfigDict(extra="ignore", populate_by_name=True)
+_LOG = logging.getLogger(__name__)
 
 
 # A MediaType-to-country-slot table. Used for editorial validation and as a
@@ -121,8 +128,9 @@ class AvailabilityWindow(BaseModel):
 
     @model_validator(mode="after")
     def _check(self) -> "AvailabilityWindow":
-        if self.start is not None and self.end is not None and self.end < self.start:
-            raise ValueError("AvailabilityWindow.end precedes start")
+        if self.start is not None and self.end is not None:
+            if iso_compare(self.end, self.start) < 0:
+                raise ValueError("AvailabilityWindow.end precedes start")
         return self
 
 
@@ -201,7 +209,34 @@ class Work(BaseModel):
 
     # Cross-references
     external_ids: Dict[str, str] = Field(default_factory=dict)
-    extra: Dict[str, str] = Field(default_factory=dict)
+    extra: Dict[str, Any] = Field(default_factory=dict)
+
+    @property
+    def external_ids_model(self) -> ExternalIds:
+        """Access `external_ids` as a typed `ExternalIds` model."""
+        from mediavocab.models.external_ids import ExternalIds
+        return ExternalIds.from_dict(self.external_ids)
+
+    @external_ids_model.setter
+    def external_ids_model(self, value: ExternalIds) -> None:
+        """Update `external_ids` from a typed `ExternalIds` model."""
+        self.external_ids = value.to_dict()
+
+    @field_validator("content_genres", mode="before")
+    @classmethod
+    def _normalise_genres(cls, v):
+        """Lowercase and strip whitespace; warn on unknown genre values."""
+        if not v:
+            return v
+        from mediavocab.taxonomy.genre import KNOWN_GENRES
+        result = []
+        for g in v:
+            if isinstance(g, str):
+                g = g.strip().lower()
+                if g not in KNOWN_GENRES:
+                    _LOG.warning("Unknown genre %r — not in KNOWN_GENRES", g)
+            result.append(g)
+        return result
 
     @model_validator(mode="after")
     def _check(self) -> "Work":
@@ -218,14 +253,77 @@ class Work(BaseModel):
             )
         return self
 
+    @property
     def country(self) -> str:
-        """Return the one non-empty country slot, or `""` (§6.3 country_slot)."""
+        """The one non-empty country slot, or `""` (§6.3 country_slot).
+
+        A read-only resolver over the per-MediaType slots
+        (`production_country` / `publication_country` / `broadcaster_country`)
+        — attribute-style for parity with the other Work fields. Not a stored
+        field and not serialised, so it never double-emits the slot value (A7).
+        """
         return (
             self.production_country
             or self.publication_country
             or self.broadcaster_country
             or ""
         )
+
+    @classmethod
+    def from_signals(cls, signals: "Signals", **overrides) -> "Work":
+        """Construct a Work from a resolved Signals bag.
+
+        Maps Signals fields to Work fields. Signals-only routing hints
+        (``include_variants``, ``playback_type``, ``role``, ``fanedit_subtype``,
+        ``content_form``) are silently dropped.
+
+        ``**overrides`` are applied last — pass ``credits``, ``external_ids``,
+        ``tracklist``, etc. to enrich the result beyond what Signals carries.
+
+        Raises ``ValueError`` if ``signals.title`` is absent (required on Work).
+        """
+        if not signals.title:
+            raise ValueError("Work.from_signals() requires signals.title to be set")
+
+        media_type = signals.medium
+        if media_type is None:
+            raise ValueError("Work.from_signals() requires signals.medium to be set")
+
+        # Map the Signals country hint to the appropriate Work slot.
+        country_val = getattr(signals, "country", None) or ""
+        country_slot_name = COUNTRY_SLOT_FOR.get(media_type, "production_country")
+        country_kwargs: Dict[str, str] = {}
+        if country_val:
+            country_kwargs[country_slot_name] = country_val
+
+        kwargs: Dict[str, Any] = dict(
+            title=signals.title,
+            media_type=media_type,
+            **country_kwargs,
+        )
+        for src, dst in (
+            ("year",         "year"),
+            ("runtime",      "runtime"),
+            ("language",     "language"),
+            ("season",       "season"),
+            ("episode",      "episode"),
+            ("variant_kind", "variant_kind"),
+            ("edition",      "edition"),
+            ("source_format","source_format"),
+        ):
+            v = getattr(signals, src, None)
+            if v is not None and v != "":
+                kwargs[dst] = v
+        if signals.content_genres:
+            kwargs["content_genres"] = list(signals.content_genres)
+        if signals.artist:
+            # artist is a display-level hint; store it in structured signals_meta
+            kwargs.setdefault("extra", {}).setdefault("signals_meta", {})["artist"] = signals.artist
+            # Backward compatibility
+            kwargs.setdefault("extra", {})["signals_artist"] = signals.artist
+
+        kwargs.update(overrides)
+        return cls(**kwargs)
 
 
 class Release(BaseModel):
@@ -268,7 +366,7 @@ class Release(BaseModel):
     release_date: Optional[IsoDate] = None
 
     # Rights and availability
-    license: str = ""
+    license: Optional[License] = None
     region_locked: Optional[bool] = None
     regions_available: List[str] = Field(default_factory=list)
     available_from: Optional[IsoDate] = None
@@ -298,7 +396,28 @@ class Release(BaseModel):
 
     # Cross-references
     external_ids: Dict[str, str] = Field(default_factory=dict)
-    extra: Dict[str, str] = Field(default_factory=dict)
+    extra: Dict[str, Any] = Field(default_factory=dict)
+
+    @property
+    def external_ids_model(self) -> ExternalIds:
+        """Access `external_ids` as a typed `ExternalIds` model."""
+        from mediavocab.models.external_ids import ExternalIds
+        return ExternalIds.from_dict(self.external_ids)
+
+    @external_ids_model.setter
+    def external_ids_model(self, value: ExternalIds) -> None:
+        """Update `external_ids` from a typed `ExternalIds` model."""
+        self.external_ids = value.to_dict()
+
+    @field_validator("license", mode="before")
+    @classmethod
+    def _coerce_license(cls, v):
+        """Accept plain SPDX strings; coerce to License on intake."""
+        if v is None or isinstance(v, License):
+            return v
+        if isinstance(v, str):
+            return License.from_spdx(v) if v.strip() else None
+        return v
 
     @model_validator(mode="after")
     def _check(self) -> "Release":
@@ -326,62 +445,8 @@ class Release(BaseModel):
             raise ValueError("match_confidence must be in [0.0, 1.0]")
         return self
 
-    @property
-    def parsed_license(self) -> "License":  # noqa: F821 — forward type, local import below
-        """Typed view of `self.license` via SPDX parser. Deprecated — prefer
-        `mediavocab.models.license` helper predicates (`is_open`, etc.)."""
-        from mediavocab.models.license import License
-        return License.from_spdx(self.license)
 
 
-class Programme(BaseModel):
-    """A single airing of a Work on a broadcast channel (§5.5).
-
-    Per T4 the channel is a Work (a RADIO or TV station). Both `work` and
-    `channel` here are Works — passed as stubs with only identity fields
-    populated when the consumer doesn't need the full record.
-    """
-
-    model_config = _CFG
-
-    work: "Work"                              # the content Work being aired
-    channel: "Work"                           # the broadcast channel Work (RADIO / TV)
-    starts_at: IsoDate
-    ends_at: Optional[IsoDate] = None
-    runtime: Optional[float] = None
-    is_live: bool = False
-    is_repeat: bool = False
-    extra: Dict[str, str] = Field(default_factory=dict)
-
-
-class Schedule(BaseModel):
-    """An ordered list of `Programme` slots for a single broadcast channel (§5.5).
-
-    Programmes must be sorted by `starts_at` ascending and non-overlapping.
-    Only the trailing slot may have `ends_at = None` (open-ended current programme).
-    """
-
-    model_config = _CFG
-
-    channel: "Work"
-    programmes: List[Programme] = Field(default_factory=list)
-    valid_from: Optional[IsoDate] = None
-    valid_until: Optional[IsoDate] = None
-    source: str = ""
-    fetched_at: Optional[IsoDate] = None
-    extra: Dict[str, str] = Field(default_factory=dict)
-
-    @model_validator(mode="after")
-    def _check(self) -> "Schedule":
-        progs = self.programmes
-        for prev, cur in zip(progs, progs[1:]):
-            if iso_compare(prev.starts_at, cur.starts_at) > 0:
-                raise ValueError("Schedule.programmes must be sorted by starts_at")
-            if prev.ends_at is None:
-                raise ValueError("only the last programme may have ends_at=None")
-            if iso_compare(prev.ends_at, cur.starts_at) > 0:
-                raise ValueError("Schedule.programmes overlap")
-        return self
 
 
 # Resolve forward references in the cycles Work <-> Appearance and

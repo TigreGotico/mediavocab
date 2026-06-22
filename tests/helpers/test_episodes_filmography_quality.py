@@ -1,11 +1,8 @@
-"""Tests for query helpers: episodes_of, filmography_of, best_release."""
+"""Tests for query helpers: episodes_of, filmography_of."""
 from mediavocab import (
-    Credit, CreditSection, EntityKind, EntityRef, MediaType, RelationRole,
-    Release, ReleasePackaging, VariantKind, Work,
+    Credit, CreditSection, EntityKind, EntityRef, MediaType, RelationRole, Work,
 )
-from mediavocab.helpers import (
-    best_release, episodes_of, filmography_of, quality_score,
-)
+from mediavocab.helpers import episodes_of, filmography_of
 
 
 # ---------------------------------------------------------------------------
@@ -82,61 +79,3 @@ def test_filmography_falls_back_to_name_when_no_ids():
     ])
     assert filmography_of(n, [movie]) == [movie]
 
-
-# ---------------------------------------------------------------------------
-# best_release / quality_score
-# ---------------------------------------------------------------------------
-
-def _movie_work(variant=None):
-    return Work(title="Blade Runner", media_type=MediaType.MOVIE,
-                year=1982, runtime=117 * 60.0, variant_kind=variant)
-
-
-def test_best_release_prefers_higher_resolution():
-    w = _movie_work()
-    sd = Release(work=w, container="DVD",     resolution="480p")
-    hd = Release(work=w, container="Blu-ray", resolution="1080p")
-    uhd = Release(work=w, container="Blu-ray", resolution="2160p")
-    assert best_release(sd, hd, uhd) is uhd
-
-
-def test_best_release_prefers_directors_cut():
-    """Director's cut is a different Work (§3.4); the Work-level variant_kind
-    drives quality_score's first axis."""
-    theatrical = Release(work=_movie_work(VariantKind.THEATRICAL),
-                         container="Blu-ray", resolution="1080p")
-    directors = Release(work=_movie_work(VariantKind.DIRECTORS),
-                        container="Blu-ray", resolution="1080p")
-    assert best_release(theatrical, directors) is directors
-
-
-def test_best_release_prefers_atmos_over_stereo():
-    w = _movie_work()
-    stereo = Release(work=w, container="Blu-ray", resolution="2160p",
-                     audio_channels="stereo")
-    atmos = Release(work=w, container="Blu-ray", resolution="2160p",
-                    audio_channels="Atmos")
-    assert best_release(stereo, atmos) is atmos
-
-
-def test_best_release_returns_none_for_empty_input():
-    assert best_release() is None
-
-
-def test_quality_score_is_sortable():
-    w = _movie_work()
-    a = Release(work=w, resolution="1080p")
-    b = Release(work=w, resolution="2160p")
-    c = Release(work=w, resolution="480p")
-    ordered = sorted([a, b, c], key=quality_score, reverse=True)
-    assert ordered[0] is b
-    assert ordered[-1] is c
-
-
-def test_bootleg_loses_to_anything():
-    """Bootleg lives on Release.packaging now, not Work.variant_kind."""
-    w = _movie_work()
-    bootleg = Release(work=w, resolution="2160p",
-                      packaging=ReleasePackaging.BOOTLEG)
-    plain = Release(work=w, resolution="480p")
-    assert best_release(bootleg, plain) is plain

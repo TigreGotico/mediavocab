@@ -1,94 +1,113 @@
-"""Title/description-based content classification.
+"""Content classification from text signals.
 
-Uses duration heuristics, channel/feed tags, and locale-loaded keyword
-phrases to classify a piece of content into a ``ContentType`` and to
-extract orthogonal labels (genre, era, format sub-type, audience).
+``classify_video`` maps a raw title + description + provider flags to typed
+mediavocab fields. It is a *reference implementation* using locale-backed
+keyword lists — not a mandate. Consumers may ignore it, replace it, or layer
+a machine-learning classifier on top.
 
-Classification is English by default. Pass ``lang="es-es"`` (or call
-``MEDIAVOCAB_LANG`` env var) for non-English vocab. Locale files
-live in ``mediavocab/locale/<lang>/``. Adding a new language requires
-only creating the corresponding ``.voc`` files — no Python changes.
+The locale files (``mediavocab/locale/<lang>/``) follow the ovos-spec-tools
+OVOS-INTENT-2 format — one phrase per line, blank lines and ``#``-comments
+ignored. New languages are added by dropping ``<lang>/`` directories with the
+same filenames; no Python changes required.
+
+**Output contract**: ``ClassificationResult`` contains only standard
+mediavocab types. Nothing domain-specific leaks out.
+
+**Priority order** (first matching rule wins):
+  1. Live stream → RADIO or TV (is_live=True)
+  2. Podcast flag → PODCAST
+  3. News keywords → TV + ProgrammeFormat.NEWS
+  4. Sport keywords → TV + ProgrammeFormat.SPORTS
+  5. TV-episode structural pattern → EPISODIC_SERIES
+  6. Trailer keywords → content_form=TRAILER (keeps whatever media_type was set)
+  7. Behind-the-scenes / reaction → content_form=BEHIND_SCENES / REACTION
+  8. Music video keywords or OAC badge → MUSIC_VIDEO
+  9. Anime keywords → SHORT_FILM or MOVIE + genre=anime
+ 10. Concert keywords → MOVIE + ProgrammeFormat.CONCERT
+ 11. Stand-up keywords → MOVIE + ProgrammeFormat.STAND_UP
+ 12. Documentary keywords → MOVIE + ProgrammeFormat.DOCUMENTARY
+ 13. Gaming keywords → GAME
+ 14. Audiobook keywords → AUDIOBOOK
+ 15. Short film keywords or short duration → SHORT_FILM
+ 16. Full-movie keywords or long duration → MOVIE
+ 17. Default → EPISODIC_SERIES
 """
 from __future__ import annotations
 
 import re
+from dataclasses import dataclass, field
 from typing import List, Optional
 
-from mediavocab.locale import voc_regex, voc_set
-from mediavocab.taxonomy.content_type import ContentType
+from mediavocab.taxonomy import (
+    ContentForm,
+    MediaType,
+    ProgrammeFormat,
+)
 
 
 # ---------------------------------------------------------------------------
-# Structural patterns — not translatable; stay in Python
+# Duration thresholds (seconds)
 # ---------------------------------------------------------------------------
+_TRAILER_MAX      =  600     # ≤ 10 min
+_SHORT_FILM_MAX   = 3_600    # ≤ 60 min
+_MOVIE_MIN        = 3_600    # ≥ 60 min
 
-_TV_EPISODE_STRUCT_RE = re.compile(
+
+# ---------------------------------------------------------------------------
+# Structural patterns (locale-independent)
+# ---------------------------------------------------------------------------
+_TV_EPISODE_RE = re.compile(
     r'\bS\d{1,2}\s*E\d{1,3}\b'
-    r'|\bSeason\s+\d{1,2}\b.*?\bEpisode\s+\d{1,3}\b',
+    r'|\bSeason\s+\d{1,2}\b.*?\bEpisode\s+\d{1,3}\b'
+    r'|\b\d{1,2}x\d{2,3}\b',
     re.IGNORECASE,
 )
-_COMPILATION_TOP_N_RE = re.compile(r'\bTop\s+\d+\b', re.IGNORECASE)
-_MOVIE_FULL_ADJ_RE = re.compile(r'\bfull\s+\w+\s+(?:movie|film)\b', re.IGNORECASE)
-_SILENT_ERA_YEAR_RE = re.compile(r'\b191\d\b|\b192\d\b')
-
-# Duration limits (seconds)
-_MOVIE_MIN_SECONDS = 60 * 60
-_TRAILER_MAX_SECONDS = 600
-_SHORT_FILM_MAX_SECONDS = 3600
-_MUSIC_VIDEO_MAX_SECONDS = 900
 
 
-_TAG_MANIFEST = [
-    ("narrated", "tags/narrated"),
-    ("full-cast", "tags/full-cast"),
-    ("radio-play", "tags/radio-play"),
-    ("full-album", "tags/full-album"),
-    ("ep", "tags/ep"),
-    ("premiere", "tags/premiere"),
-    ("mix", "tags/mix"),
-    ("horror", "tags/horror"),
-    ("sci-fi", "tags/sci-fi"),
-    ("fantasy", "tags/fantasy"),
-    ("thriller", "tags/thriller"),
-    ("romance", "tags/romance"),
-    ("comedy", "tags/comedy"),
-    ("action", "tags/action"),
-    ("crime", "tags/crime"),
-    ("war", "tags/war"),
-    ("western", "tags/western"),
-    ("animation", "tags/animation"),
-    ("superhero", "tags/superhero"),
-    ("classical", "tags/classical"),
-    ("jazz", "tags/jazz"),
-    ("metal", "tags/metal"),
-    ("hip-hop", "tags/hip-hop"),
-    ("electronic", "tags/electronic"),
-    ("folk", "tags/folk"),
-    ("reggae", "tags/reggae"),
-    ("punk", "tags/punk"),
-    ("country", "tags/country"),
-    ("r&b", "tags/r-and-b"),
-    ("football", "tags/football"),
-    ("basketball", "tags/basketball"),
-    ("baseball", "tags/baseball"),
-    ("tennis", "tags/tennis"),
-    ("motorsport", "tags/motorsport"),
-    ("combat", "tags/combat"),
-    ("esports", "tags/esports"),
-    ("debate", "tags/debate"),
-    ("ted-talk", "tags/ted-talk"),
-    ("panel", "tags/panel"),
-    ("silent-era", "tags/silent-era"),
-    ("classic", "tags/classic"),
-    ("colorized", "tags/colorized"),
-    ("4k", "tags/4k"),
-    ("short", "tags/short"),
-    ("kids", "tags/kids"),
-    ("educational", "tags/educational"),
-    ("lovecraft", "tags/lovecraft"),
-    ("wayne-june", "tags/wayne-june"),
-]
+# ---------------------------------------------------------------------------
+# Result type
+# ---------------------------------------------------------------------------
 
+@dataclass
+class ClassificationResult:
+    """Typed mediavocab fields inferred from text + metadata signals.
+
+    All fields are optional / have safe defaults — partial results are
+    valid. ``confidence`` is a rough [0.0, 1.0] estimate; callers should
+    treat it as a hint, not a guarantee.
+    """
+    media_type: Optional[MediaType] = None
+    content_form: ContentForm = ContentForm.PRIMARY
+    content_genres: List[str] = field(default_factory=list)
+    programme_format: Optional[ProgrammeFormat] = None
+    confidence: float = 0.5
+
+    def add_genre(self, genre: str) -> None:
+        if genre not in self.content_genres:
+            self.content_genres.append(genre)
+
+
+# ---------------------------------------------------------------------------
+# Locale helpers
+# ---------------------------------------------------------------------------
+
+def _rx(voc_name: str, lang: Optional[str]) -> Optional[re.Pattern]:
+    """Return the compiled regex for a vocabulary file, or None if missing."""
+    try:
+        from mediavocab.locale import voc_regex
+        return voc_regex(voc_name, lang=lang)
+    except Exception:
+        return None
+
+
+def _match(voc_name: str, text: str, lang: Optional[str]) -> bool:
+    rx = _rx(voc_name, lang)
+    return bool(rx and rx.search(text))
+
+
+# ---------------------------------------------------------------------------
+# Public API
+# ---------------------------------------------------------------------------
 
 def classify_video(
     title: str,
@@ -100,210 +119,272 @@ def classify_video(
     is_podcast: bool = False,
     channel_tags: Optional[List[str]] = None,
     lang: Optional[str] = None,
-) -> ContentType:
-    """Classify a piece of content into a ``ContentType``.
+) -> ClassificationResult:
+    """Classify a piece of video/audio content from text + metadata signals.
 
-    Inputs are generic; only ``is_official_artist`` is YouTube-flavoured
-    (the OAC badge — leave it ``False`` for non-YouTube sources).
-    ``is_podcast`` must come from publisher-defined data — never inferred
-    from title.
+    Args:
+        title: the content title (required).
+        description: body text / synopsis / feed description.
+        length: duration in seconds. 0 = unknown.
+        is_live: True if the source signals this is a live stream.
+        is_upcoming: True if the content has not aired yet (scheduled).
+        is_official_artist: True for YouTube Official Artist Channel badge.
+        is_podcast: True when the feed/source is explicitly a podcast.
+        channel_tags: tags declared by the publishing channel / feed.
+        lang: BCP 47 language tag for keyword matching (default: en-us).
 
-    ``channel_tags`` (or any feed/source tag list) boost MOVIE,
-    DOCUMENTARY, ANIME, SHORT_FILM, KIDS, NEWS, SPORT, GAMING, CONCERT,
-    STAND_UP when the title carries no explicit keyword.
-
-    ``lang`` selects the locale vocabulary (defaults to active language
-    from ``mediavocab.locale``).
+    Returns:
+        A ``ClassificationResult`` with typed mediavocab fields.
     """
+    combined    = f"{title} {description}".strip()
+    channel_set = {t.lower() for t in (channel_tags or [])}
+
+    result = ClassificationResult()
+
+    # ------------------------------------------------------------------
+    # 1. Live stream
+    # ------------------------------------------------------------------
     if is_live:
-        combined_live = f"{title} {description}"
-        live_tags = {t.lower() for t in (channel_tags or [])}
+        if _match("live_news_keywords", combined, lang):
+            result.media_type       = MediaType.TV
+            result.programme_format = ProgrammeFormat.NEWS
+            result.confidence = 0.85
+            return result
 
-        live_radio_re = voc_regex("live_radio_keywords", lang=lang)
-        if live_radio_re and live_radio_re.search(combined_live):
-            return ContentType.LIVE_RADIO
+        if _match("live_radio_keywords", combined, lang) or "radio" in channel_set:
+            result.media_type = MediaType.RADIO
+            result.confidence = 0.85
+            return result
 
-        live_news_re = voc_regex("live_news_keywords", lang=lang)
-        channel_news_re = voc_regex("channel_news_tags", lang=lang)
-        tags_str = " ".join(live_tags)
-        if (
-            (live_news_re and live_news_re.search(combined_live))
-            or (channel_news_re and channel_news_re.search(tags_str))
-        ):
-            return ContentType.LIVE_NEWS
+        # Check for radio keywords (station name patterns) before sport
+        if re.search(r'\b(fm|am|mhz|radio)\b', combined, re.IGNORECASE):
+            result.media_type = MediaType.RADIO
+            result.confidence = 0.75
+            return result
 
-        iptv_re = voc_regex("iptv_keywords", lang=lang)
-        if iptv_re and iptv_re.search(combined_live):
-            return ContentType.IPTV
+        if _match("sport_keywords", combined, lang) or "sport" in channel_set or "sports" in channel_set:
+            result.media_type       = MediaType.TV
+            result.programme_format = ProgrammeFormat.SPORTS
+            result.confidence = 0.80
+            return result
 
-        return ContentType.LIVE
+        # Generic live → TV
+        result.media_type = MediaType.TV
+        result.confidence = 0.70
+        return result
 
-    if is_upcoming:
-        return ContentType.UPCOMING
+    # ------------------------------------------------------------------
+    # 2. Podcast
+    # ------------------------------------------------------------------
+    if is_podcast or "podcast" in channel_set:
+        result.media_type = MediaType.PODCAST
+        result.confidence = 0.90
+        return result
 
-    if 0 < length < 62:
-        return ContentType.SOCIAL_CLIP
+    # Anime check before podcast — "anime episode" should not become a podcast
+    if _match("anime_keywords", combined, lang) or "anime" in channel_set:
+        result.media_type = MediaType.SHORT_FILM if length and length < _SHORT_FILM_MAX else MediaType.MOVIE
+        result.add_genre("anime")
+        result.confidence = 0.82
+        return result
 
-    tags_lower = {t.lower() for t in (channel_tags or [])}
-    combined = f"{title} {description}"
+    if _match("podcast_keywords", combined, lang) and not _match("movie_keywords", combined, lang):
+        result.media_type = MediaType.PODCAST
+        result.confidence = 0.70
+        return result
 
-    trailer_re = voc_regex("trailer_keywords", lang=lang)
-    if trailer_re and trailer_re.search(title):
-        if length == 0 or length <= _TRAILER_MAX_SECONDS:
-            return ContentType.TRAILER
+    # ------------------------------------------------------------------
+    # 3. News
+    # ------------------------------------------------------------------
+    if _match("live_news_keywords", combined, lang) or "news" in channel_set:
+        result.media_type       = MediaType.TV
+        result.programme_format = ProgrammeFormat.NEWS
+        result.confidence = 0.75
+        return result
 
-    movie_re = voc_regex("movie_keywords", lang=lang)
-    if (movie_re and movie_re.search(combined)) or _MOVIE_FULL_ADJ_RE.search(combined):
-        if length == 0 or length >= _MOVIE_MIN_SECONDS:
-            return ContentType.MOVIE
+    # ------------------------------------------------------------------
+    # 4. Sport
+    # ------------------------------------------------------------------
+    if _match("sport_keywords", combined, lang) or "sport" in channel_set or "sports" in channel_set:
+        result.media_type       = MediaType.TV
+        result.programme_format = ProgrammeFormat.SPORTS
+        result.confidence = 0.75
+        return result
 
-    doc_re = voc_regex("documentary_keywords", lang=lang)
-    channel_doc_tags = voc_set("channel_doc_tags", lang=lang)
-    if (doc_re and doc_re.search(combined)) or (tags_lower & channel_doc_tags):
-        return ContentType.DOCUMENTARY
+    # ------------------------------------------------------------------
+    # 5. TV episode (structural: S01E01 pattern)
+    # ------------------------------------------------------------------
+    if _TV_EPISODE_RE.search(combined) or _match("tv_episode_keywords", combined, lang):
+        result.media_type = MediaType.EPISODIC_SERIES
+        result.confidence = 0.80
+        # Continue to detect content_form / genres below
 
-    bts_re = voc_regex("behind_the_scenes_keywords", lang=lang)
-    if bts_re and bts_re.search(combined):
-        return ContentType.BEHIND_THE_SCENES
+    # ------------------------------------------------------------------
+    # 6. Behind-the-scenes / reaction / supplement (before trailer so
+    #    "reacting to the trailer" → REACTION not TRAILER)
+    # ------------------------------------------------------------------
+    if _match("behind_the_scenes_keywords", combined, lang):
+        result.content_form = ContentForm.BEHIND_SCENES
+        result.confidence = 0.82
+        return result
 
-    anime_re = voc_regex("anime_keywords", lang=lang)
-    channel_anime_tags = voc_set("channel_anime_tags", lang=lang)
-    if (anime_re and anime_re.search(combined)) or (tags_lower & channel_anime_tags):
-        return ContentType.ANIME
+    if _match("reaction_keywords", combined, lang):
+        result.content_form = ContentForm.REACTION
+        result.confidence = 0.78
+        return result
 
-    tv_ep_re = voc_regex("tv_episode_keywords", lang=lang)
-    if _TV_EPISODE_STRUCT_RE.search(combined) or (tv_ep_re and tv_ep_re.search(combined)):
-        return ContentType.TV_EPISODE
+    # ------------------------------------------------------------------
+    # 7. Trailer / teaser
+    # ------------------------------------------------------------------
+    if _match("trailer_keywords", combined, lang):
+        result.content_form = ContentForm.TRAILER
+        # Keep whatever media_type was already set (or leave None)
+        result.confidence = 0.88
+        return result
 
-    comp_re = voc_regex("compilation_keywords", lang=lang)
-    if (comp_re and comp_re.search(combined)) or _COMPILATION_TOP_N_RE.search(combined):
-        return ContentType.COMPILATION
+    # ------------------------------------------------------------------
+    # 8. Music video
+    # ------------------------------------------------------------------
+    if _match("music_video_keywords", combined, lang) or is_official_artist:
+        result.media_type = MediaType.MUSIC_VIDEO
+        result.confidence = 0.88 if is_official_artist else 0.80
+        _detect_music_genres(combined, result, lang)
+        return result
 
-    short_film_re = voc_regex("short_film_keywords", lang=lang)
-    channel_short_film_tags = voc_set("channel_short_film_tags", lang=lang)
-    if (short_film_re and short_film_re.search(combined)) or (tags_lower & channel_short_film_tags):
-        if length == 0 or length < _SHORT_FILM_MAX_SECONDS:
-            return ContentType.SHORT_FILM
+    if "music" in channel_set and (length == 0 or length <= _SHORT_FILM_MAX):
+        result.media_type = MediaType.MUSIC_VIDEO
+        result.confidence = 0.65
+        _detect_music_genres(combined, result, lang)
+        return result
 
-    channel_movie_tags = voc_set("channel_movie_tags", lang=lang)
-    if tags_lower & channel_movie_tags:
-        if length == 0 or length >= _MOVIE_MIN_SECONDS:
-            return ContentType.MOVIE
+    # ------------------------------------------------------------------
+    # 9. Concert film
+    # ------------------------------------------------------------------
+    if _match("concert_keywords", combined, lang) or "concert" in channel_set:
+        result.media_type       = MediaType.MOVIE
+        result.programme_format = ProgrammeFormat.CONCERT
+        result.confidence = 0.80
+        _detect_music_genres(combined, result, lang)
+        return result
 
-    audiobook_re = voc_regex("audiobook_keywords", lang=lang)
-    if audiobook_re and audiobook_re.search(combined):
-        return ContentType.AUDIOBOOK
+    # ------------------------------------------------------------------
+    # 11. Stand-up comedy
+    # ------------------------------------------------------------------
+    if _match("stand_up_keywords", combined, lang) or "stand-up" in channel_set or "comedy" in channel_set:
+        result.media_type       = MediaType.MOVIE
+        result.programme_format = ProgrammeFormat.STAND_UP
+        result.add_genre("comedy")
+        result.confidence = 0.82
+        return result
 
-    if is_podcast:
-        return ContentType.PODCAST
+    # ------------------------------------------------------------------
+    # 12. Documentary
+    # ------------------------------------------------------------------
+    if _match("documentary_keywords", combined, lang) or "documentary" in channel_set or "docs" in channel_set:
+        result.media_type       = MediaType.MOVIE
+        result.programme_format = ProgrammeFormat.DOCUMENTARY
+        result.confidence = 0.80
+        return result
 
-    stand_up_re = voc_regex("stand_up_keywords", lang=lang)
-    channel_stand_up_tags = voc_set("channel_stand_up_tags", lang=lang)
-    if (stand_up_re and stand_up_re.search(combined)) or (tags_lower & channel_stand_up_tags):
-        return ContentType.STAND_UP
+    # ------------------------------------------------------------------
+    # 13. Gaming
+    # ------------------------------------------------------------------
+    if _match("gaming_keywords", combined, lang) or "gaming" in channel_set or "games" in channel_set:
+        result.media_type = MediaType.GAME
+        result.add_genre("gaming" if "gaming" in result.content_genres else "")
+        result.confidence = 0.78
+        return result
 
-    lecture_re = voc_regex("lecture_keywords", lang=lang)
-    if lecture_re and lecture_re.search(title):
-        return ContentType.LECTURE
+    # ------------------------------------------------------------------
+    # 14. Audiobook
+    # ------------------------------------------------------------------
+    if _match("audiobook_keywords", combined, lang) or "audiobooks" in channel_set:
+        result.media_type = MediaType.AUDIOBOOK
+        result.confidence = 0.85
+        return result
 
-    interview_re = voc_regex("interview_keywords", lang=lang)
-    if interview_re and interview_re.search(title):
-        return ContentType.INTERVIEW
+    # ------------------------------------------------------------------
+    # 15. Short film (keyword or duration ≤ 60 min, only if not episodic)
+    # ------------------------------------------------------------------
+    if result.media_type != MediaType.EPISODIC_SERIES:
+        if _match("short_film_keywords", combined, lang):
+            result.media_type = MediaType.SHORT_FILM
+            result.confidence = 0.78
+            return result
 
-    concert_re = voc_regex("concert_keywords", lang=lang)
-    channel_concert_tags = voc_set("channel_concert_tags", lang=lang)
-    if (concert_re and concert_re.search(title)) or (tags_lower & channel_concert_tags):
-        return ContentType.CONCERT
+        if 0 < length <= _SHORT_FILM_MAX and not _match("movie_keywords", combined, lang):
+            result.media_type = MediaType.SHORT_FILM
+            result.confidence = 0.55
+            return result
 
-    news_re = voc_regex("news_keywords", lang=lang)
-    channel_news_tags = voc_set("channel_news_tags", lang=lang)
-    if (news_re and news_re.search(combined)) or (tags_lower & channel_news_tags):
-        return ContentType.NEWS
+    # ------------------------------------------------------------------
+    # 16. Full movie (keyword or duration ≥ 60 min, only if not episodic)
+    # ------------------------------------------------------------------
+    if result.media_type != MediaType.EPISODIC_SERIES:
+        if _match("movie_keywords", combined, lang):
+            result.media_type = MediaType.MOVIE
+            result.confidence = 0.82
+            return result
 
-    sport_re = voc_regex("sport_keywords", lang=lang)
-    channel_sport_tags = voc_set("channel_sport_tags", lang=lang)
-    if (sport_re and sport_re.search(combined)) or (tags_lower & channel_sport_tags):
-        return ContentType.SPORT
+        if length >= _MOVIE_MIN:
+            result.media_type = MediaType.MOVIE
+            result.confidence = 0.60
+            return result
 
-    gaming_re = voc_regex("gaming_keywords", lang=lang)
-    channel_gaming_tags = voc_set("channel_gaming_tags", lang=lang)
-    if (gaming_re and gaming_re.search(combined)) or (tags_lower & channel_gaming_tags):
-        return ContentType.GAMING
+    # ------------------------------------------------------------------
+    # 17. Already classified as EPISODIC_SERIES from step 5
+    # ------------------------------------------------------------------
+    if result.media_type == MediaType.EPISODIC_SERIES:
+        return result
 
-    tutorial_re = voc_regex("tutorial_keywords", lang=lang)
-    if tutorial_re and tutorial_re.search(combined):
-        return ContentType.TUTORIAL
-
-    reaction_re = voc_regex("reaction_keywords", lang=lang)
-    if reaction_re and reaction_re.search(combined):
-        return ContentType.REACTION
-
-    kids_re = voc_regex("kids_keywords", lang=lang)
-    channel_kids_tags = voc_set("channel_kids_tags", lang=lang)
-    if (kids_re and kids_re.search(combined)) or (tags_lower & channel_kids_tags):
-        return ContentType.KIDS
-
-    music_release_re = voc_regex("music_release_keywords", lang=lang)
-    if music_release_re and music_release_re.search(title):
-        return ContentType.MUSIC_AUDIO
-
-    music_video_re = voc_regex("music_video_keywords", lang=lang)
-    channel_music_tags = voc_set("channel_music_tags", lang=lang)
-    if (music_video_re and music_video_re.search(title)) or is_official_artist or (tags_lower & channel_music_tags):
-        if length == 0 or length <= _MUSIC_VIDEO_MAX_SECONDS:
-            return ContentType.MUSIC_VIDEO
-
-    music_audio_re = voc_regex("music_audio_keywords", lang=lang)
-    if music_audio_re and music_audio_re.search(title):
-        return ContentType.MUSIC_AUDIO
-
-    return ContentType.VIDEO
+    # ------------------------------------------------------------------
+    # 18. Default — most common video format
+    # ------------------------------------------------------------------
+    result.media_type = MediaType.EPISODIC_SERIES
+    result.confidence = 0.30
+    return result
 
 
-def extract_tags(
-    title: str,
-    description: str = "",
-    channel_tags: Optional[List[str]] = None,
-    lang: Optional[str] = None,
-) -> List[str]:
-    """Return sorted list of freeform labels inferred from title and description.
+# ---------------------------------------------------------------------------
+# Genre helpers
+# ---------------------------------------------------------------------------
 
-    Labels are orthogonal to ``ContentType`` — they capture genre, era,
-    format sub-type, audience, and other signals intentionally excluded
-    from the main taxonomy. New labels may be added; treat the list as
-    open-ended.
+_MUSIC_GENRE_WORDS = {
+    "rock": "rock", "metal": "metal", "jazz": "jazz", "classical": "classical",
+    "hip hop": "hip_hop", "hip-hop": "hip_hop", "rap": "hip_hop",
+    "r&b": "rnb", "soul": "soul", "funk": "funk", "disco": "disco",
+    "pop": "pop", "indie": "indie", "folk": "folk", "blues": "blues",
+    "country": "country", "reggae": "reggae", "latin": "latin",
+    "electronic": "electronic", "house": "house", "techno": "techno",
+    "trance": "trance", "dubstep": "dubstep", "drum and bass": "drum_and_bass",
+    "punk": "punk", "ambient": "ambient",
+}
 
-    Driven by locale-loaded `.voc` files in
-    ``mediavocab/locale/<lang>/tags/``.
+
+def _detect_music_genres(text: str, result: ClassificationResult,
+                          lang: Optional[str]) -> None:
+    low = text.lower()
+    for keyword, genre in _MUSIC_GENRE_WORDS.items():
+        if keyword in low:
+            result.add_genre(genre)
+
+
+def extract_tags(title: str, description: str = "",
+                 lang: Optional[str] = None) -> List[str]:
+    """Extract orthogonal content tags from title + description.
+
+    Returns a list of KNOWN_GENRES values present in the text. Unlike
+    ``classify_video``, this does not pick a single MediaType — it
+    collects all genre signals regardless of priority.
+
+    Useful for enriching ``Work.content_genres`` from scraped text.
     """
-    combined = f"{title} {description}"
+    from mediavocab.taxonomy.genre import KNOWN_GENRES
+    combined = f"{title} {description}".lower()
     found = []
-
-    for label, voc_name in _TAG_MANIFEST:
-        rx = voc_regex(voc_name, lang=lang)
-        if rx and rx.search(combined):
-            found.append(label)
-
-    if _SILENT_ERA_YEAR_RE.search(combined) and "silent-era" not in found:
-        found.append("silent-era")
-
-    return sorted(found)
-
-
-def classify_video_dict(d: dict, lang: Optional[str] = None) -> ContentType:
-    """Convenience wrapper: classify from a raw dict.
-
-    Accepts any mapping with optional keys: title, description, length,
-    is_live, is_upcoming, is_official_artist, is_podcast, channel_tags.
-    """
-    return classify_video(
-        title=d.get("title") or "",
-        description=d.get("description") or "",
-        length=int(d.get("length") or 0),
-        is_live=bool(d.get("is_live")),
-        is_upcoming=bool(d.get("is_upcoming")),
-        is_official_artist=bool(d.get("is_official_artist")),
-        is_podcast=bool(d.get("is_podcast")),
-        channel_tags=d.get("channel_tags") or None,
-        lang=lang,
-    )
+    for genre in sorted(KNOWN_GENRES):
+        # Match on word boundaries using the genre value (underscores → spaces)
+        pattern = genre.replace("_", r"[\s\-_]")
+        if re.search(rf"\b{pattern}\b", combined, re.IGNORECASE):
+            found.append(genre)
+    return found

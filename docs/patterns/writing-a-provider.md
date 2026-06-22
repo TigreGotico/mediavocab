@@ -3,7 +3,7 @@
 A *provider* is a class that resolves a `Signals` query into a typed
 `ProviderMatch` against one source — IMDB, MusicBrainz, a local file
 index, a Home Assistant entity registry. The mediavocab spec defines the
-provider contract (§4.11, four-axis routing gate); downstream packages
+provider contract (§4.11, three-axis routing gate); downstream packages
 (e.g. `metadatarr`) supply the runtime registry, dispatcher, and
 consolidator.
 
@@ -11,7 +11,7 @@ This walkthrough builds a minimal `MetadataProvider` end-to-end.
 
 ## 1. Subclass `MetadataProvider` and declare your axes
 
-The base class is in `mediavocab.models.protocols`. Declare the four
+The base class is in `mediavocab.models.protocols`. Declare the three
 routing axes as `ClassVar[Set[...]]`. Empty sets mean "universal" on
 that axis.
 
@@ -19,7 +19,7 @@ that axis.
 from typing import ClassVar, Optional, Set
 
 from mediavocab import (
-    ContentForm, ExternalIds, MediaType, MetadataProvider, PlaybackType,
+    ExternalIds, MediaType, MetadataProvider, PlaybackType,
     ProviderMatch, Signals,
 )
 
@@ -28,14 +28,17 @@ class TVMazeProvider(MetadataProvider):
     name: ClassVar[str] = "tvmaze"
     media: ClassVar[Set[MediaType]] = {MediaType.EPISODIC_SERIES}
     playback_type: ClassVar[Set[PlaybackType]] = {PlaybackType.VIDEO}
-    content_form: ClassVar[Set[ContentForm]] = {ContentForm.PRIMARY}
     genre_filter: ClassVar[Set[str]] = set()   # universal across genres
 ```
 
-The four-axis gate (in `_four_axis_gate`) short-circuits independently
-on each axis. A `Signals` field that is `None` always passes — the
-caller has no preference on that axis. A non-empty class-level set that
-the corresponding `Signals` field is missing from rejects the provider.
+The three-axis gate (`_three_axis_gate`) short-circuits independently on
+each axis. A `Signals` field that is `None` always passes — the caller has
+no preference on that axis. A non-empty class-level set that the
+corresponding `Signals` field is missing from rejects the provider.
+
+Genre strings in `genre_filter` should be lowercase underscore values from
+`mediavocab.taxonomy.genre` (e.g. `"anime"`, `"metal"`). A subclass
+declaring an unknown value logs a `WARNING` at class-definition time.
 
 ## 2. Implement `is_available` and `lookup`
 
@@ -47,19 +50,20 @@ class TVMazeProvider(MetadataProvider):
 
     def is_available(self) -> bool:
         # Cheap check: API reachable, key present, dependencies importable.
-        # Called once per dispatch cycle.
         return True
 
     def lookup(self, signals: Signals) -> Optional[ProviderMatch]:
-        if not self.matches(signals):     # honour the four-axis gate
+        if not self.matches(signals):     # honour the three-axis gate
             return None
         # Real impl: HTTP call, parse, normalise.
         return ProviderMatch(
             provider=self.name,
             confidence=0.92,
-            signals=signals.model_copy(update={
-                "year": 2005,             # what TVMaze believes
-            }),
+            signals=Signals.as_observation(
+                title=signals.title,
+                year=2005,               # what TVMaze believes
+                medium=MediaType.EPISODIC_SERIES,
+            ),
             external_ids=ExternalIds(tvmaze=1234, imdb="tt0386676"),
         )
 ```
@@ -70,16 +74,17 @@ providers via `match_quality`.
 
 ## 3. Re-emit your beliefs as `Signals`
 
-The same `Signals` shape carries three roles:
-- **Query** (caller → resolver) — what the caller knows.
-- **Observation** (provider → consolidator) — what *you* believe the
-  Work is.
-- **Consensus** (consolidator → caller) — the merged result.
+The same `Signals` shape carries three lifecycle roles — use the
+constructors to be explicit:
 
-In `lookup`, fill the Signals fields you can derive from your source.
-The consolidator runs `compare_signals(ours, theirs)` across providers
-and drops conflicts; non-overlap is treated as agreement (a missing
-value is *unknown*, not contradictory).
+- `Signals.as_query(**kwargs)` — query built by the caller before dispatch.
+- `Signals.as_observation(**kwargs)` — your provider's belief about the Work.
+- `signals.as_result()` — the merged consensus produced by the consolidator.
+
+In `lookup`, use `Signals.as_observation(...)` to fill the fields you can
+derive from your source. The consolidator runs `compare_signals(ours, theirs)`
+across providers and drops conflicts; non-overlap is treated as agreement (a
+missing value is *unknown*, not contradictory).
 
 ## 4. Anchor with `ExternalIds`
 
@@ -99,7 +104,7 @@ match.external_ids = ExternalIds.from_dict({
 
 ## 5. Routing without inheritance
 
-Anything declaring the four ClassVars duck-types as a provider:
+Anything declaring the three ClassVars duck-types as a provider:
 
 ```python
 from mediavocab.models.protocols import provider_matches
@@ -108,10 +113,9 @@ class LocalIndex:
     name = "local_files"
     media = {MediaType.MUSIC}
     playback_type = {PlaybackType.AUDIO}
-    content_form = set()
     genre_filter = set()
 
-# provider_matches() takes any object with the four attrs.
+# provider_matches() takes any object with the three attrs.
 assert provider_matches(LocalIndex(), Signals(medium=MediaType.MUSIC))
 ```
 
@@ -121,8 +125,8 @@ assert provider_matches(LocalIndex(), Signals(medium=MediaType.MUSIC))
   filters by `MediaType` first because that's the only axis that
   changes the schema.
 - **A6**: routing axes are orthogonal to identity. `playback_type` /
-  `content_form` / `genre_filter` are ClassVars on the provider; they
-  do *not* live on `Work` and never enter `work_hash`.
+  `genre_filter` are ClassVars on the provider; they do *not* live on
+  `Work` and never enter `work_hash`.
 - **A7**: one source of truth per fact. `ExternalIds` keys go in
   `ProviderMatch.external_ids`; they do *not* duplicate in
   `Signals.extra` or elsewhere.
@@ -144,6 +148,6 @@ assert provider_matches(LocalIndex(), Signals(medium=MediaType.MUSIC))
 
 ## Testing
 
-See `tests/models/test_protocols.py` for the canonical four-axis-gate
+See `tests/models/test_protocols.py` for the canonical three-axis-gate
 tests. Roll your provider's tests on top of `MetadataProvider` rather
 than re-deriving the gate logic.
