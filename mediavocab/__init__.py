@@ -50,6 +50,10 @@ from mediavocab.models import (
     Signals,
     SignalConflict,
     SignalsRole,
+    compare_signals,
+    merge_signals,
+    match_quality,
+    signal_hash,
     MetadataProvider,
     ProviderMatch,
     ResolutionConflict,
@@ -88,6 +92,7 @@ __all__ = [
     "ExternalIds", "Stream", "KNOWN_EXTERNAL_IDS",
     "License",
     "Signals", "SignalConflict", "SignalsRole",
+    "compare_signals", "merge_signals", "match_quality", "signal_hash",
     "MetadataProvider", "ProviderMatch", "ResolutionConflict",
     # Merge / identity-conflict surface
     "MergeStrategy", "DEFAULT_STRATEGY", "IdentityConflict",

@@ -42,6 +42,7 @@ FROZEN_EXPORTS = {
     "SignalConflict", "Signals", "SignalsRole", "Stream", "StreamMode",
     "TemporalState", "VariantKind", "Work", "WorkRelation", "WorkRelationKind",
     "__version__", "classify_video", "extract_tags", "infer_playback_type",
+    "compare_signals", "merge_signals", "match_quality", "signal_hash",
 }
 
 FROZEN_ENUMS = {
