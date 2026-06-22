@@ -2,7 +2,7 @@
 from typing import ClassVar, Optional, Set
 
 from mediavocab import (
-    MediaType, MetadataProvider, PlaybackType, ProviderMatch,
+    ContentForm, MediaType, MetadataProvider, PlaybackType, ProviderMatch,
     ResolutionConflict, Signals,
 )
 from mediavocab.models.protocols import provider_matches
@@ -104,6 +104,33 @@ def test_provider_matches_alias():
     p = _AnimeOnlyProvider()
     sig = Signals(medium=MediaType.MOVIE, content_genres=["anime"])
     assert provider_matches(p, sig) == p.matches(sig)
+
+
+def test_provider_matches_on_duck_typed_object():
+    """`provider_matches` gates any object exposing the four ClassVars, not
+    just MetadataProvider subclasses — metadatarr relies on this. Missing
+    axes default to 'no constraint'."""
+    class _Bare:
+        media = {MediaType.MUSIC}
+        # playback_type / content_form / genre_filter intentionally absent
+
+    bare = _Bare()
+    assert provider_matches(bare, Signals(medium=MediaType.MUSIC)) is True
+    assert provider_matches(bare, Signals(medium=MediaType.MOVIE)) is False
+    # Absent axes impose no constraint.
+    assert provider_matches(bare, Signals(
+        medium=MediaType.MUSIC, playback_type=PlaybackType.VIDEO,
+        content_form=ContentForm.TRAILER, content_genres=["x"])) is True
+
+
+def test_provider_matches_on_object_with_no_axes_matches_all():
+    """An object declaring none of the four axes matches every query."""
+    class _Empty:
+        pass
+
+    e = _Empty()
+    assert provider_matches(e, Signals(medium=MediaType.MOVIE)) is True
+    assert provider_matches(e, Signals()) is True
 
 
 # ---------------------------------------------------------------------------
