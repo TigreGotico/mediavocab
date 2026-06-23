@@ -53,7 +53,7 @@ print(f"  variant mismatch: {match_quality(local, candidate_a):.2f}")
 
 print("\n=== merge_signals (first non-empty wins) ===")
 partial1 = Signals(title="X", year=2010)
-partial2 = Signals(title="Y", country="US", content_genres=["sci_fi"])
+partial2 = Signals(title="Y", country="US", content_genres=["sci_fi"])  # Signals still uses country (resolver-side)
 merged = merge_signals(partial1, partial2)
 print(f"  title: {merged.title}  year: {merged.year}  country: {merged.country}")
 print(f"  genres: {merged.content_genres}")
@@ -91,7 +91,7 @@ ids = ExternalIds(extra={
 })
 for s in ids.streams:
     assert isinstance(s, Stream)
-    print(f"  [{s.platform:12}] {s.media_type:8}  {s.url}")
+    print(f"  [{s.platform:12}] {s.kind:8}  {s.url}")
 
 
 # ---------------------------------------------------------------------------
@@ -145,15 +145,21 @@ print(f"  on non-anime EPISODIC_SERIES → {provider.lookup(wrong)}")
 # 5. release_hash — per-edition dedup
 # ---------------------------------------------------------------------------
 
-from mediavocab import Release, Work, StreamMode
+from mediavocab import Release, Work
 
-br_work = Work(title="Blade Runner", media_type=MediaType.MOVIE,
-               year=1982, runtime=117 * 60.0)
-theatrical = Release(work=br_work, container="Blu-ray", region="US")
-directors  = Release(work=br_work, container="Blu-ray", region="US",
-                     variant_kind=VariantKind.DIRECTORS)
-mirror     = Release(work=br_work, container="Blu-ray", region="US",
-                     uri="x://mirror1")  # different URI, same edition
+# Each cut is its own Work (§3.4); release_hash differs because the embedded
+# work_hash differs.
+theatrical_work = Work(title="Blade Runner", media_type=MediaType.MOVIE,
+                       year=1982, runtime=117 * 60.0,
+                       variant_kind=VariantKind.THEATRICAL)
+directors_work = Work(title="Blade Runner", media_type=MediaType.MOVIE,
+                      year=1992, runtime=116 * 60.0,
+                      variant_kind=VariantKind.DIRECTORS)
+
+theatrical = Release(work=theatrical_work, container="Blu-ray", region="US")
+directors  = Release(work=directors_work,  container="Blu-ray", region="US")
+mirror     = Release(work=theatrical_work, container="Blu-ray", region="US",
+                     uri="x://mirror1")  # different URI, same Release
 
 print("\n=== release_hash (per-edition dedup) ===")
 print(f"  theatrical : {release_hash(theatrical)}")

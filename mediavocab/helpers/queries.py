@@ -5,18 +5,19 @@ are the most-rewritten loop in the package's surface area.
 """
 from __future__ import annotations
 
-from typing import Iterable, List, Optional
+from typing import Dict, Iterable, List, Optional
 
-from mediavocab.taxonomy import RelationRole
+from mediavocab.taxonomy import RelationRole, WorkRelationKind, ReleaseRelationKind
 from mediavocab.models.entity import Credit, EntityRef
-from mediavocab.models.work import Release, Work
+from mediavocab.models.work import Release, Work, WorkRelation, ReleaseRelation
 
 
 def credits_with_role(work: Work, relation_role: RelationRole) -> List[Credit]:
     """All credits on the Work with the given RelationRole, in list order
     (which is the editorial credit order).
     """
-    return [c for c in (work.credits or []) if c.relation_role == relation_role]
+    return [c for c in (work.credits or [])
+            if c.relation_role is not None and c.relation_role == relation_role]
 
 
 def primary_credit(
@@ -104,66 +105,128 @@ def filmography_of(entity: EntityRef, all_works: Iterable[Work],
     return out
 
 
+
 # ---------------------------------------------------------------------------
-# Release ranking — "play me the best version available" preference rules.
+# WorkRelation / ReleaseRelation traversal helpers
 # ---------------------------------------------------------------------------
 
-# Ordered worst→best for ranking; missing values rank at -1.
-_RESOLUTION_ORDER = ("", "240p", "360p", "480p", "720p", "1080p", "1440p", "2160p", "4320p")
-_HDR_ORDER = ("", "HDR10", "HDR10+", "HLG", "Dolby Vision")
-_AUDIO_CHANNELS_ORDER = ("", "mono", "stereo", "5.1", "7.1", "Atmos")
-_VARIANT_PREF = {
-    # Higher = preferred. Director's / Extended cuts preferred over theatrical
-    # when a consumer asks for "the best version available". Theatrical is the
-    # baseline; remasters / colorizations are improvements; bootlegs lose.
-    "directors":     8,
-    "extended":      7,
-    "preservation":  6,
-    "remastered":    5,
-    "upscaled":      4,
-    "deluxe":        4,
-    "colorized":     3,
-    "theatrical":    2,
-    "reissue":       2,
-    "regional":      1,
-    "bootleg":      -1,
-}
+def relations_of_kind(work: Work, kind: WorkRelationKind) -> List[WorkRelation]:
+    """All WorkRelations on the Work with the given kind."""
+    return [r for r in (work.relations or []) if r.kind == kind]
 
 
-def _index(value: str, order: tuple) -> int:
-    """Return the index of ``value`` in ``order``, or -1 if not listed."""
-    try:
-        return order.index(value or "")
-    except ValueError:
-        return -1
+def is_sequel_of(work: Work) -> bool:
+    """True if the Work has at least one SEQUEL_TO relation."""
+    return any(r.kind == WorkRelationKind.SEQUEL_TO for r in (work.relations or []))
 
 
-def quality_score(release: Release) -> tuple:
-    """Sortable tuple — higher tuples are better releases.
+def is_part_of_series(work: Work) -> bool:
+    """True if the Work has at least one PART_OF relation."""
+    return any(r.kind == WorkRelationKind.PART_OF for r in (work.relations or []))
 
-    Order of precedence (highest first): variant preference,
-    resolution, HDR, audio channels, sample rate.
+
+def derived_from(work: Work) -> List[WorkRelation]:
+    """All DERIVED_FROM WorkRelations on the Work.
+
+    Covers alternative cuts, cover recordings, fanedits, adaptations, and any
+    other work derived from this one — DERIVED_FROM is the generic lineage
+    relation. Use ``relations_of_kind`` for narrower kinds (COVERS, FANEDIT_OF,
+    etc.).
     """
-    return (
-        _VARIANT_PREF.get(release.variant_kind.value if release.variant_kind else "", 0),
-        _index(release.resolution, _RESOLUTION_ORDER),
-        _index(release.hdr,         _HDR_ORDER),
-        _index(release.audio_channels, _AUDIO_CHANNELS_ORDER),
-        release.sample_rate or 0,
-    )
+    return relations_of_kind(work, WorkRelationKind.DERIVED_FROM)
 
 
-def best_release(*releases: Release) -> Optional[Release]:
-    """Return the highest-quality Release of those given, or ``None``
-    when called with no arguments.
+#: Backward-compatible alias for derived_from().
+all_cuts = derived_from
 
-    Releases tied on every comparison axis return the first one
-    given — list order breaks ties so callers can pre-order by
-    preference (e.g. "prefer my local file over a stream").
+
+def release_variants(release: Release) -> List[ReleaseRelation]:
+    """All SUPERSEDES ReleaseRelations on the Release."""
+    return [r for r in (release.relations or []) if r.kind == ReleaseRelationKind.SUPERSEDES]
+
+
+
+# ---------------------------------------------------------------------------
+# Deduplication
+# ---------------------------------------------------------------------------
+
+def group_by_hash(works: Iterable[Work]) -> Dict[str, List[Work]]:
+    """Group Works by `work_hash` — returns {hash: [works]} in insertion order.
+
+    Works that share a hash are likely duplicates (same title, year, media_type,
+    etc.). Inspect each group to resolve conflicts or pick a canonical record.
     """
-    if not releases:
-        return None
-    return max(releases, key=quality_score)
+    from mediavocab.text.compare import work_hash
+    groups: Dict[str, List[Work]] = {}
+    for w in works:
+        h = work_hash(w)
+        groups.setdefault(h, []).append(w)
+    return groups
+
+
+# ---------------------------------------------------------------------------
+# Availability
+# ---------------------------------------------------------------------------
+
+def is_available(release: Release, region: str = "", at: Optional[str] = None) -> bool:
+    """Return True iff `release` is available in `region` at time `at`.
+
+    Args:
+        release: the Release to check.
+        region: ISO 3166-1 alpha-2 country code. Empty string = region not checked.
+        at: ISO date string (year, year-month, or full date). None = time not checked.
+
+    Rules applied in order:
+    1. If `region` given and release is region-locked and `region` not in
+       `regions_available` → False.
+    2. If `at` given and `available_from` set and `at` precedes it → False.
+    3. If `at` given and `available_until` set and `at` follows it → False.
+    4. If `at` given and `availability_windows` non-empty → True only if `at`
+       falls within at least one window (start ≤ at ≤ end).
+    5. Otherwise → True.
+    """
+    from mediavocab._iso_date import iso_compare
+
+    if region and release.region_locked is True:
+        if region.upper() not in [r.upper() for r in release.regions_available]:
+            return False
+
+    if at is not None:
+        if release.available_from and iso_compare(at, str(release.available_from)) < 0:
+            return False
+        if release.available_until and iso_compare(at, str(release.available_until)) > 0:
+            return False
+        if release.availability_windows:
+            in_window = False
+            for w in release.availability_windows:
+                start_ok = w.start is None or iso_compare(at, w.start) >= 0
+                end_ok = w.end is None or iso_compare(at, w.end) <= 0
+                if start_ok and end_ok:
+                    in_window = True
+                    break
+            if not in_window:
+                return False
+
+    return True
+
+
+# ---------------------------------------------------------------------------
+# License helpers (guard against Optional[License] = None)
+# ---------------------------------------------------------------------------
+
+def release_is_open(release: Release) -> bool:
+    """True iff the release has a license and that license is open."""
+    return release.license.is_open() if release.license else False
+
+
+def release_requires_attribution(release: Release) -> bool:
+    """True iff the release license requires attribution (unknown → True)."""
+    return release.license.attribution if release.license else True
+
+
+def release_allows_commercial(release: Release) -> bool:
+    """True iff the release license permits commercial use (unknown → False)."""
+    return release.license.commercial if release.license else False
 
 
 __all__ = [
@@ -174,6 +237,14 @@ __all__ = [
     "performers",
     "episodes_of",
     "filmography_of",
-    "quality_score",
-    "best_release",
+    "relations_of_kind",
+    "is_sequel_of",
+    "is_part_of_series",
+    "derived_from", "all_cuts",
+    "release_variants",
+    "group_by_hash",
+    "is_available",
+    "release_is_open",
+    "release_requires_attribution",
+    "release_allows_commercial",
 ]

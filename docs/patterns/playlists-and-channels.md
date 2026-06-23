@@ -45,7 +45,7 @@ file mixes radio streams and on-demand audio. None of these fit
 schema is genuinely different — the *order* and *curator* are the
 identity, the constituent Works are mutable, the database providers
 (Spotify Playlist API, YouTube Playlist API) are distinct from the
-Work-level providers underneath. Per spec axiom 1, that earns its own
+Work-level providers underneath. Per spec A1 (§2.1), that earns its own
 type.
 
 A single-media-type curated set that is itself a recognised release
@@ -56,7 +56,7 @@ the same as a regular album.
 ### Mutability
 
 `Work` identity-fields (`title`, `year`, `media_type`, …) are
-immutable per spec §10.1, but `tracklist` is in the mutable set. A
+immutable per spec §8.1, but `tracklist` is in the mutable set. A
 playlist that loses or reorders tracks does not become a new Work.
 Consumers that need to track playlist history versus current state
 should snapshot the tracklist alongside a timestamp, separately from

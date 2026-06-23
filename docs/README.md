@@ -9,6 +9,8 @@ lives in the repo [README](../README.md).
 - [Taxonomy reference](./taxonomy.md) — every enum value
 - [Models reference](./models.md) — every field, decision guides
 - [Text utilities](./text-utilities.md) — normalize / compare / iso
+- [Stability policy](./stability.md) — what's frozen for 1.x and how it's enforced
+- [Migrating to 1.0](./migration-1.0.md) — removals / renames consumers must handle
 
 ### Pattern guides
 
@@ -17,7 +19,6 @@ Applied modelling examples for each subdomain:
 - [Adult media](./patterns/adult-media.md)
 - [Games](./patterns/games.md)
 - [Interactive fiction and voice games](./patterns/interactive-fiction.md)
-- [Stage productions](./patterns/stage.md)
 - [Soundtracks](./patterns/soundtracks.md)
 - [Motion comics](./patterns/motion-comics.md)
 - [Independent creators / YouTube / AI content](./patterns/independent-creators.md)
@@ -27,5 +28,7 @@ Applied modelling examples for each subdomain:
 - [Format, quality, rights, and availability](./patterns/quality-rights-availability.md)
 - [User playlists and live-streamer channels](./patterns/playlists-and-channels.md)
 - [IoT devices](./patterns/iot-devices.md)
+- [Radio station identity](./patterns/radio.md)
 - [Broadcast scheduling (EPG)](./patterns/scheduling.md)
-- [Playback modality routing](./patterns/playback-modality.md)
+- [Playback-type routing](./patterns/playback-type.md)
+- [Writing a metadata provider](./patterns/writing-a-provider.md)

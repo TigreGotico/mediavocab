@@ -1,6 +1,10 @@
-"""A GROUP entity with a temporal membership timeline."""
+"""A GROUP entity with a temporal membership timeline (§5.2).
+
+Demonstrates the orthogonal `MembershipKind` × `TemporalState` facets (A5):
+`date_to = None` does NOT imply *current*; the temporal state is explicit.
+"""
 from mediavocab import (
-    Entity, EntityKind, EntityRef, Membership, MembershipStatus,
+    Entity, EntityKind, EntityRef, Membership, MembershipKind, TemporalState,
 )
 
 
@@ -13,21 +17,24 @@ def main() -> None:
             Membership(
                 entity=EntityRef(name="James Hetfield", kind=EntityKind.PERSON),
                 roles=["vocals", "rhythm guitar"],
-                status=MembershipStatus.CURRENT,
+                kind=MembershipKind.MEMBER,
+                temporal=TemporalState.ACTIVE,
                 date_from="1981",
             ),
             Membership(
                 entity=EntityRef(name="Cliff Burton", kind=EntityKind.PERSON),
                 roles=["bass"],
-                status=MembershipStatus.PAST,
+                kind=MembershipKind.MEMBER,
+                temporal=TemporalState.ENDED,
                 date_from="1982",
-                date_to="1986",
+                date_to="1986-09-27",
                 note="Died in tour bus accident in Sweden, 1986.",
             ),
             Membership(
                 entity=EntityRef(name="Robert Trujillo", kind=EntityKind.PERSON),
                 roles=["bass"],
-                status=MembershipStatus.CURRENT,
+                kind=MembershipKind.MEMBER,
+                temporal=TemporalState.ACTIVE,
                 date_from="2003",
             ),
         ],
@@ -35,8 +42,9 @@ def main() -> None:
 
     print(metallica.name, "members:")
     for m in metallica.memberships:
-        end = m.date_to or ("present" if m.status == MembershipStatus.CURRENT else "?")
-        print(f"  {m.entity.name:20s} {m.date_from}-{end:8s} [{m.status.value}]")
+        end = m.date_to or ("present" if m.temporal == TemporalState.ACTIVE else "?")
+        print(f"  {m.entity.name:20s} {m.date_from}-{end:10s} "
+              f"[{m.kind.value} / {m.temporal.value}]")
 
 
 if __name__ == "__main__":

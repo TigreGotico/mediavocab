@@ -51,7 +51,7 @@ These are three orthogonal axes on Release:
 
 A US-region Blu-ray of *Akira* with Japanese audio and English subtitles is
 `region="US"`, `audio_language="ja"`, `subtitle_languages=["en"]`. There is
-**no `VariantKind.REGIONAL`** here — that variant is reserved for editorial
+**no `ReleasePackaging.REGIONAL`** here — that packaging value is reserved for editorial
 regional differences (censorship cuts, alternate scenes), not for language
 tracks.
 
@@ -70,7 +70,7 @@ work = Work(
     year=1997,
     runtime=134 * 60.0,
     language="ja",
-    country="JP",
+    production_country="JP",
     content_genres=["anime", "fantasy"],
 )
 

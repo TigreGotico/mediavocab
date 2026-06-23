@@ -2,7 +2,8 @@
 
 ``Signals`` exists *only* in the resolver pipeline. The taxonomy and
 ``Work`` / ``Release`` / ``Entity`` models do not use it; persisted
-records are ``Work``s. See spec §5.10 for the full scope rules.
+records are ``Work``s. See spec §1.7 (non-goals) and the
+provider-protocol pattern doc for the full scope rules.
 
 The same shape carries three roles, distinguished by *direction of flow*:
 
@@ -25,9 +26,9 @@ The same shape carries three roles, distinguished by *direction of flow*:
 Why the field overlap with ``Work`` is intentional: cross-provider
 comparison needs identical comparable structure. The duplication is
 the reason the comparator can be written once. The orthogonality
-axiom (spec §2 axiom 13) keeps ``Signals``-only fields off ``Work``:
-``include_variants``, ``fanedit_subtype``, ``modality`` are all
-routing hints, not identity claims.
+axiom (A6) keeps ``Signals``-only fields off ``Work``:
+``include_variants``, ``fanedit_subtype``, ``playback_type``,
+``content_form`` are all routing hints, not identity claims.
 
 Comparison rules (encoded in :func:`compare_signals`):
 
@@ -35,29 +36,48 @@ Comparison rules (encoded in :func:`compare_signals`):
 - All overlapping fields must agree → matched.
 - Any single overlapping field disagrees → conflict (caller decides
   whether to quarantine, demote confidence, or accept).
-- ``modality`` is a query hint and is **never** a conflict-eligible
+- ``playback_type`` is a query hint and is **never** a conflict-eligible
   field; providers don't observe it, the comparator skips it.
 """
 from __future__ import annotations
 
 import hashlib
+from enum import Enum
 from typing import Any, Dict, List, Optional
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from mediavocab.taxonomy import MediaType, VariantKind
-from mediavocab.taxonomy.modality import PlaybackModality
+from mediavocab.taxonomy import MediaType, VariantKind, ContentForm
+from mediavocab.taxonomy.modality import PlaybackType
 from mediavocab.text.compare import (
     TITLE_MIN as _TITLE_MIN,
     ARTIST_MIN as _ARTIST_MIN,
     YEAR_WINDOW as _YEAR_WINDOW,
     RUNTIME_TOLERANCE_S as _RUNTIME_TOLERANCE_BY_TYPE,
 )
-from mediavocab.text.normalize import fuzzy_ratio, normalize as _normalize_text
+from mediavocab.text.normalize import fuzzy_ratio, token_sort_ratio, normalize as _normalize_text
 
 
 # Default fallback runtime tolerance when no media_type is set.
 RUNTIME_TOLERANCE_S = 5.0
+
+
+class SignalsRole(str, Enum):
+    """Lifecycle role of a Signals bag in the resolver pipeline.
+
+    A single ``Signals`` type carries three roles distinguished by direction
+    of flow (see module docstring §1–3). The ``role`` field makes the current
+    lifecycle phase explicit so callers don't have to infer it from context.
+
+    - ``QUERY``: filled by the caller before dispatch; passed to providers.
+    - ``OBSERVATION``: filled by a provider after lookup; describes what the
+      provider believes the work is.
+    - ``RESULT``: produced by the consolidator; the merged consensus.
+    """
+
+    QUERY = "query"
+    OBSERVATION = "observation"
+    RESULT = "result"
 
 
 class Signals(BaseModel):
@@ -92,15 +112,43 @@ class Signals(BaseModel):
     # (e.g. "fanfix", "fanmix", "fanedit_short").
     fanedit_subtype: Optional[str] = None
 
+    # --- Routing hints: never conflict-eligible, never persisted ---
+
     # Resolver hint — should the cross-source resolver fan out to
     # variant-aware providers? Defaults to False.
     include_variants: bool = False
 
+    # ContentForm hint (§3.3) — primary vs trailer / supplement / reaction.
+    # Routing field; the consolidator filters providers when set.
+    content_form: Optional[ContentForm] = None
+
     # Routing-axis hint, orthogonal to ``medium``. The resolver gate
-    # filters providers by ``provider.modality`` ∋ ``signals.modality``;
+    # filters providers by ``provider.playback_type`` ∋ ``signals.playback_type``;
     # ``None`` means "no preference". Never participates in identity or
     # in :func:`compare_signals` — it is a query field, never observed.
-    modality: Optional[PlaybackModality] = None
+    playback_type: Optional[PlaybackType] = None
+
+    # Lifecycle role — which phase of the resolver pipeline this bag is in.
+    # Excluded from compare_signals and merge_signals (it is metadata, not data).
+    role: SignalsRole = SignalsRole.QUERY
+
+    # --- Lifecycle constructors ---
+
+    @classmethod
+    def as_query(cls, **kwargs) -> "Signals":
+        """Construct a query-role Signals (caller → resolver)."""
+        kwargs.setdefault("role", SignalsRole.QUERY)
+        return cls(**kwargs)
+
+    @classmethod
+    def as_observation(cls, **kwargs) -> "Signals":
+        """Construct an observation-role Signals (provider → consolidator)."""
+        kwargs.setdefault("role", SignalsRole.OBSERVATION)
+        return cls(**kwargs)
+
+    def as_result(self) -> "Signals":
+        """Return a copy of this Signals marked as the consolidated result."""
+        return self.model_copy(update={"role": SignalsRole.RESULT})
 
 
 class SignalConflict(BaseModel):
@@ -213,7 +261,8 @@ def compare_signals(ours: Signals, theirs: Signals) -> List[SignalConflict]:
 
 def merge_signals(*bags: Signals) -> Signals:
     """First non-empty value wins per field. ``content_genres`` is
-    unioned (insertion order preserved)."""
+    unioned (insertion order preserved). ``role`` is excluded (metadata,
+    not data) — the caller sets it via ``.as_result()``."""
     fields = ("title", "artist", "year", "country", "runtime", "medium",
               "language", "season", "episode",
               "variant_kind", "edition", "region", "source_format",
@@ -246,7 +295,8 @@ def match_quality(local: Signals, candidate: Signals) -> float:
     """
     score = 1.0
     if local.title and candidate.title:
-        score *= fuzzy_ratio(local.title, candidate.title)
+        score *= max(fuzzy_ratio(local.title, candidate.title),
+                     token_sort_ratio(local.title, candidate.title))
     if local.year is not None and candidate.year is not None:
         if not _agree_year(local.year, candidate.year):
             score *= 0.5

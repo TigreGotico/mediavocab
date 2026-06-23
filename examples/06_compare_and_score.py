@@ -17,9 +17,11 @@ def main() -> None:
     # merge: combine partial provider records
     p1 = Work(title="The Matrix", media_type=MediaType.MOVIE, year=1999)
     p2 = Work(title="The Matrix", media_type=MediaType.MOVIE,
-              runtime=8160.0, country="US", aka=["The Matrix (1999)"])
+              runtime=8160.0, production_country="US",
+              aka=["The Matrix (1999)"])
     full = merge(p1, p2)
-    print("\nmerged:", full.title, full.year, full.runtime, full.country, full.aka)
+    print("\nmerged:", full.title, full.year, full.runtime,
+          full.production_country, full.aka)
 
     print("\nstable hash:", work_hash(full))
 

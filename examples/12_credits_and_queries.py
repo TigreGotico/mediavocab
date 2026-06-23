@@ -54,11 +54,10 @@ def main() -> None:
             _credit("Drake",       RelationRole.PERFORMER),
             _credit("Erykah Badu", RelationRole.FEATURING),
         ],
-        extra={
-            "related": [
-                WorkRelation(kind=WorkRelationKind.REMIX_OF, target=song),
-            ],
-        },
+        # Work→Work relations live on `relations`, not `extra` (§4.13).
+        relations=[
+            WorkRelation(kind=WorkRelationKind.REMIX_OF, target=song),
+        ],
     )
     print(f"\n{remix.title}")
     print("  performers:")

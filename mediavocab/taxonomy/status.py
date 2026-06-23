@@ -17,7 +17,7 @@ class StreamMode(str, Enum):
     """How a Release's content is delivered at playback time.
 
     A property of the Release (delivery), not the Work (content). Looping is
-    a delivery concern, not an identity concern (axiom 4).
+    a delivery concern, not an identity concern (A3).
 
     The three values are mutually exclusive on the *liveness × bounded-end*
     axes:

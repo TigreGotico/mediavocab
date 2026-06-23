@@ -1,5 +1,5 @@
 from mediavocab import (
-    AccessibilityTrack, Chapter, MediaType, Release, Work,
+    AccessibilityKind, AccessibilityTrack, Chapter, MediaType, Release, Work,
 )
 
 
@@ -31,21 +31,23 @@ def test_accessibility_track_subtitles():
     r = Release(
         work=Work(title="Film", media_type=MediaType.MOVIE),
         accessibility=[
-            AccessibilityTrack(kind="subtitles", language="en", uri="x.vtt"),
-            AccessibilityTrack(kind="subtitles", language="en",
-                               uri="x-sdh.vtt", sdh=True),
-            AccessibilityTrack(kind="audio_description", language="en",
-                               uri="x-ad.mp3"),
+            AccessibilityTrack(kind=AccessibilityKind.SUBTITLES,
+                               language="en", uri="x.vtt"),
+            AccessibilityTrack(kind=AccessibilityKind.SUBTITLES,
+                               language="en", uri="x-sdh.vtt", sdh=True),
+            AccessibilityTrack(kind=AccessibilityKind.AUDIO_DESCRIPTION,
+                               language="en", uri="x-ad.mp3"),
         ],
     )
     assert any(t.sdh for t in r.accessibility)
-    assert {t.kind for t in r.accessibility} == {"subtitles", "audio_description"}
+    kinds = {t.kind for t in r.accessibility}
+    assert AccessibilityKind.SUBTITLES in kinds
+    assert AccessibilityKind.AUDIO_DESCRIPTION in kinds
 
 
 def test_audio_language_independent_of_region():
     """A US-region Blu-ray with Japanese audio + English subs is a real product;
-    the three axes do not collapse into VariantKind.REGIONAL.
-    """
+    the three axes do not collapse onto a single field."""
     r = Release(
         work=Work(title="Akira", media_type=MediaType.MOVIE),
         region="US",
@@ -55,4 +57,4 @@ def test_audio_language_independent_of_region():
     assert r.region == "US"
     assert r.audio_language == "ja"
     assert r.subtitle_languages == ["en"]
-    assert r.variant_kind is None  # no editorial regional variant
+    assert r.packaging is None

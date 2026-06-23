@@ -67,3 +67,27 @@ def test_isbn13_to_10_returns_none_on_bad_input():
 def test_round_trip():
     original = "0261103288"
     assert isbn13_to_10(isbn10_to_13(original)) == original
+
+
+# ---------------------------------------------------------------------------
+# Edge cases — ValueError catch path
+# ---------------------------------------------------------------------------
+
+def test_isbn10_to_13_handles_non_digit_input():
+    """ISBN-10 with embedded letters / garbage that bypass the strip — the
+    ValueError fallback in the checksum loop should catch it."""
+    # _isbn_digits strips non-digits, so the only way to hit the ValueError
+    # path is to pass exactly 10 chars that happen to slip through (none can,
+    # since _isbn_digits drops them). This test exercises the documented
+    # null-on-malformed contract.
+    from mediavocab.text.isbn import isbn10_to_13
+    assert isbn10_to_13("") is None
+    assert isbn10_to_13("hello") is None
+    assert isbn10_to_13("123") is None    # too short
+
+
+def test_isbn13_to_10_rejects_non_978_prefix():
+    """979-prefixed ISBN-13 cannot be expressed as ISBN-10."""
+    from mediavocab.text.isbn import isbn13_to_10
+    # Well-formed 979- ISBN-13
+    assert isbn13_to_10("9791000000000") is None

@@ -1,37 +1,52 @@
-"""RelationRole, CreditSection, WorkRelationKind. Spec §4.4, §4.6, §6."""
+"""RelationRole, CreditSection, WorkRelationKind, ReleaseRelationKind. Spec §4.6, §4.7, §4.13.
+
+Every value in these enums is admitted by A9: a relation kind earns its place
+only when (a) the connection is not already implied by an identity field and
+(b) it is not subsumed by an existing kind of the same family. Relation kinds
+are navigation/description, never identity (A6) — keep them non-redundant.
+"""
 from enum import Enum
 
 
 class RelationRole(str, Enum):
-    """How an entity participates in a specific Work or Release."""
+    """How an entity participates in a specific Work or Release (A9)."""
 
     CREATOR = "creator"
 
+    # Music
     PERFORMER = "performer"
     COMPOSER = "composer"
     LYRICIST = "lyricist"
     PRODUCER = "producer"
     FEATURING = "featuring"
     REMIXER = "remixer"
+    CONDUCTOR = "conductor"     # leads orchestral performance — not the composer
+    ARRANGER = "arranger"       # re-orchestrates an existing composition
+    DJ = "dj"                   # selects and mixes a continuous set
 
+    # Film and TV
     DIRECTOR = "director"
     SCREENWRITER = "screenwriter"
     ACTOR = "actor"
     CINEMATOGRAPHER = "cinematographer"
     EDITOR = "editor"
 
+    # Book and comic
     AUTHOR = "author"
     ILLUSTRATOR = "illustrator"
     TRANSLATOR = "translator"
     NARRATOR = "narrator"
 
+    # Podcast and radio
     HOST = "host"
     GUEST = "guest"
-    CURATOR = "curator"   # selected/ordered other people's works (playlists, anthologies)
+    CURATOR = "curator"
 
+    # Game
     DEVELOPER = "developer"
     PORTER = "porter"
 
+    # Release infrastructure
     PUBLISHER = "publisher"
     LABEL = "label"
     DISTRIBUTOR = "distributor"
@@ -40,7 +55,7 @@ class RelationRole(str, Enum):
 
 
 class CreditSection(str, Enum):
-    """Which section of a release's credits an entity appears in."""
+    """Which section of a Work's credits an entity appears in."""
 
     PRINCIPAL = "principal"
     GUEST = "guest"
@@ -48,33 +63,38 @@ class CreditSection(str, Enum):
 
 
 class WorkRelationKind(str, Enum):
-    """How one Work relates to another. Spec §6."""
+    """How one Work relates to another (§4.13). Admitted by A9 — each kind links
+    to a *different* Work and is not implied by an identity field (e.g. there is
+    no ``EPISODE_OF``: ``season``/``episode``/``series_title`` already carry it)."""
 
     COVERS = "covers"
     SAMPLES = "samples"
     ADAPTED_FROM = "adapted_from"
     SEQUEL_TO = "sequel_to"
     PREQUEL_TO = "prequel_to"
-    PART_OF = "part_of"
+    PART_OF = "part_of"            # ad-hoc thematic / curatorial grouping
     LIVE_VERSION = "live_version"
     REMIX_OF = "remix_of"
+    MIX_OF = "mix_of"               # a DJ set / continuous mix sequences this source Work
     SOUNDTRACK_FOR = "soundtrack_for"
     BONUS_FOR = "bonus_for"
+    TRAILER_FOR = "trailer_for"     # promo cut (ContentForm.TRAILER) → the work it promotes
+    REACTION_TO = "reaction_to"     # commentary (ContentForm.REACTION) → the work it reacts to
+    CLIP_OF = "clip_of"             # short excerpt (ContentForm.EXCERPT/SOCIAL_CLIP) → source work
     FANEDIT_OF = "fanedit_of"
-    DLC_FOR = "dlc_for"             # game DLC tied to a base game
-    EXPANSION_OF = "expansion_of"    # standalone expansion (still a separate Work)
+    DLC_FOR = "dlc_for"
+    EXPANSION_OF = "expansion_of"
+    DERIVED_FROM = "derived_from"   # generic catch-all; cross-channel reissues, remasters
 
 
 class ReleaseRelationKind(str, Enum):
-    """How one Release relates to another. Spec §6.
+    """How one Release relates to another (§4.13). Admitted by A9 — a more
+    specific kind (``REMASTER_OF`` vs ``DERIVED_FROM``) earns its place only when
+    consumers traverse it as a distinct edge."""
 
-    Parallel to ``WorkRelationKind`` but for Release-level lineage:
-    remasters supersede prior remasters, ports / DLC / re-issues
-    chain through release time.
-    """
-
-    SUPERSEDES = "supersedes"        # this Release replaces an earlier one (e.g. newer remaster)
-    REMASTER_OF = "remaster_of"      # explicit remaster lineage
-    REISSUE_OF = "reissue_of"        # later commercial release of the same edition
-    PORT_OF = "port_of"              # platform port of the same base game / IF
-    DERIVED_FROM = "derived_from"    # generic "this Release is derived from that one"
+    SUPERSEDES = "supersedes"
+    PORT_OF = "port_of"
+    MIRROR_OF = "mirror_of"
+    REMASTER_OF = "remaster_of"   # remastered edition of an earlier release (no obsolescence)
+    REISSUE_OF = "reissue_of"     # re-release of an earlier edition (no obsolescence)
+    DERIVED_FROM = "derived_from"

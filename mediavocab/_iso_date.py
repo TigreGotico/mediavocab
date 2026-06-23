@@ -16,7 +16,7 @@ Why a string and not :class:`~datetime.datetime`?
 
 The validator only enforces *parseability*: a non-empty value must
 parse as either an ISO-8601 date or datetime. We never normalise.
-Empty / ``None`` is always allowed — absence is not a value (axiom 3).
+Empty / ``None`` is always allowed — absence is not a value (A2).
 """
 from __future__ import annotations
 
@@ -45,7 +45,7 @@ def parse_iso_date(value: Optional[str]) -> Optional[str]:
     - Year only:                           ``2025``
 
     Empty string and ``None`` are passed through unchanged — they mean
-    "unknown", not invalid (spec axiom 3).
+    "unknown", not invalid (A2).
     """
     if value is None or value == "":
         return value
@@ -76,3 +76,42 @@ def parse_iso_date(value: Optional[str]) -> Optional[str]:
 # ``Optional[IsoDate]`` on every model field that carries an ISO-8601
 # date or datetime string.
 IsoDate = Annotated[str, AfterValidator(parse_iso_date)]
+
+
+def iso_compare(a: str, b: str) -> int:
+    """Compare two ISO-8601 date / datetime strings semantically.
+
+    Returns -1 if ``a < b``, 0 if equal, +1 if ``a > b``. Year-only values
+    compare as the first day of that year; year-month as the first day of that
+    month; date-only as midnight. Datetime values with timezone are compared
+    in UTC; datetimes without a timezone are treated as naive (lexically
+    valid but compared in their stated wall-clock).
+
+    Raises ``ValueError`` if either side is not a valid ISO-8601 form.
+    """
+    parse_iso_date(a)
+    parse_iso_date(b)
+
+    def _to_dt(v: str) -> datetime:
+        if "T" in v:
+            return datetime.fromisoformat(v.replace("Z", "+00:00"))
+        if len(v) == 10:
+            return datetime.fromisoformat(v + "T00:00:00")
+        if len(v) == 7:
+            return datetime.fromisoformat(v + "-01T00:00:00")
+        # year only
+        return datetime.fromisoformat(v + "-01-01T00:00:00")
+
+    da, db = _to_dt(a), _to_dt(b)
+    # Normalise tz-naive vs tz-aware: if one has tz, assume the other is UTC.
+    if (da.tzinfo is None) != (db.tzinfo is None):
+        from datetime import timezone
+        if da.tzinfo is None:
+            da = da.replace(tzinfo=timezone.utc)
+        if db.tzinfo is None:
+            db = db.replace(tzinfo=timezone.utc)
+    if da < db:
+        return -1
+    if da > db:
+        return 1
+    return 0
