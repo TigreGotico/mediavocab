@@ -9,3 +9,4 @@ class AccessibilityKind(str, Enum):
     SIGN_LANGUAGE = "sign_language"
     TRANSCRIPT = "transcript"
     LYRICS = "lyrics"
+    DUBBED = "dubbed"
