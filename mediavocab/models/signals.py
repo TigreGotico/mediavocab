@@ -28,7 +28,8 @@ comparison needs identical comparable structure. The duplication is
 the reason the comparator can be written once. The orthogonality
 axiom (A6) keeps ``Signals``-only fields off ``Work``:
 ``include_variants``, ``fanedit_subtype``, ``playback_type``,
-``content_form`` are all routing hints, not identity claims.
+``content_form``, ``picture_format``, ``programme_format`` and
+``accessibility`` are all routing hints, not identity claims.
 
 Comparison rules (encoded in :func:`compare_signals`):
 
@@ -47,7 +48,10 @@ from typing import Any, Dict, List, Optional
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from mediavocab.taxonomy import MediaType, VariantKind, ContentForm, PictureFormat
+from mediavocab.taxonomy import (
+    MediaType, VariantKind, ContentForm, PictureFormat,
+    ProgrammeFormat, AccessibilityKind,
+)
 from mediavocab.taxonomy.modality import PlaybackType
 from mediavocab.text.compare import (
     TITLE_MIN as _TITLE_MIN,
@@ -133,6 +137,17 @@ class Signals(BaseModel):
     # never participates in identity (:func:`signal_hash`) or in
     # :func:`compare_signals`. Distinct from the free-text ``source_format``.
     picture_format: Optional[PictureFormat] = None
+
+    # ProgrammeFormat hint (§4.13) — documentary / news / concert / stand_up /
+    # talk_show / sports / reality / quiz. Routing-family (A6): orthogonal to
+    # ``medium`` (the carrier), never identity, never observed/compared.
+    programme_format: Optional[ProgrammeFormat] = None
+
+    # AccessibilityKind hints (§5.4) — subtitles / captions / audio_description /
+    # sign_language / transcript / lyrics / dubbed. A routing hint at the Signals
+    # layer (a Work acquires per-Release accessibility *tracks*); routing-family
+    # (A6), so it never participates in identity or :func:`compare_signals`.
+    accessibility: List[AccessibilityKind] = Field(default_factory=list)
 
     # Lifecycle role — which phase of the resolver pipeline this bag is in.
     # Excluded from compare_signals and merge_signals (it is metadata, not data).
