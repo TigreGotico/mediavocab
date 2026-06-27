@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.3.0a3](https://github.com/TigreGotico/mediavocab/tree/1.3.0a3) (2026-06-27)
+
+[Full Changelog](https://github.com/TigreGotico/mediavocab/compare/1.3.0a2...1.3.0a3)
+
+**Merged pull requests:**
+
+- docs: timeless documentation cleanup [\#13](https://github.com/TigreGotico/mediavocab/pull/13) ([JarbasAl](https://github.com/JarbasAl))
+
 ## [1.3.0a2](https://github.com/TigreGotico/mediavocab/tree/1.3.0a2) (2026-06-27)
 
 [Full Changelog](https://github.com/TigreGotico/mediavocab/compare/1.3.0a1...1.3.0a2)
