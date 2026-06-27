@@ -1,9 +1,10 @@
 # Quality and release ranking
 
-`quality_score()` and `best_release()` were removed from mediavocab in v1.1 —
-they encoded application preferences (4K > 1080p, Atmos > stereo) that differ
-meaningfully between a home-theatre collector, a mobile listener, and a
-bandwidth-constrained archivist. No single ranking is correct.
+Release ranking is application logic, not vocabulary. A scorer encodes
+preferences (4K > 1080p, Atmos > stereo) that differ meaningfully between a
+home-theatre collector, a mobile listener, and a bandwidth-constrained
+archivist — no single ranking is correct, so mediavocab ships the release
+fields and the availability predicate but leaves the scoring to the consumer.
 
 This pattern shows how to implement release ranking for your use case.
 
@@ -42,12 +43,12 @@ _PACKAGING  = {
     ReleasePackaging.DELUXE:    4,
 }
 _VARIANT = {
-    VariantKind.FANEDIT:     1,
-    VariantKind.THEATRICAL:  2,
-    VariantKind.EXTENDED:    3,
-    VariantKind.REMASTER:    4,
-    VariantKind.RESTORATION: 5,
-    VariantKind.DIRECTORS:   6,
+    VariantKind.FANEDIT:      1,
+    VariantKind.THEATRICAL:   2,
+    VariantKind.EXTENDED:     3,
+    VariantKind.REMASTERED:   4,
+    VariantKind.PRESERVATION: 5,
+    VariantKind.DIRECTORS:    6,
 }
 
 
