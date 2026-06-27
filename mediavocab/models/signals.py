@@ -47,7 +47,7 @@ from typing import Any, Dict, List, Optional
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from mediavocab.taxonomy import MediaType, VariantKind, ContentForm
+from mediavocab.taxonomy import MediaType, VariantKind, ContentForm, PictureFormat
 from mediavocab.taxonomy.modality import PlaybackType
 from mediavocab.text.compare import (
     TITLE_MIN as _TITLE_MIN,
@@ -127,6 +127,12 @@ class Signals(BaseModel):
     # ``None`` means "no preference". Never participates in identity or
     # in :func:`compare_signals` — it is a query field, never observed.
     playback_type: Optional[PlaybackType] = None
+
+    # PictureFormat hint (§4.15) — presentation attribute (colour / dimension /
+    # resolution). Technical Release attribute (T6); routing-family (A6), so it
+    # never participates in identity (:func:`signal_hash`) or in
+    # :func:`compare_signals`. Distinct from the free-text ``source_format``.
+    picture_format: Optional[PictureFormat] = None
 
     # Lifecycle role — which phase of the resolver pipeline this bag is in.
     # Excluded from compare_signals and merge_signals (it is metadata, not data).
