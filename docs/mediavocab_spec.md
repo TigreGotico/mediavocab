@@ -2318,6 +2318,5 @@ downstream. Patterns resolve to existing `MediaType`, `ContentForm`,
 - Box sets and composite Releases → `docs/patterns/box-sets.md`
 - Format, quality, rights, and availability → `docs/patterns/quality-rights-availability.md`
 - Playback-type routing → `docs/patterns/playback-type.md`
-- Live broadcast scheduling → `docs/patterns/scheduling.md`
 - Writing a metadata provider → `docs/patterns/writing-a-provider.md`
 - Multiple episode orderings → see `Work.episode_orderings` field docs in §5.3

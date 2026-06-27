@@ -1,11 +1,26 @@
 # Classifying scraped content
 
-`classify_video()` and `ContentType` were removed from mediavocab in v1.1 —
-heuristic classification based on title strings is application logic, not
-vocabulary. It belongs in downstream tools, not in a schema library.
+This pattern shows how to turn raw scraped media (a filename, a feed entry,
+a video title) into structured mediavocab signals — and, when you have no
+resolver, a best-guess `MediaType`.
 
-This pattern shows how to classify scraped media content using the tools
-mediavocab does ship.
+## Step 0 — Classify from text + metadata
+
+`classify_video()` is a heuristic title / description / metadata classifier.
+It returns a multi-axis `ClassificationResult` (`media_type`, `content_form`,
+`content_genres`, `programme_format`, `confidence`) — a hint, not a
+guarantee:
+
+```python
+from mediavocab.text import classify_video
+
+r = classify_video("Inception (2010) Official Trailer", is_official_artist=False)
+# r.media_type    → MediaType.MOVIE
+# r.content_form  → ContentForm.TRAILER
+# r.confidence    → ~0.6
+```
+
+For finer signal extraction, parse the title and build a `Signals` bag.
 
 ## Step 1 — Parse the title
 

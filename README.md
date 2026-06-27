@@ -56,17 +56,17 @@ print(score(theatrical, theatrical))    # 1.0 (self-match)
 ```
 
 More walked-through examples in [`examples/`](./examples/) covering albums,
-band lineups, radio stations, IoT device routing, work comparison, the
-pipeline-sentinel `NOT_MEDIA` / `CONTROL` flow, and broadcast schedules.
+band lineups, radio stations, IoT device routing, work comparison, and the
+pipeline-sentinel `NOT_MEDIA` / `CONTROL` flow.
 
 ## What's in the box
 
 | Module | Contents |
 |---|---|
 | `mediavocab.taxonomy` | `MediaType` (+ `PIPELINE_SENTINELS`), `VariantKind`, `ReleasePackaging`, `EntityKind`, `OrganisationKind`, `RelationRole`, `CreditSection`, `MembershipKind`, `TemporalState`, `ReleaseStatus`, `StreamMode`, `WorkRelationKind`, `ReleaseRelationKind`, `ContentForm`, `ProgrammeFormat`, `AccessibilityKind`, `PlaybackType`, plus `GENRE_*` string constants. Zero deps. |
-| `mediavocab.models` | `Work`, `Release`, `Appearance`, `Chapter`, `AccessibilityTrack`, `AvailabilityWindow`, `LocalizedTitle`, `WorkRelation`, `ReleaseRelation`, `Entity`, `EntityRef`, `Membership`, `Credit`, `Programme`, `Schedule`, `ExternalIds`, `License`, `Signals`. Pydantic v2. |
+| `mediavocab.models` | `Work`, `Release`, `Appearance`, `Chapter`, `AccessibilityTrack`, `AvailabilityWindow`, `LocalizedTitle`, `WorkRelation`, `ReleaseRelation`, `Entity`, `EntityRef`, `Membership`, `Credit`, `ExternalIds`, `License`, `Signals`. Pydantic v2. |
 | `mediavocab.text` | Normalisation, fuzzy matching, work / release comparison and scoring, SHA-256 identity hashes (`work_hash` / `release_hash`), merge with `MergeStrategy` / `IdentityConflict`, title parser, content classifier, ISO 639 / 3166 / 8601 / ISBN helpers. Stdlib only. |
-| `mediavocab.helpers` | Classifier predicates (`is_not_media`, `is_device_entity`, `is_continuous_release`), credit lookups (`director`, `author`, `performers`, `filmography_of`, `episodes_of`), and release ranking (`quality_score`, `best_release`). Non-normative. |
+| `mediavocab.helpers` | Classifier predicates (`is_not_media`, `is_device_entity`, `is_continuous_release`), credit lookups (`director`, `author`, `performers`, `filmography_of`, `episodes_of`), and release availability / rights predicates (`is_available`, `release_is_open`, `release_allows_commercial`). Non-normative. |
 
 ## Design highlights
 
