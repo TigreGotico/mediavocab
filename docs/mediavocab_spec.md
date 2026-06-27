@@ -288,12 +288,12 @@ routing, description).
 | Layer              | Axes                                                            | Family      |
 |--------------------|-----------------------------------------------------------------|-------------|
 | Work-identity      | `MediaType`, `ContentForm`, `VariantKind`                       | identity    |
-| Work-routing       | `content_genres`, `programme_format`                            | routing     |
+| Work-routing       | `content_genres`, `programme_format`, `picture_format`          | routing     |
 | Release-identity   | `region`, `container`, `codec`, `bitrate`, `platform`, `resolution`, `audio_language` | identity |
 | Release-routing    | `StreamMode`                                                    | routing     |
 | Release-packaging  | `ReleasePackaging`                                              | description |
 | Release-rights     | `license` (SPDX string)                                         | description |
-| Derived            | `PlaybackType` (function of `MediaType`)                        | routing     |
+| Derived            | `PlaybackType`, `Structure` (functions of `MediaType`)          | routing     |
 
 Identity axes hash; routing axes gate dispatch; description axes accumulate.
 No axis appears in two layers.
@@ -372,6 +372,32 @@ becomes on-demand when archived without the underlying Work changing.
 (`license.is_open()`, `license.is_public_domain()`,
 `license.requires_attribution()`) operate on the string. No parallel typed
 view (A7).
+
+### 3.11 `PictureFormat` — presentation/picture-attribute axis
+
+The colour, dimensionality, and resolution of a presentation: black-and-white,
+silent, colorized, colour, 2d, 3d, sd, hd, 4k, widescreen, imax. A technical
+attribute of the manifestation (T6) — two editions of the same Work can differ
+on it without changing identity. Routing-family (A6); excluded from `work_hash`,
+`release_hash`, and `compare_signals`.
+
+Distinct from the free-text `source_format`, which names the *distribution
+container / capture medium* ("Blu-ray", "Vinyl", "35mm"): a Blu-ray can ship a
+black-and-white silent film, and a 4K stream can carry a colorized restoration.
+`source_format` stays free text (metadatarr populates it for the container);
+`PictureFormat` is the typed presentation enum. Carried on
+`Work.picture_format` and `Release.picture_format` (both `Optional`, A2 default
+`None`), and as the `Signals.picture_format` routing hint.
+
+### 3.12 `Structure` — derived temporal-shape axis
+
+How a Work is shaped in time: a single self-contained unit, a series of discrete
+instalments (`episodic`), an unbounded live/looping stream (`continuous`), or an
+ordered set of members (`collection`). Derived from `MediaType` via
+`infer_structure()`; never persisted on `Work` or `Release` (A6, A7) — the same
+derived-axis pattern as `PlaybackType` (§3.8). Routing-family (A6). A trained
+classifier MAY override the leaf default per-utterance (e.g. "play the *album*"
+→ `COLLECTION`).
 
 ---
 
@@ -1038,6 +1064,67 @@ The list is intentionally flat. Sub-genres (house, techno, trance, dubstep,
 drum_and_bass) sit beside their parents (electronic); consumers needing a
 hierarchy build it on top.
 
+### 4.15 `PictureFormat`
+
+```python
+class PictureFormat(str, Enum):
+    BLACK_AND_WHITE = "black_and_white"  # monochrome image
+    SILENT          = "silent"           # no synchronised audio track
+    COLORIZED       = "colorized"        # colour added to an originally B&W work
+    COLOR           = "color"            # native colour
+    TWO_D           = "2d"               # flat image
+    THREE_D         = "3d"               # stereoscopic
+    SD              = "sd"               # standard definition
+    HD              = "hd"               # high definition
+    FOUR_K          = "4k"               # ultra high definition
+    WIDESCREEN      = "widescreen"       # wide aspect ratio
+    IMAX            = "imax"             # IMAX presentation
+    OTHER           = "other"
+```
+
+Presentation/picture attributes of a manifestation — a technical Release
+attribute (T6), admitted alongside the existing per-Release `color` /
+`audio_present` booleans as a typed, multi-valued enum. Routing-family (A6);
+**excluded from `work_hash`, `release_hash`, and `compare_signals`** — two
+records differing only in `picture_format` are the same Work and do not
+conflict. Lives on `Work.picture_format` and `Release.picture_format`
+(`Optional`, default `None` per A2) and as the `Signals.picture_format`
+routing hint, mapped through by `Work.from_signals`.
+
+Distinct from the free-text `source_format` (§5.3): `source_format` is the
+distribution container / capture medium ("Blu-ray", "Vinyl", "35mm");
+`PictureFormat` is the typed presentation enum. `silent` /
+`black_and_white` are also expressible as the booleans `audio_present=False`
+/ `color=False` on a Release (§4.1, T6) — `PictureFormat` is the routing-axis
+view that travels on `Signals` and that classifiers emit.
+
+### 4.16 `Structure`
+
+```python
+class Structure(str, Enum):
+    SINGLE     = "single"      # one self-contained work: a movie, a track, a book
+    EPISODIC   = "episodic"    # a series of discrete instalments: tv series, podcast
+    CONTINUOUS = "continuous"  # an unbounded live/looping stream: radio, live tv, ambient
+    COLLECTION = "collection"  # an ordered set of works: a playlist
+    UNKNOWN    = "unknown"
+```
+
+Derived from `MediaType` via `infer_structure()`; no persisted field on `Work`
+or `Release` (A6, A7) — the same derived-axis pattern as `PlaybackType`
+(§4.11). Routing-family (A6).
+
+| Structure    | MediaTypes |
+|---|---|
+| `SINGLE`     | `MOVIE`, `SHORT_FILM`, `MUSIC`, `MUSIC_VIDEO`, `AUDIOBOOK`, `BOOK`, `COMIC`, `GAME`, `INTERACTIVE_FICTION`, `SOUND_EFFECT` |
+| `EPISODIC`   | `EPISODIC_SERIES`, `PODCAST`, `AUDIO_DRAMA` |
+| `CONTINUOUS` | `TV` (live channel), `RADIO`, `PROCEDURAL_AMBIENT` |
+| `COLLECTION` | `PLAYLIST` |
+| `UNKNOWN`    | pipeline sentinels |
+
+The mapping is exhaustive over every concrete `MediaType` (enforced by
+`tests/test_taxonomy_completeness.py`). A trained classifier MAY override the
+leaf default per-utterance.
+
 ---
 
 ## 5. Models
@@ -1226,6 +1313,7 @@ class Work(BaseModel):
     # Routing (excluded from work_hash; A6)
     content_genres: List[str] = []           # canonical genre.py constants
     programme_format: Optional[ProgrammeFormat] = None
+    picture_format: Optional[PictureFormat] = None   # presentation attr (T6); routing (A6)
     release_status: ReleaseStatus = ReleaseStatus.RELEASED
 
     # Discovery (not part of identity)
@@ -1319,6 +1407,7 @@ class AccessibilityKind(str, Enum):
     SIGN_LANGUAGE     = "sign_language"
     TRANSCRIPT        = "transcript"
     LYRICS            = "lyrics"
+    DUBBED            = "dubbed"          # localised replacement audio track
 
 
 class AccessibilityTrack(BaseModel):
@@ -1367,6 +1456,7 @@ class Release(BaseModel):
     aspect_ratio: str = ""
     color: Optional[bool] = None
     audio_present: Optional[bool] = None
+    picture_format: Optional[PictureFormat] = None   # presentation attr (T6); routing (A6)
 
     # Delivery
     stream_mode: StreamMode = StreamMode.ON_DEMAND
@@ -1833,9 +1923,9 @@ def work_hash(w: Work) -> str:
         normalise_edition(source_format)
 
     Excluded:
-        content_genres, programme_format, credits, aka, localized_titles,
-        original_languages, episode_orderings, tracklist, relations,
-        external_ids, extra, release_status.
+        content_genres, programme_format, picture_format, credits, aka,
+        localized_titles, original_languages, episode_orderings, tracklist,
+        relations, external_ids, extra, release_status.
 
     Notes:
     - `content_form` is included by A8: a trailer and the primary work share
@@ -1879,8 +1969,8 @@ def release_hash(r: Release) -> str:
         packaging, edition, uri, image, license, region_locked,
         regions_available, availability_windows, release_date, release_status,
         chapters, accessibility, contents, label, distributor, frame_rate,
-        aspect_ratio, color, audio_present, hdr, audio_channels, sample_rate,
-        subtitle_languages, match_confidence, external_ids, extra.
+        aspect_ratio, color, audio_present, picture_format, hdr, audio_channels,
+        sample_rate, subtitle_languages, match_confidence, external_ids, extra.
 
     The exclusions are deliberate: a Release acquires accessibility tracks,
     chapter markers, and availability windows over its lifetime — none should
@@ -1909,8 +1999,8 @@ def compare(a: Work, b: Work) -> List[Conflict]:
         variant_kind, edition, source_format, content_form.
 
     Out of scope:
-        aka, localized_titles, content_genres, programme_format, credits,
-        tracklist, relations, external_ids, extra, release_status,
+        aka, localized_titles, content_genres, programme_format, picture_format,
+        credits, tracklist, relations, external_ids, extra, release_status,
         episode_orderings.
 
     Absence is NOT a conflict — it is unknown.

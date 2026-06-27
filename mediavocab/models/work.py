@@ -26,6 +26,7 @@ from mediavocab.taxonomy import (
     AccessibilityKind,
     ContentForm,
     MediaType,
+    PictureFormat,
     PIPELINE_SENTINELS,
     ProgrammeFormat,
     ReleasePackaging,
@@ -196,6 +197,7 @@ class Work(BaseModel):
     # Routing (excluded from work_hash)
     content_genres: List[str] = Field(default_factory=list)
     programme_format: Optional[ProgrammeFormat] = None
+    picture_format: Optional[PictureFormat] = None   # presentation attr (T6); routing (A6)
     release_status: ReleaseStatus = ReleaseStatus.RELEASED
 
     # Discovery (not part of identity hash)
@@ -310,6 +312,7 @@ class Work(BaseModel):
             ("variant_kind", "variant_kind"),
             ("edition",      "edition"),
             ("source_format","source_format"),
+            ("picture_format","picture_format"),
         ):
             v = getattr(signals, src, None)
             if v is not None and v != "":
@@ -353,6 +356,7 @@ class Release(BaseModel):
     aspect_ratio: str = ""
     color: Optional[bool] = None
     audio_present: Optional[bool] = None
+    picture_format: Optional[PictureFormat] = None   # presentation attr (T6); routing (A6)
 
     # Delivery
     stream_mode: StreamMode = StreamMode.ON_DEMAND
