@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.3.0a2](https://github.com/TigreGotico/mediavocab/tree/1.3.0a2) (2026-06-27)
+
+[Full Changelog](https://github.com/TigreGotico/mediavocab/compare/1.3.0a1...1.3.0a2)
+
+**Merged pull requests:**
+
+- chore: point project URLs at the TigreGotico remote [\#11](https://github.com/TigreGotico/mediavocab/pull/11) ([JarbasAl](https://github.com/JarbasAl))
+
 ## [1.3.0a1](https://github.com/TigreGotico/mediavocab/tree/1.3.0a1) (2026-06-27)
 
 [Full Changelog](https://github.com/TigreGotico/mediavocab/compare/1.2.0a1...1.3.0a1)
