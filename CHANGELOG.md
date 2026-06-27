@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.3.0a1](https://github.com/TigreGotico/mediavocab/tree/1.3.0a1) (2026-06-27)
+
+[Full Changelog](https://github.com/TigreGotico/mediavocab/compare/1.2.0a1...1.3.0a1)
+
+**Merged pull requests:**
+
+- feat: add programme\_format & accessibility routing hints to Signals [\#9](https://github.com/TigreGotico/mediavocab/pull/9) ([JarbasAl](https://github.com/JarbasAl))
+
 ## [1.2.0a1](https://github.com/TigreGotico/mediavocab/tree/1.2.0a1) (2026-06-27)
 
 [Full Changelog](https://github.com/TigreGotico/mediavocab/compare/1.1.0...1.2.0a1)
