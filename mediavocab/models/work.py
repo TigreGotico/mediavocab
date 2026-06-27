@@ -277,7 +277,10 @@ class Work(BaseModel):
 
         Maps Signals fields to Work fields. Signals-only routing hints
         (``include_variants``, ``playback_type``, ``role``, ``fanedit_subtype``,
-        ``content_form``) are silently dropped.
+        ``content_form``, ``accessibility``) are silently dropped. (Accessibility
+        is a per-Release asset on Work — a ``List[AccessibilityTrack]`` on
+        ``Release`` — not a Work-level kind list, so the Signals hint has no
+        Work target.)
 
         ``**overrides`` are applied last — pass ``credits``, ``external_ids``,
         ``tracklist``, etc. to enrich the result beyond what Signals carries.
@@ -313,6 +316,7 @@ class Work(BaseModel):
             ("edition",      "edition"),
             ("source_format","source_format"),
             ("picture_format","picture_format"),
+            ("programme_format","programme_format"),
         ):
             v = getattr(signals, src, None)
             if v is not None and v != "":

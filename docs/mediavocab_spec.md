@@ -294,6 +294,7 @@ routing, description).
 | Release-packaging  | `ReleasePackaging`                                              | description |
 | Release-rights     | `license` (SPDX string)                                         | description |
 | Derived            | `PlaybackType`, `Structure` (functions of `MediaType`)          | routing     |
+| Signals-hint       | `content_form`, `playback_type`, `picture_format`, `programme_format`, `accessibility`, `include_variants` | routing |
 
 Identity axes hash; routing axes gate dispatch; description axes accumulate.
 No axis appears in two layers.
@@ -913,8 +914,11 @@ class ProgrammeFormat(str, Enum):
 ```
 
 Structural programme *format*, distinct from aesthetic genre (T1). Lives
-on `Work.programme_format`. Routing-family (A6); excluded from
-`work_hash`.
+on `Work.programme_format` and as the `Signals.programme_format` routing
+hint (mapped through by `Work.from_signals`). Routing-family (A6);
+excluded from `work_hash`, `release_hash`, and `compare_signals` — two
+records differing only in `programme_format` are the same Work and do not
+conflict.
 
 A concert film released theatrically is `MOVIE` with
 `programme_format=CONCERT`. A stand-up special on Netflix is
@@ -1417,6 +1421,17 @@ class AccessibilityTrack(BaseModel):
     forced: bool = False                     # subtitle "forced" flag
     sdh: bool = False                        # subtitles for deaf / hard-of-hearing
     note: Optional[str] = None
+```
+
+A `Work` acquires accessibility as per-Release *assets*
+(`Release.accessibility: List[AccessibilityTrack]`). At the resolver layer
+a caller may instead carry the desired *kinds* as a routing hint:
+`Signals.accessibility: List[AccessibilityKind]`. Routing-family (A6); the
+hint is **excluded from `signal_hash` and `compare_signals`** and has no
+`Work` target (it is dropped by `Work.from_signals`, since accessibility on
+a Work lives on its Releases as rich tracks, not a Work-level kind list).
+
+```python
 
 
 class AvailabilityWindow(BaseModel):
