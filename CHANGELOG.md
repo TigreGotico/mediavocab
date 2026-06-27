@@ -1,20 +1,12 @@
 # Changelog
 
-## [1.1.0a1](https://github.com/TigreGotico/mediavocab/tree/1.1.0a1) (2026-06-22)
+## [1.2.0a1](https://github.com/TigreGotico/mediavocab/tree/1.2.0a1) (2026-06-27)
 
-[Full Changelog](https://github.com/TigreGotico/mediavocab/compare/1.0.1a1...1.1.0a1)
-
-**Merged pull requests:**
-
-- feat: resolve 2026-05 taxonomy audit \(relations, genres, external-id reconciliation\) [\#5](https://github.com/TigreGotico/mediavocab/pull/5) ([JarbasAl](https://github.com/JarbasAl))
-
-## [1.0.1a1](https://github.com/TigreGotico/mediavocab/tree/1.0.1a1) (2026-05-11)
-
-[Full Changelog](https://github.com/TigreGotico/mediavocab/compare/0.1.1...1.0.1a1)
+[Full Changelog](https://github.com/TigreGotico/mediavocab/compare/1.1.0...1.2.0a1)
 
 **Merged pull requests:**
 
-- Ground-up spec rewrite — 1.0.0 first release [\#3](https://github.com/TigreGotico/mediavocab/pull/3) ([JarbasAl](https://github.com/JarbasAl))
+- feat: add PictureFormat & Structure taxonomy axes + AccessibilityKind.dubbed [\#7](https://github.com/TigreGotico/mediavocab/pull/7) ([JarbasAl](https://github.com/JarbasAl))
 
 
 
