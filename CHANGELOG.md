@@ -1,5 +1,13 @@
 # Changelog
 
+## [2.0.0a2](https://github.com/TigreGotico/mediavocab/tree/2.0.0a2) (2026-06-28)
+
+[Full Changelog](https://github.com/TigreGotico/mediavocab/compare/2.0.0a1...2.0.0a2)
+
+**Merged pull requests:**
+
+- docs: cite the spec clause that admits each code element [\#17](https://github.com/TigreGotico/mediavocab/pull/17) ([JarbasAl](https://github.com/JarbasAl))
+
 ## [2.0.0a1](https://github.com/TigreGotico/mediavocab/tree/2.0.0a1) (2026-06-28)
 
 [Full Changelog](https://github.com/TigreGotico/mediavocab/compare/1.3.0a3...2.0.0a1)
