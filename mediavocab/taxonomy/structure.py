@@ -1,7 +1,9 @@
-"""Structure — the temporal-shape axis. Spec §3.12, §4.16.
+"""Structure — the derived temporal-shape axis (spec: A6, §3.12/§4.16).
 
-Routing axis (A6); orthogonal to identity. Derived from MediaType — never
-persisted on Work or Release. Answers: "how is this work structured in time?"
+Routing-family (A6); orthogonal to identity. Derived from MediaType via
+``infer_structure()`` (the same derived-axis pattern as PlaybackType, §3.8);
+never persisted on Work or Release (A6, A7). Answers: "how is this work
+structured in time?"
 — one self-contained unit, a series of discrete instalments, an unbounded
 continuous stream, or an ordered collection of members.
 
@@ -18,7 +20,7 @@ from mediavocab.taxonomy.media_type import MediaType
 
 
 class Structure(str, Enum):
-    """How a Work is structured in time — orthogonal to modality."""
+    """How a Work is structured in time — derived routing axis (spec: A6, §3.12/§4.16)."""
 
     SINGLE     = "single"      # one self-contained work: a movie, a track, a book
     EPISODIC   = "episodic"    # a series of discrete instalments: tv series, podcast

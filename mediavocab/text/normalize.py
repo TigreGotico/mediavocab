@@ -1,10 +1,13 @@
-"""Text normalisation and fuzzy matching. Spec §7.1. Stdlib only.
+"""Normalisation primitives and fuzzy matching (spec: §6.1). Stdlib only.
+
+These pure, deterministic primitives collapse provider spelling differences so
+the identity inputs agree before they reach the digest (§6.1). ``work_hash`` /
+``release_hash`` consume them (§6.3/§6.4).
 
 ``NORMALISE_TITLE_VERSION`` pins the behaviour of :func:`normalise_title`.
-The ``work_hash`` and ``release_hash`` stability contract (§6.3) depends on
-this function being frozen: any semantic change to ``normalise_title`` MUST
-increment this constant and constitutes a breaking change requiring a major
-version bump.
+The ``work_hash`` / ``release_hash`` stability contract (§6.3) depends on this
+function being frozen: any semantic change to ``normalise_title`` MUST increment
+this constant and constitutes a breaking change requiring a major version bump.
 """
 from __future__ import annotations
 

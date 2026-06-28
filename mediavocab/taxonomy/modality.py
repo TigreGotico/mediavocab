@@ -1,7 +1,7 @@
-"""PlaybackType — the player-surface axis. Spec §3.8, §4.11.
+"""PlaybackType — the derived player-surface axis (spec: A6, §3.8/§4.11).
 
-Routing axis (A6); orthogonal to identity. Derived from MediaType — never
-persisted on Work or Release.
+Routing-family (A6); orthogonal to identity. Derived from MediaType via
+``infer_playback_type()``; never persisted on Work or Release (A6, A7).
 """
 from __future__ import annotations
 
@@ -12,7 +12,7 @@ from mediavocab.taxonomy.media_type import MediaType
 
 
 class PlaybackType(str, Enum):
-    """What player surface a Work needs."""
+    """What player surface a Work needs — derived routing axis (spec: A6, §3.8/§4.11)."""
 
     AUDIO = "audio"
     VIDEO = "video"
