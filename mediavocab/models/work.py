@@ -1,7 +1,9 @@
 """Work, Release, Appearance, Chapter, AccessibilityTrack, AvailabilityWindow,
-WorkRelation, ReleaseRelation, Programme, Schedule.
+WorkRelation, ReleaseRelation.
 
-Spec §5 (models).
+Spec §5 (models). The object graph closes at six models (§1.4); a
+scheduled broadcast (§5.5) and a playable device (§5.6) are applications
+of these, not additional models.
 
 `Work` is embedded directly inside `Appearance.work`, `Release.work`,
 `WorkRelation.target`, etc. The spec describes `WorkRef` / `ReleaseRef` as
@@ -102,7 +104,10 @@ class Chapter(BaseModel):
     title: str = ""
     image: str = ""
     end: Optional[float] = None
-    work_ref: Optional[EntityRef] = None   # rare; when chapter delineates a distinct Work segment
+    # No back-reference to a Work: a chapter is a pure navigation marker
+    # (§5.4). A segment that is itself a distinct Work is an `Appearance` in
+    # `Release.contents`, not a Chapter — keeping the "Chapter is NOT a Work"
+    # invariant clean (T2, A7).
 
 
 class AccessibilityTrack(BaseModel):
@@ -119,12 +124,15 @@ class AccessibilityTrack(BaseModel):
 
 
 class AvailabilityWindow(BaseModel):
-    """A single (start, end) availability window. None = open-ended on that side (§5.4)."""
+    """A single (start, end) availability window. None = open-ended on that
+    side (§5.4, A2). `start` / `end` are the `IsoDate` boundary type: an
+    ISO-8601 date or a datetime with offset. The datetime form lets one
+    window carry a broadcast slot (§5.5)."""
 
     model_config = _CFG
 
-    start: Optional[str] = None
-    end: Optional[str] = None
+    start: Optional[IsoDate] = None
+    end: Optional[IsoDate] = None
     note: str = ""
 
     @model_validator(mode="after")
@@ -374,11 +382,15 @@ class Release(BaseModel):
     release_date: Optional[IsoDate] = None
 
     # Rights and availability
-    license: Optional[License] = None
+    # license is the canonical SPDX-style string (A7 — one source of truth);
+    # "" means unknown (A2). The typed view is the read-only `.license_model`
+    # overlay (§7.2), mirroring `external_ids` / `.external_ids_model`.
+    license: str = ""
     region_locked: Optional[bool] = None
     regions_available: List[str] = Field(default_factory=list)
-    available_from: Optional[IsoDate] = None
-    available_until: Optional[IsoDate] = None
+    # Availability timing lives in one typed home (A7). A single open- or
+    # closed-ended window is `availability_windows=[AvailabilityWindow(...)]`;
+    # there are no parallel scalar `available_from` / `available_until` fields.
     availability_windows: List[AvailabilityWindow] = Field(default_factory=list)
 
     # Playback
@@ -420,12 +432,22 @@ class Release(BaseModel):
     @field_validator("license", mode="before")
     @classmethod
     def _coerce_license(cls, v):
-        """Accept plain SPDX strings; coerce to License on intake."""
-        if v is None or isinstance(v, License):
-            return v
-        if isinstance(v, str):
-            return License.from_spdx(v) if v.strip() else None
+        """Canonical license is a string (A7). Accept a typed `License`
+        (or None) on intake and reduce it to its SPDX identifier so the
+        string stays the single source of truth."""
+        if v is None:
+            return ""
+        if isinstance(v, License):
+            return v.identifier
         return v
+
+    @property
+    def license_model(self) -> Optional[License]:
+        """Read-only typed view of `license` (§7.2). `None` when unknown
+        (empty string); otherwise `License.from_spdx(self.license)`. The
+        string is canonical — set `release.license`, not this overlay."""
+        s = (self.license or "").strip()
+        return License.from_spdx(s) if s else None
 
     @model_validator(mode="after")
     def _check(self) -> "Release":

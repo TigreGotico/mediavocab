@@ -1,6 +1,6 @@
 # mediavocab — Formal Specification
 
-**Version:** 1.0
+**Version:** 1.4 (the `SPEC_VERSION` constant; the v1.x stability line — §8)
 **Status:** Stable. See §8 for versioning policy.
 **Scope:** Vocabulary and data-model library for any software that catalogues,
 resolves, plays, or recommends media content.
@@ -154,10 +154,10 @@ A concern that doesn't change the schema earns a typed field (typically a
 ClassVar on the provider and an optional hint on the resolver bag), not a
 `MediaType` value. Routing axes are absent from `work_hash` and
 `release_hash`. Identity is `(media + identity-fields)`; the resolver gate
-is three-axis: `(media × playback_type × genre_filter)`. `content_form` was
-removed *from the resolver gate* — no real provider filters on it, and it
-added gate complexity with no benefit. It is **not** removed from the model:
-`content_form` remains a typed field on `Work` and `Signals` and is an
+is three-axis: `(media × playback_type × genre_filter)`. `content_form` is
+*absent from the resolver gate* — no real provider filters on it, so adding
+it would buy gate complexity with no benefit. Yet `content_form` is **a
+field of the model**: it lives, typed, on `Work` and `Signals` and is an
 identity-hash input via A8b (a trailer must not collide with the primary
 work). The distinction is deliberate — `content_form` routes nothing at the
 gate, yet still separates identity once a `Work` exists.
@@ -308,10 +308,11 @@ Enumerated in §4.1.
 ### 3.3 `ContentForm` — experiential axis
 
 Whether a Work is a primary creative artefact or supplementary to one. A
-trailer for *Inception* is `MOVIE + ContentForm.TRAILER`; a reaction video
-covering an anime episode is `EPISODIC_SERIES + REACTION` with
-`WorkRelation(BONUS_FOR=parent)`. Orthogonal to schema and to genre — a
-trailer for a podcast is `PODCAST + TRAILER`.
+trailer for *Inception* is `MOVIE + ContentForm.TRAILER` with
+`WorkRelation(TRAILER_FOR=parent)`; a reaction video covering an anime
+episode is `EPISODIC_SERIES + REACTION` with
+`WorkRelation(REACTION_TO=parent)` (§4.13). Orthogonal to schema and to
+genre — a trailer for a podcast is `PODCAST + TRAILER`.
 
 ContentForm is the one human-perception axis admitted to identity, by A8: a
 trailer for *Inception* and the film *Inception* have the same title, year,
@@ -615,10 +616,14 @@ class ContentForm(str, Enum):
 
 A Work is `PRIMARY` unless its very reason for existing is supplementary to
 another Work, in which case it carries a non-PRIMARY form *and* a
-`WorkRelation(BONUS_FOR=parent)`. ContentForm earns its place when the
-experiential relationship to a primary work is fundamentally different —
-short vs full is *not* a form (runtime), live vs recorded is *not* a form
-(`StreamMode`), kid-friendly is *not* a form (audience).
+`WorkRelation` to its parent: the generic `BONUS_FOR`, or the matching
+typed edge where one exists — `TRAILER`→`TRAILER_FOR`,
+`REACTION`→`REACTION_TO`, `EXCERPT`/`SOCIAL_CLIP`→`CLIP_OF` (§4.13). The
+form names what this Work *is*; the relation names *which* primary it
+attaches to. ContentForm earns its place when the experiential
+relationship to a primary work is fundamentally different — short vs full
+is *not* a form (runtime), live vs recorded is *not* a form (`StreamMode`),
+kid-friendly is *not* a form (audience).
 
 ContentForm is the one human-perception axis admitted to identity (A8).
 It enters `work_hash` (§6.3) and is immutable after canonicalisation (§8.2).
@@ -725,20 +730,31 @@ class OrganisationKind(str, Enum):
     PUBLISHER         = "publisher"
     STUDIO            = "studio"
     BROADCASTER       = "broadcaster"
+    NETWORK           = "network"          # umbrella grouping multiple broadcasters under shared branding
     DEVELOPER         = "developer"
     STREAMING_SERVICE = "streaming_service"
     DISTRIBUTOR       = "distributor"
     OTHER             = "other"
 ```
 
-`EntityKind` classifies the *structural type* of an entity — what schema it
-needs. A musician and a documentary director are both `PERSON`; their
-contributions are captured by `RelationRole` credits, not by `EntityKind`.
+`Entity` is the third identity of §1.3 — a participant that is not a Work.
+`EntityKind` classifies its *structural type* by the A1 test applied to
+entities: a value earns its place when it needs a different schema. A
+`PERSON` carries birth/death years; a `GROUP` carries memberships; an
+`ORGANISATION` carries `org_kind` and a founding year. A musician and a
+documentary director are both `PERSON` — their differing contributions are
+`RelationRole` credits (A6/A9), not `EntityKind` values. `SERIES` and
+`DEVICE` are admitted below by A3 (a container and a delivery channel are
+not Works).
 
 `OrganisationKind` discriminates legal entities that share a schema (name,
 country, founding year, external IDs) but differ in role within the media
-graph. Set when `kind == ORGANISATION`; `None` otherwise (validator
-enforced).
+graph. Set when `kind == ORGANISATION`; `None` otherwise. The validator
+*rejects* the contradiction (`org_kind` set on a non-`ORGANISATION` entity)
+and *warns* on the under-specification (an `ORGANISATION` with no `org_kind`
+yet) — the same warn-not-reject discipline applied to `Credit.relation_role`
+(§5.2): a contradiction is wrong, a not-yet-known value is incomplete, and
+incomplete records must survive cross-provider ingestion.
 
 **`SERIES` as Entity** (§1.3 decomposition; A3). A series is a *container*, not a Work.
 *The Dark Tower* contains seven Books; *Doctor Who* contains hundreds of
@@ -753,6 +769,16 @@ have a `Work` counterpart for invocation (§5.6).
 
 ### 4.6 `RelationRole`
 
+`RelationRole` types the Entity→Work edge (`Credit.relation_role`). Its
+values are admitted by A9's discipline applied to participation: a role
+earns a value when consumers route on it as a distinct contribution and no
+existing value subsumes it (a `DIRECTOR` and a `COMPOSER` are navigated
+differently; a "Best Boy" is not — it stays `CREATOR` + a raw `role`
+string). The film/music/book/game groupings reflect T5: differing credit
+structures are part of what makes those `MediaType`s distinct, so each
+needs its own routable roles. `CREATOR` is the generic fallback (A2 — it is
+not an "absence" value but a genuine "creator, kind unspecified").
+
 ```python
 class RelationRole(str, Enum):
     CREATOR         = "creator"          # generic fallback
@@ -764,6 +790,9 @@ class RelationRole(str, Enum):
     PRODUCER        = "producer"         # music producer (shapes the sound)
     FEATURING       = "featuring"
     REMIXER         = "remixer"
+    CONDUCTOR       = "conductor"        # leads an orchestral performance — not the composer (A9)
+    ARRANGER        = "arranger"         # re-orchestrates an existing composition (A9)
+    DJ              = "dj"               # selects and mixes a continuous set (A9)
 
     # Film and TV
     DIRECTOR        = "director"
@@ -809,9 +838,14 @@ class CreditSection(str, Enum):
     STAFF     = "staff"       # producer, engineer, editor, cover artist, publisher, distributor
 ```
 
-Generalises across media types: a film's cast/crew split, a book's
+Admitted by A8: humans systematically treat billed principals, guests, and
+back-of-house staff as three different *kinds* of credit, and no
+combination of `RelationRole` + `entity.kind` separates them (a producer is
+STAFF on one record and a billed PRINCIPAL on another). It generalises
+across media types: a film's cast/crew split, a book's
 author/editor/publisher split, and a metal album's members/guests/staff
-split all use the same three-way taxonomy.
+split all use the same three-way taxonomy. Description-family (§1.5) — a
+section is editorial billing, never identity.
 
 ### 4.8 `MembershipKind` and `TemporalState`
 
@@ -851,10 +885,16 @@ class ReleaseStatus(str, Enum):
     UNKNOWN       = "unknown"
 ```
 
-`WITHDRAWN` is distinct from `CANCELLED`: the work shipped, then was
-pulled. `RUMOURED` is excluded — a rumoured work has no verifiable record
-in any authoritative database; it should not be catalogued as a Work at
-all.
+Lifecycle is description-family (§1.5): it accumulates and is corrected as
+sources report (A6 keeps it out of both hashes), and merge collapses it to
+the highest-confidence state (§6.6). Each value is admitted by A8 — humans
+treat *announced*, *in production*, *released*, *withdrawn*, and *cancelled*
+as distinct catalogue states a consumer routes on (hide cancelled, surface
+upcoming). `WITHDRAWN` is distinct from `CANCELLED` by A8(b)-style human
+meaning: the work shipped, then was pulled, versus never shipped.
+`RUMOURED` is rejected by A1's database clause — a rumoured work has no
+verifiable record in any authoritative database, so it is not catalogued as
+a Work at all (T8-adjacent: it never reaches a canonical Work).
 
 ### 4.10 `StreamMode`
 
@@ -941,8 +981,12 @@ class WorkRelationKind(str, Enum):
                                        # and NOT an album tracklist (use Appearance for those)
     LIVE_VERSION   = "live_version"
     REMIX_OF       = "remix_of"
+    MIX_OF         = "mix_of"          # a DJ set / continuous mix sequences this source Work
     SOUNDTRACK_FOR = "soundtrack_for"
-    BONUS_FOR      = "bonus_for"
+    BONUS_FOR      = "bonus_for"       # generic supplementary → primary edge
+    TRAILER_FOR    = "trailer_for"     # ContentForm.TRAILER → the work it promotes
+    REACTION_TO    = "reaction_to"     # ContentForm.REACTION → the work it reacts to
+    CLIP_OF        = "clip_of"         # ContentForm.EXCERPT/SOCIAL_CLIP → the source work
     FANEDIT_OF     = "fanedit_of"      # combine with Work.variant_kind
     DLC_FOR        = "dlc_for"
     EXPANSION_OF   = "expansion_of"
@@ -950,22 +994,67 @@ class WorkRelationKind(str, Enum):
 
 
 class ReleaseRelationKind(str, Enum):
-    SUPERSEDES   = "supersedes"        # this Release replaces an earlier one
+    SUPERSEDES   = "supersedes"        # this Release replaces an earlier one (obsoletes it)
+    REMASTER_OF  = "remaster_of"       # remastered edition of an earlier release (no obsolescence)
+    REISSUE_OF   = "reissue_of"        # re-release of an earlier edition (no obsolescence)
     PORT_OF      = "port_of"           # platform port of a game / IF
     MIRROR_OF    = "mirror_of"         # alternate stream of the same broadcast
     DERIVED_FROM = "derived_from"
 ```
 
-Most Release-to-Release distinctions are already encoded by the format /
-packaging fields plus `release_hash`. `ReleaseRelation` is for explicit
-lineage claims a consumer wants to surface ("this remaster supersedes
-that one and you should hide the older record").
+**Admission (A9).** Every value here passes both A9 clauses: it carries a
+link no identity field carries — an edge to a *different* Work/Release —
+and consumers traverse it as a distinct edge. `COVERS` / `SAMPLES` /
+`REMIX_OF` / `MIX_OF` / `LIVE_VERSION` connect one recording to another
+(`MIX_OF` admitted next to `REMIX_OF` by A9(b): a consumer browsing "DJ
+sets that include this track" navigates differently from "remixes of this
+track"); `SEQUEL_TO` / `PREQUEL_TO` / `ADAPTED_FROM` / `DERIVED_FROM`
+connect distinct narrative or cross-channel Works (A4 makes each a separate
+Work); `SOUNDTRACK_FOR` / `DLC_FOR` / `EXPANSION_OF` / `FANEDIT_OF` connect
+supplementary or derived Works to their primary (§3.3, §3.4).
+
+The supplementary-edge family deserves note. `BONUS_FOR` is the generic
+supplementary→primary edge; `TRAILER_FOR`, `REACTION_TO`, and `CLIP_OF`
+are the typed companions to the `ContentForm` values `TRAILER`,
+`REACTION`, and `EXCERPT`/`SOCIAL_CLIP` (§4.2). They are admitted next to
+`BONUS_FOR` by A9(b): consumers systematically traverse "trailers for this
+film", "reactions to this episode", and "clips of this work" as *separate*
+queries, and conflating them under `BONUS_FOR` would merge three distinct
+real links. The form is the node's own attribute; the relation is the
+edge — each `ContentForm` that names a distinct supplementary relationship
+to a primary work earns the matching edge.
+
+`PART_OF` is admitted only for groupings that are *not* a series and *not* a
+tracklist — A9(a) rejects it for those because `series_title` (+ a SERIES
+Entity) and `Appearance` already carry them, and restating would
+double-write (A7). `EPISODE_OF` is rejected outright by A9(a): episode
+membership is already the `season` / `episode` / `series_title` identity
+fields. A `CHANNEL` role is rejected by T9 — a channel is an Entity or a
+Work, not a participation.
+
+Relation kinds are navigation, never identity (A6) — absent from both
+hashes. Most Release-to-Release distinctions are already encoded by the
+format / packaging fields plus `release_hash`, so `ReleaseRelationKind` is
+deliberately small. `SUPERSEDES` carries obsolescence ("this replaces that,
+hide the older"); `REMASTER_OF` and `REISSUE_OF` are admitted *beside* it by
+A9(b) precisely because they carry the opposite navigational claim — a
+remaster or reissue relates to its source *without* obsoleting it, and a
+consumer surfacing "earlier editions, still valid" must not conflate them
+with supersession. `PORT_OF` and `MIRROR_OF` (alternate streams of one
+broadcast, §7.1) round out the set. Each points at a *different* Release
+(A9(a)).
 
 ### 4.14 `content_genres`
 
-Open-vocabulary string list. The constants in `mediavocab/taxonomy/genre.py`
-are canonical spellings; consumers may use any string. The closed list
-exists so providers agree on common spellings when the genre is known.
+Genre is *what the experience is like*, never *what kind of thing it is*
+(T1) — it changes neither schema, nor databases, nor tolerances, so by A1 it
+is barred from `MediaType` and lives here instead. Routing-family (A6):
+excluded from both hashes; a provider may declare a `genre_filter` ClassVar.
+The vocabulary is therefore an open string list — genre is culturally
+negotiated and inherently extensible, which is exactly why it cannot be a
+closed identity axis. The constants in `mediavocab/taxonomy/genre.py` are
+canonical spellings; consumers may use any string. The closed list exists so
+providers agree on common spellings when the genre is known.
 
 ```python
 # Aesthetic narrative genres
@@ -1133,8 +1222,9 @@ leaf default per-utterance.
 
 ## 5. Models
 
-The six models in §1.3–§1.4, the references that link them, and the
-broadcast-schedule sub-model for live linear channels.
+The six models in §1.3–§1.4 and the references that link them. Nothing
+beyond those six is a model: §5.5 shows a scheduled broadcast and §5.6 a
+playable device are both *applications* of the six, not additions to them.
 
 ### 5.1 References
 
@@ -1154,6 +1244,10 @@ class EntityRef(BaseModel):
     name: str
     kind: EntityKind
     external_ids: Dict[str, str] = {}   # {"musicbrainz_artist": "...", "imdb_person": "..."}
+    localized_names: List[Tuple[str, str]] = []   # (name, ISO 639-1) for cross-locale
+                                                   # matching; description-family (A7-clean,
+                                                   # never hashed) — the same name in another
+                                                   # script is not a different entity
 
 
 class LocalizedTitle(BaseModel):
@@ -1188,12 +1282,18 @@ relation table persist the same data under `(work_hash, kind)` or
 
 ### 5.2 People and groups
 
+`Entity` is the third identity of §1.3 — a participant that is not itself a
+Work. `Membership` is admitted by A5 (membership is a temporal state paired
+with an orthogonal kind, and both must be stored); `Credit` is the
+Entity→Work edge of §1.4 (an Entity's contribution to a *specific* Work,
+T3 — distinct from band-roster membership).
+
 ```python
 class Membership(BaseModel):
     entity: EntityRef
-    roles: List[str]                        # ["vocals", "guitar"] — lowercase free text
-    kind: MembershipKind                    # MEMBER / TOURING / SESSION / GUEST
-    temporal: TemporalState                 # ACTIVE / ENDED / INACTIVE_GROUP
+    roles: List[str] = []                    # ["vocals", "guitar"] — lowercase free text
+    kind: MembershipKind = MembershipKind.MEMBER       # MEMBER / TOURING / SESSION
+    temporal: TemporalState = TemporalState.ACTIVE     # ACTIVE / ENDED / INACTIVE_GROUP
     date_from: Optional[str] = None         # year ("1986") or ISO date ("1986-03-01")
     date_to: Optional[str] = None           # None does NOT mean current; check temporal
     note: Optional[str] = None
@@ -1211,8 +1311,10 @@ class Membership(BaseModel):
 
 class Credit(BaseModel):
     entity: EntityRef
-    role: str                               # raw source string: "Electric Guitar", "Mix Engineer"
-    relation_role: RelationRole             # typed role for programmatic routing
+    role: str = ""                          # raw source string: "Electric Guitar", "Mix Engineer"
+    relation_role: Optional[RelationRole] = None  # typed role for programmatic routing;
+                                            # None = not yet mapped (cross-provider ingestion
+                                            # supplies a raw `role` before normalisation)
     section: CreditSection = CreditSection.PRINCIPAL
     note: Optional[str] = None              # "(tracks 1–4 only)", "(R.I.P. 1998)"
 
@@ -1239,12 +1341,12 @@ class Entity(BaseModel):
     years_active: List[str] = []            # ["1986-1991", "1993-present"]
 
     external_ids: Dict[str, str] = {}
-    extra: Dict[str, str] = {}
+    extra: Dict[str, Any] = {}    # JSON-serialisable; strings are the portable form (§8.3)
 
     @model_validator(mode="after")
     def _check(self) -> "Entity":
         if self.kind == EntityKind.ORGANISATION and self.org_kind is None:
-            raise ValueError("ORGANISATION entity must set org_kind")
+            warn("ORGANISATION entity has no org_kind yet")   # incomplete, not wrong
         if self.kind != EntityKind.ORGANISATION and self.org_kind is not None:
             raise ValueError("org_kind is only valid for ORGANISATION entities")
         if self.kind != EntityKind.PERSON and (self.birth_year or self.death_year):
@@ -1259,10 +1361,23 @@ merging credits from multiple providers preserve first-seen order.
 `Credit.role` preserves the raw source string for display; `relation_role`
 maps it to the closed `RelationRole` enum so consumer code can route
 without string-matching. When the raw role is not available, set `role` to
-`relation_role.value`. When the typed role cannot be inferred, set
-`relation_role = RelationRole.OTHER` and keep the raw string in `role`.
+`relation_role.value`. When the typed role has not yet been inferred,
+`relation_role` is `None` (a provider may surface a raw `role` before the
+mapping is known); a normaliser later sets it to a `RelationRole` value, or
+to `RelationRole.OTHER` when no value fits. A validator *warns* — it does
+not reject — when `relation_role` is `None` while `role` is set, or when a
+set `role` and `relation_role` visibly disagree: cross-provider ingestion
+routinely carries provider-specific labels before normalisation, and a hard
+reject would lose data (the same warn-not-reject discipline §4.5 applies to
+a missing `org_kind`).
 
 ### 5.3 Works
+
+`Work` is the canonical creative artefact — the first identity of §1.3 and,
+by T2, distinct from both `Release` and `Appearance`. Its identity fields
+(§1.5) are the `work_hash` inputs (§6.3); its routing and description fields
+are excluded from the hash by A6. `Appearance` is the §1.4 edge placing a
+Work inside a container Release.
 
 ```python
 class Appearance(BaseModel):
@@ -1331,7 +1446,7 @@ class Work(BaseModel):
 
     # Cross-references
     external_ids: Dict[str, str] = {}        # {"imdb": "tt0078748", "musicbrainz_recording": "..."}
-    extra: Dict[str, str] = {}
+    extra: Dict[str, Any] = {}    # JSON-serialisable; strings are the portable form (§8.3)
 
     @model_validator(mode="after")
     def _check(self) -> "Work":
@@ -1394,6 +1509,14 @@ or a `Credit` to the parent station Entity with `RelationRole.DISTRIBUTOR`.
 
 ### 5.4 Releases
 
+`Release` is the second identity of §1.3 — a manifestation of a Work,
+distinct from it by T2 and varying independently of it by A3 (delivery is
+not identity). Every technical attribute here is a Release field by T6;
+none back-propagates into the Work. `Chapter`, `AccessibilityTrack`, and
+`AvailabilityWindow` are per-manifestation assets, not Works (T2) —
+acquired over a Release's lifetime and therefore excluded from
+`release_hash` (A6).
+
 ```python
 class Chapter(BaseModel):
     """A timestamped marker within a Release: audiobook chapter, podcast chapter
@@ -1435,13 +1558,18 @@ a Work lives on its Releases as rich tracks, not a Work-level kind list).
 
 
 class AvailabilityWindow(BaseModel):
-    start: Optional[str] = None              # ISO date; None = open-ended start
-    end:   Optional[str] = None              # ISO date; None = no scheduled end
+    # start/end are the `IsoDate` boundary type (§6.7): an ISO-8601 date OR
+    # a datetime with offset. The datetime form lets one window carry a
+    # broadcast slot (§5.5); the date form carries a streaming availability
+    # window. None = open-ended on that side (A2 — absence is not a value).
+    start: Optional[IsoDate] = None
+    end:   Optional[IsoDate] = None
     note:  str = ""
 
     @model_validator(mode="after")
     def _check(self) -> "AvailabilityWindow":
-        if self.start is not None and self.end is not None and self.end < self.start:
+        if self.start is not None and self.end is not None \
+                and iso_compare(self.end, self.start) < 0:
             raise ValueError("AvailabilityWindow.end precedes start")
         return self
 
@@ -1515,7 +1643,7 @@ class Release(BaseModel):
 
     # Cross-references
     external_ids: Dict[str, str] = {}
-    extra: Dict[str, str] = {}
+    extra: Dict[str, Any] = {}    # JSON-serialisable; strings are the portable form (§8.3)
 
     @model_validator(mode="after")
     def _check(self) -> "Release":
@@ -1548,59 +1676,49 @@ but answer different questions:
 - `Release.contents` is the *aggregation* of multiple distinct Works in
   one box-set, anthology, or multi-cut disc. Manifestation-level.
 
-### 5.5 Broadcast schedule
+### 5.5 Scheduled broadcast (derived, not a model)
 
-Live linear broadcast (`MediaType.TV`, `MediaType.RADIO`) needs a schedule
-model: what is airing on this channel at what time. The channel-as-Work
-captures stable channel identity; `Schedule` and `Programme` capture the
-airing axis.
+A scheduled airing on a live linear channel (`MediaType.TV`,
+`MediaType.RADIO`) introduces no seventh model. §1.4 closes the object
+graph at six models; a `Schedule` / `Programme` pair would be the seventh,
+and A9 forbids new structure that an existing combination already expresses.
+A scheduled broadcast is fully subsumed by three things the model already
+carries:
 
-```python
-class Programme(BaseModel):
-    """A single airing of a Work on a broadcast channel."""
-    work: Work                            # the content Work being aired
-    channel: Work                         # the broadcast channel Work (RADIO / TV)
-    starts_at: str                           # RFC 3339 / ISO 8601 datetime with offset
-    ends_at: Optional[str] = None            # same format; None only on the trailing slot
-    runtime: Optional[float] = None
-    is_live: bool = False
-    is_repeat: bool = False
-    extra: Dict[str, str] = {}
+- the **station** is a `Work` (T4 — a station has stable cataloguable
+  identity, mirrors, and cross-references; the channel is the Work, its
+  stream URLs are Releases);
+- the **programme** being aired is itself a `Work` (its own title, year,
+  credits — the same Work whether aired, streamed, or pressed to disc, by
+  A4);
+- the **airing** — a programme manifested on a station within a time
+  window — is a **`Release` of the programme `Work`** carrying an
+  **`AvailabilityWindow`** (§5.4). The window's `start` / `end` accept
+  RFC 3339 / ISO 8601 datetimes with offset (the `IsoDate` boundary type,
+  §6.7); a slot is the window `[start, end)`.
 
+Thus the derivation:
 
-class Schedule(BaseModel):
-    channel: Work
-    programmes: List[Programme] = []
-    valid_from: Optional[str] = None
-    valid_until: Optional[str] = None
-    source: str = ""                         # "tunein", "tvmaze", "epg.xml", …
-    fetched_at: Optional[str] = None
-    extra: Dict[str, str] = {}
+| Broadcast concept    | mediavocab term                                              |
+|----------------------|-------------------------------------------------------------|
+| channel              | `Work` (`MediaType.TV` / `RADIO`), T4                        |
+| channel stream URLs  | `Release`s of that Work                                      |
+| programme            | `Work` (the content being aired)                             |
+| one airing of it     | `Release` of the programme Work, with an `AvailabilityWindow`|
+| airing time slot     | `AvailabilityWindow(start, end)` on that Release             |
+| airing → channel     | `Release.relations` / a `Credit` to the station Work/Entity  |
+| repeat / live flag   | `StreamMode.LIVE` (A3) + a later `AvailabilityWindow`        |
 
-    @model_validator(mode="after")
-    def _check(self) -> "Schedule":
-        from mediavocab._iso_date import iso_compare
-        progs = self.programmes
-        for prev, cur in zip(progs, progs[1:]):
-            if iso_compare(prev.starts_at, cur.starts_at) > 0:
-                raise ValueError("Schedule.programmes must be sorted by starts_at")
-            if prev.ends_at is None:
-                raise ValueError("only the last programme may have ends_at=None")
-            if iso_compare(prev.ends_at, cur.starts_at) > 0:
-                raise ValueError("Schedule.programmes overlap")
-        return self
-```
+A standalone `Schedule` / `Programme` model would (a) double-write the
+station and programme identity that the two Works already carry (A7), and
+(b) add a seventh model the §1.4 closure forbids. The airing axis is
+timing on a `Release`, which is exactly what `AvailabilityWindow` is.
 
-`Programme.starts_at` and `Programme.ends_at` must be RFC 3339 / ISO 8601
-datetimes with timezone offset. Naive strings raise `ValueError`.
-
-mediavocab does not model *what's on right now* as a function — query the
-schedule for the slot whose `[starts_at, ends_at)` contains the consumer's
-clock.
-
-Schedules are append-only at the model level. To refresh, replace the
-`Schedule` wholesale rather than mutating `programmes` in place — the
-ordering and overlap invariants are validated at construction.
+"What is on right now" is not a model method: select the Release whose
+`AvailabilityWindow` slot `[start, end)` contains the consumer's clock.
+A refreshed schedule replaces the affected `Release`s wholesale — the
+window ordering / overlap invariants on `Release` (§5.4) validate at
+construction.
 
 ### 5.6 Device-as-Work
 
@@ -1609,8 +1727,11 @@ appliance, tunable streaming receiver — can be invoked as an experience
 without a content query. *"Turn on the radio"* names the device, not a
 station; the user accepts whatever it produces.
 
-The pattern uses `Work` and `Entity(EntityKind.DEVICE)` without a new
-MediaType or PlaybackType. The physical thing has two representations:
+Like §5.5, this introduces no model. The receiver is `Work` *applied to* a
+device (T4 — a thing with stable cataloguable identity and playable
+streams is a Work) plus the existing `Entity(EntityKind.DEVICE)`; A3
+(delivery is not identity) keeps the device's `MediaType` identical to any
+other Work of that medium. The physical thing has two representations:
 
 - An `Entity(kind=EntityKind.DEVICE)` for routing (cast targets, room
   assignment).
@@ -1830,6 +1951,15 @@ changes to the artefact (remastering, recutting) promote to a new Work.
 Hashing, comparison, and merging operate on the models in §5. The order
 below is the order needed to read each function: primitives →
 quantum table → hashes → compare/score → merge → ISO helpers.
+
+Every operation here is admitted by the identity/routing/description split
+of §1.5: a hash digests exactly the identity fields (A6 keeps routing and
+description out); `compare` diffs the same identity fields (absence is never
+a conflict, A2); `merge` unions the description fields as enrichment while
+holding identity constant (A7 — one source of truth per fact, so disagreeing
+identity is a *different record*, never a merge). The normalisation
+primitives (§6.1) exist so that the identity inputs collapse provider
+spelling differences before they reach the digest.
 
 ### 6.1 Normalisation primitives
 
@@ -2098,6 +2228,17 @@ identity conflicts; `merge` is the commit step, not the diff step.
 
 ### 6.7 ISO helpers
 
+The `IsoDate` boundary type carries date / datetime fields (`release_date`,
+`AvailabilityWindow.start` / `.end`). It is a string, not a `datetime`,
+because sources hand over partial precision ("2025", "2025-09") a
+`datetime` cannot hold, and because the string is the round-trip-stable
+canonical form for cross-source dedup — reformatting via
+`datetime.isoformat()` would drop precision and break hash equality. The
+validator enforces *parseability* only (an ISO-8601 date, year-month, year,
+or datetime with offset) and never normalises; empty / `None` is always
+admitted (A2 — absence is not a value). `iso_compare(a, b)` orders two such
+strings semantically (year → first day of year, etc.).
+
 ```python
 def validate_language(code: str) -> str:
     """Validate ISO 639-1 or ISO 639-2. Return normalised lowercase. Raises ValueError if invalid."""
@@ -2216,8 +2357,12 @@ answer: `is_open=False`, `is_public_domain=False`, `allows_commercial=False`,
 **Optional helper.** `mediavocab.models.License` is a Pydantic companion
 model. Like `ExternalIds`, it is *not* the canonical persisted form —
 `Release.license: str` is — but consumers can parse an SPDX string into
-typed flags via `License.from_spdx(spdx)`. Per A7, the string is the
-single source of truth; the typed view is a read-only overlay.
+typed flags via `License.from_spdx(spdx)`, or read the overlay directly as
+`Release.license_model` (a read-only property: `None` when `license` is
+empty, else `License.from_spdx(license)`) — the exact mirror of
+`Release.external_ids_model`. Per A7 the string is the single source of
+truth: the typed view never persists and is never the field. Writing the
+field is always `release.license = "<spdx>"`.
 
 ---
 
@@ -2238,8 +2383,12 @@ single source of truth; the typed view is a read-only overlay.
 
 ### 8.1 Field mutability after canonicalisation
 
-Once a Work has been canonicalised (assigned a `work_hash`), its fields
-fall into two classes:
+The two mutability classes are the §1.5 identity/description split read
+back at runtime: identity fields are immutable because by definition a
+record that disagrees on one is a *different* record (A7), and description
+fields are mutable because a new source supplying a value is enrichment,
+not conflict. Once a Work has been canonicalised (assigned a `work_hash`),
+its fields fall into these two classes:
 
 **Immutable** — changing these produces a *different* Work:
 
@@ -2277,12 +2426,17 @@ different Release.
 ### 8.3 The `extra` escape hatch
 
 Every model surfacing external metadata carries an `extra` dict, typed
-`Dict[str, str]` throughout the spec. This is an explicit landfill for
+`Dict[str, Any]` throughout the spec. This is an explicit landfill for
 provider-specific values that have not yet earned a typed field.
 
-1. **Strings only.** New code writes strings; the validator rejects
-   non-string values. Encode lists as comma-joined strings, numbers as
-   their decimal representation.
+1. **Strings are the portable form; JSON-serialisable values are
+   tolerated.** A string round-trips through every serialiser and every
+   provider, so strings are always the safe choice. The dict nonetheless
+   admits any JSON-serialisable value (int, bool, list, nested dict) so
+   ingestion need not pay a stringify/parse tax on data it has not yet
+   promoted. The tolerance is bounded by rule 5: mediavocab never *reads*
+   `extra`, so a non-string value can never change mediavocab behaviour —
+   it is inert until a consumer or a future typed field gives it meaning.
 2. **Promotion is the goal.** A key that appears across two or more
    providers, or that downstream consumers branch on, is a candidate for
    promotion to a typed field on the next minor release.

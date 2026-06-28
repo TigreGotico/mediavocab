@@ -128,8 +128,9 @@ class Entity(BaseModel):
     # Hierarchy
     part_of: Optional[EntityRef] = None
 
-    # Lifecycle
-    status: Optional[str] = None
+    # Lifecycle (no `status` scalar — group lifecycle is `formed` /
+    # `disbanded` / `years_active`, and a member's state is the orthogonal
+    # Membership.temporal pair, A5; a separate status would double-write, A7)
     years_active: List[str] = Field(default_factory=list)
     formed: Optional[str] = None
     disbanded: Optional[str] = None

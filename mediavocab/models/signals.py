@@ -138,7 +138,7 @@ class Signals(BaseModel):
     # :func:`compare_signals`. Distinct from the free-text ``source_format``.
     picture_format: Optional[PictureFormat] = None
 
-    # ProgrammeFormat hint (§4.13) — documentary / news / concert / stand_up /
+    # ProgrammeFormat hint (§4.12) — documentary / news / concert / stand_up /
     # talk_show / sports / reality / quiz. Routing-family (A6): orthogonal to
     # ``medium`` (the carrier), never identity, never observed/compared.
     programme_format: Optional[ProgrammeFormat] = None
