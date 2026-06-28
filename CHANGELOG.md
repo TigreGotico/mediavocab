@@ -1,5 +1,13 @@
 # Changelog
 
+## [2.0.0a1](https://github.com/TigreGotico/mediavocab/tree/2.0.0a1) (2026-06-28)
+
+[Full Changelog](https://github.com/TigreGotico/mediavocab/compare/1.3.0a3...2.0.0a1)
+
+**Breaking changes:**
+
+- docs!: make the formal spec uniformly prescriptive; sync code to it [\#15](https://github.com/TigreGotico/mediavocab/pull/15) ([JarbasAl](https://github.com/JarbasAl))
+
 ## [1.3.0a3](https://github.com/TigreGotico/mediavocab/tree/1.3.0a3) (2026-06-27)
 
 [Full Changelog](https://github.com/TigreGotico/mediavocab/compare/1.3.0a2...1.3.0a3)
