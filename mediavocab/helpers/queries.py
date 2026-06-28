@@ -179,11 +179,11 @@ def is_available(release: Release, region: str = "", at: Optional[str] = None) -
     Rules applied in order:
     1. If `region` given and release is region-locked and `region` not in
        `regions_available` → False.
-    2. If `at` given and `available_from` set and `at` precedes it → False.
-    3. If `at` given and `available_until` set and `at` follows it → False.
-    4. If `at` given and `availability_windows` non-empty → True only if `at`
-       falls within at least one window (start ≤ at ≤ end).
-    5. Otherwise → True.
+    2. If `at` given and `availability_windows` non-empty → True only if `at`
+       falls within at least one window (start ≤ at ≤ end). Availability
+       timing lives in this one typed home (A7); there are no parallel
+       scalar bounds.
+    3. Otherwise → True.
     """
     from mediavocab._iso_date import iso_compare
 
@@ -191,42 +191,41 @@ def is_available(release: Release, region: str = "", at: Optional[str] = None) -
         if region.upper() not in [r.upper() for r in release.regions_available]:
             return False
 
-    if at is not None:
-        if release.available_from and iso_compare(at, str(release.available_from)) < 0:
+    if at is not None and release.availability_windows:
+        in_window = False
+        for w in release.availability_windows:
+            start_ok = w.start is None or iso_compare(at, w.start) >= 0
+            end_ok = w.end is None or iso_compare(at, w.end) <= 0
+            if start_ok and end_ok:
+                in_window = True
+                break
+        if not in_window:
             return False
-        if release.available_until and iso_compare(at, str(release.available_until)) > 0:
-            return False
-        if release.availability_windows:
-            in_window = False
-            for w in release.availability_windows:
-                start_ok = w.start is None or iso_compare(at, w.start) >= 0
-                end_ok = w.end is None or iso_compare(at, w.end) <= 0
-                if start_ok and end_ok:
-                    in_window = True
-                    break
-            if not in_window:
-                return False
 
     return True
 
 
 # ---------------------------------------------------------------------------
-# License helpers (guard against Optional[License] = None)
+# License helpers — operate on the canonical `Release.license` SPDX string
+# (A7; §7.2). The string is the single source of truth.
 # ---------------------------------------------------------------------------
 
 def release_is_open(release: Release) -> bool:
     """True iff the release has a license and that license is open."""
-    return release.license.is_open() if release.license else False
+    from mediavocab.models.license import is_open
+    return is_open(release.license) if release.license else False
 
 
 def release_requires_attribution(release: Release) -> bool:
     """True iff the release license requires attribution (unknown → True)."""
-    return release.license.attribution if release.license else True
+    from mediavocab.models.license import requires_attribution
+    return requires_attribution(release.license) if release.license else True
 
 
 def release_allows_commercial(release: Release) -> bool:
     """True iff the release license permits commercial use (unknown → False)."""
-    return release.license.commercial if release.license else False
+    from mediavocab.models.license import allows_commercial
+    return allows_commercial(release.license) if release.license else False
 
 
 __all__ = [

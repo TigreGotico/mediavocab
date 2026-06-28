@@ -1,4 +1,11 @@
-"""Entity, EntityRef, Membership, Credit. Spec §5.1, §5.2."""
+"""Entity, EntityRef, Membership, Credit — the third identity and its edges
+(spec: A5/T3, §5.1/§5.2).
+
+Entity is the third identity of §1.3 (a participant that is not a Work);
+Membership is admitted by A5 (temporal state paired with an orthogonal kind,
+both stored); Credit is the §1.4 Entity→Work edge (distinct from band-roster
+membership by T3).
+"""
 import logging
 from typing import Any, Dict, List, Optional, Tuple
 
@@ -20,10 +27,11 @@ _LOG = logging.getLogger(__name__)
 
 
 class EntityRef(BaseModel):
-    """Lightweight reference to an entity (§5.1).
+    """Lightweight reference to an entity (spec: §5.1).
 
     `localized_names`: list of `(name, ISO 639-1)` tuples for cross-locale
-    matching. Not part of the identity hash.
+    matching. Description-family (§1.5, A7-clean) — never hashed; the same name
+    in another script is not a different entity.
     """
 
     model_config = _CFG
@@ -35,7 +43,7 @@ class EntityRef(BaseModel):
 
 
 class Membership(BaseModel):
-    """A time-sliced membership of an entity in a group (§5.2).
+    """A time-sliced membership of an entity in a group (spec: A5, §5.2).
 
     Two orthogonal facets (A5):
       - `kind` (MembershipKind): role-shape — MEMBER / TOURING / SESSION.
@@ -56,6 +64,8 @@ class Membership(BaseModel):
 
     @model_validator(mode="after")
     def _check(self) -> "Membership":
+        # A5: date_to=None does not mean current — an ACTIVE membership must
+        # leave date_to open; a closed date_to contradicts ACTIVE.
         if self.temporal == TemporalState.ACTIVE and self.date_to is not None:
             raise ValueError("ACTIVE membership must have date_to=None")
         if (
@@ -68,7 +78,8 @@ class Membership(BaseModel):
 
 
 class Credit(BaseModel):
-    """An entity's contribution to a specific Work (§5.2).
+    """An entity's contribution to a specific Work — the §1.4 Entity→Work edge
+    (spec: §1.4/§5.2; distinct from roster Membership by T3).
 
     Order in the list is the editorial credit order (poster billing, liner notes).
 
@@ -90,6 +101,9 @@ class Credit(BaseModel):
 
     @model_validator(mode="after")
     def _check_role_consistency(self) -> "Credit":
+        # Warn, never reject (§5.2): cross-provider ingestion carries raw
+        # provider labels before relation_role is mapped; a hard reject would
+        # lose data (same warn-not-reject discipline as org_kind, §4.5).
         if not self.relation_role and self.role:
             _LOG.warning(
                 "Credit.relation_role not set for role=%r — consider mapping "
@@ -109,7 +123,8 @@ class Credit(BaseModel):
 
 
 class Entity(BaseModel):
-    """A person, group, organisation, series, or device (§5.2)."""
+    """The third identity of §1.3 — a participant that is not a Work
+    (spec: §1.3/§5.2). A person, group, organisation, series, or device."""
 
     model_config = _CFG
 
@@ -128,8 +143,9 @@ class Entity(BaseModel):
     # Hierarchy
     part_of: Optional[EntityRef] = None
 
-    # Lifecycle
-    status: Optional[str] = None
+    # Lifecycle (no `status` scalar — group lifecycle is `formed` /
+    # `disbanded` / `years_active`, and a member's state is the orthogonal
+    # Membership.temporal pair, A5; a separate status would double-write, A7)
     years_active: List[str] = Field(default_factory=list)
     formed: Optional[str] = None
     disbanded: Optional[str] = None
@@ -139,6 +155,9 @@ class Entity(BaseModel):
 
     @model_validator(mode="after")
     def _check(self) -> "Entity":
+        # §4.5 warn-not-reject: an ORGANISATION with no org_kind yet is
+        # incomplete (not wrong) and must survive cross-provider ingestion;
+        # org_kind on a non-ORGANISATION is a contradiction and is rejected.
         if self.kind == EntityKind.ORGANISATION and self.org_kind is None:
             _LOG.warning(
                 "Entity(kind=ORGANISATION, name=%r) has no org_kind — "

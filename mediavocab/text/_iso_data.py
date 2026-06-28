@@ -1,5 +1,5 @@
 """Embedded ISO 639 / 3166-1 data. Generated from pycountry at build time;
-not a runtime dependency. Spec §7.3."""
+not a runtime dependency (spec: §6.7)."""
 
 LANGUAGES_639_1 = {
     'aa': 'Afar',

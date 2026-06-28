@@ -349,8 +349,10 @@ def test_is_available_region_locked():
 
 def test_is_available_date_bounds():
     from mediavocab.helpers import is_available
+    from mediavocab import AvailabilityWindow
     r = Release(work=Work(title="x", media_type=MediaType.MOVIE),
-                available_from="2025-01", available_until="2026-12")
+                availability_windows=[AvailabilityWindow(start="2025-01",
+                                                         end="2026-12")])
     assert is_available(r, at="2025-06") is True
     assert is_available(r, at="2024-12") is False
     assert is_available(r, at="2027-01") is False

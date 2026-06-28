@@ -18,6 +18,12 @@ from mediavocab.taxonomy.modality import (
     MEDIA_TYPE_TO_PLAYBACK_TYPE,
     infer_playback_type,
 )
+from mediavocab.taxonomy.picture_format import PictureFormat
+from mediavocab.taxonomy.structure import (
+    Structure,
+    MEDIA_TYPE_TO_STRUCTURE,
+    infer_structure,
+)
 from mediavocab.taxonomy.genre import (  # noqa: F401  (re-exported)
     GENRE_ANIMATION, GENRE_ANIME, GENRE_NOIR,
     GENRE_RADIO_DRAMA, GENRE_ASMR, GENRE_AMBIENT, GENRE_SOUNDSCAPE,
@@ -56,6 +62,8 @@ __all__ = [
     "MembershipKind", "TemporalState",
     "ContentForm", "ProgrammeFormat", "AccessibilityKind",
     "PlaybackType", "MEDIA_TYPE_TO_PLAYBACK_TYPE", "infer_playback_type",
+    "PictureFormat",
+    "Structure", "MEDIA_TYPE_TO_STRUCTURE", "infer_structure",
     # genres
     "GENRE_ANIMATION", "GENRE_ANIME", "GENRE_NOIR",
     "GENRE_RADIO_DRAMA", "GENRE_ASMR", "GENRE_AMBIENT",
