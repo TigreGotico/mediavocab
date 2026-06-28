@@ -1,4 +1,11 @@
-"""Work comparison, scoring, hashing, and merging. Spec §6."""
+"""Work comparison, scoring, hashing, and merging (spec: §6).
+
+Every operation is admitted by the identity/routing/description split of §1.5:
+a hash digests exactly the identity fields (A6 keeps routing/description out);
+``compare`` diffs the same identity fields (absence is never a conflict, A2);
+``merge`` unions description fields as enrichment while holding identity
+constant (A7 — disagreeing identity is a *different record*, never a merge).
+"""
 from __future__ import annotations
 
 import hashlib
@@ -14,10 +21,12 @@ from mediavocab.text.normalize import normalize, fuzzy_ratio, token_sort_ratio
 
 
 class IdentityConflict(ValueError):
-    """Raised by merge() when two inputs disagree on an identity field.
+    """Raised by merge() when two inputs disagree on an identity field
+    (spec: §6.6, A7).
 
     Two provider records that disagree on identity are two different Works /
-    Releases — the caller decides which to keep upstream (spec §6.6 contract).
+    Releases (A7 — one source of truth per fact) — the caller decides which to
+    keep upstream.
     """
 
     def __init__(self, field: str, values: List[Any]):
@@ -29,7 +38,7 @@ class IdentityConflict(ValueError):
 
 
 class MergeStrategy(BaseModel):
-    """Per-field merge policy (spec §6.6).
+    """Per-field merge policy (spec: §6.6).
 
     `provider_priority`: list of provider names; earlier wins ties.
     `title_strategy` / `edition_strategy`: scalar tie-breaker for these two
@@ -55,7 +64,8 @@ ARTIST_MIN = 0.90
 YEAR_WINDOW = 1
 
 
-# Quantum semantics (§6.2):
+# Runtime quantum table (spec: §6.2, A1(c)). The quantum equals the identity
+# tolerance, codifying A1's tolerance-divergence clause per MediaType:
 #   0          — include runtime at second precision
 #   N > 0      — round to nearest multiple of N seconds before hashing
 #   QUANTUM_SKIP — exclude runtime from the hash for this MediaType
@@ -81,8 +91,9 @@ RUNTIME_HASH_QUANTUM_S: Dict[MediaType, int] = {
     MediaType.PLAYLIST:              QUANTUM_SKIP,
 }
 
-# The quantum *is* the tolerance (§6.5). Same dict, alias for clarity at
-# call sites that mean "tolerance".
+# The quantum *is* the tolerance (§6.2/§6.5, A1(c)): the per-MediaType runtime
+# quantum that work_hash rounds to (§6.2) is also the compare tolerance (§6.5).
+# Same dict, alias for clarity at call sites that mean "tolerance".
 RUNTIME_TOLERANCE_S = RUNTIME_HASH_QUANTUM_S
 
 
@@ -144,7 +155,8 @@ def _round_runtime(runtime: Optional[float], media_type: MediaType) -> str:
 
 
 def compare(a: Work, b: Work) -> List[Conflict]:
-    """Return overlapping identity fields that disagree (§6.5).
+    """Return overlapping identity fields that disagree (spec: §6.5, A2).
+    Absence is never a conflict (A2 — it is unknown).
 
     Compared (only when both sides have a value):
         title (fuzzy), year, runtime (within tolerance), media_type, language,
@@ -198,7 +210,7 @@ def compare(a: Work, b: Work) -> List[Conflict]:
 
 
 def score(query: Work, candidate: Work) -> float:
-    """[0.0, 1.0] match quality (§6.5)."""
+    """[0.0, 1.0] match quality (spec: §6.5, A2 — missing fields don't penalise)."""
     titles_to_try = (
         [candidate.title]
         + list(candidate.aka or [])
@@ -427,7 +439,10 @@ def _check_identity_agreement(works):
 
 def merge(*works: Work, strategy: MergeStrategy = DEFAULT_STRATEGY,
           strict: bool = False) -> Work:
-    """Combine partial records (§6.6).
+    """Combine partial records (spec: §6.6, A7).
+
+    Holds identity constant and unions description fields as enrichment (A7);
+    disagreeing identity is a *different record*, never a merge.
 
     With `strict=True`, identity fields (work_hash inputs) must agree across
     inputs; disagreement raises `IdentityConflict`. Default `strict=False`
@@ -524,8 +539,8 @@ def merge_all(works: List[Work], strategy: MergeStrategy = DEFAULT_STRATEGY,
 
 def merge_releases(*releases: Release,
                    strategy: MergeStrategy = DEFAULT_STRATEGY) -> Release:
-    """Combine partial Release records. Same contract as `merge` scoped to
-    Release identity (§6.6).
+    """Combine partial Release records (spec: §6.6, A7). Same contract as
+    `merge` scoped to Release identity.
 
     Identity inputs are `release_hash` inputs (§6.4): work, region, container,
     codec, bitrate, platform, resolution, audio_language. Disagreement on
@@ -598,7 +613,11 @@ _WORK_HASH_FIELDS = (
 
 
 def work_hash(w: Work) -> str:
-    """Stable SHA-256 over identity fields. 64 hex chars. Spec §6.3."""
+    """Stable SHA-256 over identity fields. 64 hex chars (spec: §6.3, A6).
+
+    Digests exactly the §1.5 identity fields; routing and description fields are
+    excluded by A6. ``content_form`` is included by A8b (a trailer would
+    otherwise collide with the primary work); pipeline sentinels raise (T8)."""
     if w.media_type in PIPELINE_SENTINELS:
         raise ValueError(
             f"work_hash: cannot hash pipeline-sentinel MediaType {w.media_type.value!r}"
@@ -646,7 +665,11 @@ _RELEASE_HASH_FIELDS = (
 
 
 def release_hash(r: Release) -> str:
-    """Stable SHA-256 over Release identity fields. 64 hex chars. Spec §6.4."""
+    """Stable SHA-256 over Release identity fields. 64 hex chars (spec: §6.4, A6).
+
+    Digests work_hash + format identity (region/container/codec/bitrate/
+    platform/resolution/audio_language); packaging, quality, availability,
+    accessibility, and chapters are description-family, excluded by A6."""
     from mediavocab.text.normalize import (
         normalise_format as _fmt,
         normalise_codec as _codec,

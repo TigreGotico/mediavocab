@@ -1,14 +1,15 @@
 """Work, Release, Appearance, Chapter, AccessibilityTrack, AvailabilityWindow,
-WorkRelation, ReleaseRelation.
+WorkRelation, ReleaseRelation (spec: §5, models).
 
-Spec §5 (models). The object graph closes at six models (§1.4); a
-scheduled broadcast (§5.5) and a playable device (§5.6) are applications
-of these, not additional models.
+The object graph closes at six models (§1.4 — Work/Release/Entity +
+Appearance/Credit/Membership); a scheduled broadcast (§5.5) and a playable
+device (§5.6) are *applications* of these, not additional models (A9 forbids
+new structure an existing combination already expresses).
 
 `Work` is embedded directly inside `Appearance.work`, `Release.work`,
-`WorkRelation.target`, etc. The spec describes `WorkRef` / `ReleaseRef` as
-lightweight pointers — in practice, consumers pass a Work with only
-identity fields populated, which is wire-format-equivalent.
+`WorkRelation.target`, etc. Per §5.1, Work/Release have no dedicated Ref type:
+a pointer is a Work / Release populated with identity fields only — what
+consumers pass here, wire-format-equivalent.
 """
 from __future__ import annotations
 
@@ -66,7 +67,8 @@ COUNTRY_SLOT_FOR: Dict[MediaType, str] = {
 
 
 class LocalizedTitle(BaseModel):
-    """Language-tagged title (§5.1)."""
+    """Language-tagged title (spec: §5.1). Discovery/description-family (§1.5);
+    not a ``work_hash`` input (A6)."""
 
     model_config = _CFG
 
@@ -76,7 +78,8 @@ class LocalizedTitle(BaseModel):
 
 
 class Appearance(BaseModel):
-    """Position of a Work within a container Release / parent Work (§5.3).
+    """Position of a Work within a container Release / parent Work — the §1.4
+    edge (spec: §1.4, §5.3).
 
     `offset` carries absolute time-into-the-parent where this member starts —
     used by continuous mixes (DJ sets, megamixes, live concerts). None = the
@@ -96,7 +99,8 @@ class Appearance(BaseModel):
 
 
 class Chapter(BaseModel):
-    """A timestamped marker within a Release (§5.4). Navigation aid, NOT a Work."""
+    """A timestamped marker within a Release (spec: §5.4). Navigation aid, NOT a
+    Work (T2); a per-manifestation asset excluded from ``release_hash`` (A6)."""
 
     model_config = _CFG
 
@@ -111,7 +115,8 @@ class Chapter(BaseModel):
 
 
 class AccessibilityTrack(BaseModel):
-    """Per-Release accessibility asset (§5.4)."""
+    """Per-Release accessibility asset (spec: §5.4). Acquired over a Release's
+    lifetime; excluded from ``release_hash`` (A6)."""
 
     model_config = _CFG
 
@@ -124,10 +129,11 @@ class AccessibilityTrack(BaseModel):
 
 
 class AvailabilityWindow(BaseModel):
-    """A single (start, end) availability window. None = open-ended on that
-    side (§5.4, A2). `start` / `end` are the `IsoDate` boundary type: an
-    ISO-8601 date or a datetime with offset. The datetime form lets one
-    window carry a broadcast slot (§5.5)."""
+    """A single (start, end) availability window — the §5.5 broadcast-slot
+    derivation, not a model (spec: §5.4/§5.5). None = open-ended on that side
+    (A2 — absence is not a value). `start` / `end` are the `IsoDate` boundary
+    type (§6.7): an ISO-8601 date or a datetime with offset; the datetime form
+    lets one window carry a broadcast slot (§5.5)."""
 
     model_config = _CFG
 
@@ -144,7 +150,8 @@ class AvailabilityWindow(BaseModel):
 
 
 class WorkRelation(BaseModel):
-    """Work→Work relation (§4.13)."""
+    """Work→Work relation (spec: A9, §4.13/§5.1). Navigation/description, never
+    identity (A6) — absent from ``work_hash``."""
 
     model_config = _CFG
 
@@ -154,8 +161,9 @@ class WorkRelation(BaseModel):
 
 
 class ReleaseRelation(BaseModel):
-    """Release→Release lineage (§4.13). Use sparingly — most distinctions are
-    encoded by format/packaging fields plus `release_hash`."""
+    """Release→Release lineage (spec: A9, §4.13/§5.1). Navigation/description,
+    never identity (A6). Use sparingly — most distinctions are encoded by
+    format/packaging fields plus `release_hash`."""
 
     model_config = _CFG
 
@@ -165,61 +173,68 @@ class ReleaseRelation(BaseModel):
 
 
 class Work(BaseModel):
-    """The canonical creative artefact (§5.3).
+    """The canonical creative artefact — the first identity of §1.3 (spec: T2, §5.3).
 
-    Does not contain playback URIs — those live on Release. Two records
-    describing the same song on two different albums share a Work.
+    Distinct from Release and Appearance by T2. Its identity fields (§1.5) are
+    the ``work_hash`` inputs (§6.3); its routing and description fields are
+    excluded by A6. Does not contain playback URIs — those live on Release (A3).
+    Two records describing the same song on two different albums share a Work.
     """
 
     model_config = _CFG
 
-    title: str
-    media_type: MediaType
-    content_form: ContentForm = ContentForm.PRIMARY
+    # --- Identity (work_hash inputs, §6.3; immutable after canonicalisation, §8.1) ---
+    title: str                                       # normalise_title → work_hash (§6.3)
+    media_type: MediaType                            # schema axis (A1, §3.2); work_hash input
+    content_form: ContentForm = ContentForm.PRIMARY  # experiential axis (A8a); enters work_hash by A8b (§6.3)
 
-    # Temporal
+    # Temporal — identity (year, runtime are work_hash inputs; §6.3)
     year: Optional[int] = None
-    runtime: Optional[float] = None
+    runtime: Optional[float] = None                  # quantum-rounded per MediaType in work_hash (§6.2/§6.3)
 
-    # Language
+    # Language — identity (`language` is a work_hash input; original_languages is description)
     language: str = ""
-    original_languages: List[str] = Field(default_factory=list)
+    original_languages: List[str] = Field(default_factory=list)   # description (A6); excluded from hash
 
-    # Geographic provenance (exactly one of the three is non-empty per MediaType;
-    # validator enforces exclusivity only, not slot-match — §5.3)
+    # Geographic provenance — identity (the one non-empty slot is the work_hash
+    # country_slot, §6.3). Exactly one non-empty per MediaType; validator
+    # enforces exclusivity only, not slot-match (§5.3).
     production_country: str = ""
     publication_country: str = ""
     broadcaster_country: str = ""
 
-    # Episode / series structure
+    # Episode / series structure — identity (season/episode/series_title are
+    # work_hash inputs, §6.3; series_title disambiguates S01E01 collisions).
+    # episode_orderings is description (A6).
     season: Optional[int] = None
     episode: Optional[int] = None
     series_title: Optional[str] = None
-    episode_orderings: Dict[str, int] = Field(default_factory=dict)
+    episode_orderings: Dict[str, int] = Field(default_factory=dict)   # description (A6)
 
-    # Edition (Work-only — restructurings produce new Works)
+    # Edition — identity, Work-only (restructurings produce new Works, §3.4);
+    # variant_kind / edition / source_format are work_hash inputs (§6.3).
     variant_kind: Optional[VariantKind] = None
     edition: str = ""
     source_format: str = ""
 
-    # Routing (excluded from work_hash)
-    content_genres: List[str] = Field(default_factory=list)
-    programme_format: Optional[ProgrammeFormat] = None
-    picture_format: Optional[PictureFormat] = None   # presentation attr (T6); routing (A6)
-    release_status: ReleaseStatus = ReleaseStatus.RELEASED
+    # Routing — excluded from work_hash (A6)
+    content_genres: List[str] = Field(default_factory=list)         # aesthetic axis (T1/A6, §3.6)
+    programme_format: Optional[ProgrammeFormat] = None             # routing (A6, §3.7)
+    picture_format: Optional[PictureFormat] = None   # presentation attr (T6); routing (A6, §3.11)
+    release_status: ReleaseStatus = ReleaseStatus.RELEASED         # lifecycle, description (A6, §4.9)
 
-    # Discovery (not part of identity hash)
+    # Discovery / description — not part of identity hash (A6)
     aka: List[str] = Field(default_factory=list)
     localized_titles: List[LocalizedTitle] = Field(default_factory=list)
 
-    # Credits and containment
-    credits: List[Credit] = Field(default_factory=list)
-    tracklist: List[Appearance] = Field(default_factory=list)
-    relations: List[WorkRelation] = Field(default_factory=list)
+    # Credits and containment — description (A6); accumulate as enrichment
+    credits: List[Credit] = Field(default_factory=list)           # §1.4 Entity→Work edges
+    tracklist: List[Appearance] = Field(default_factory=list)     # §1.4 canonical member order
+    relations: List[WorkRelation] = Field(default_factory=list)   # A9 navigation edges
 
-    # Cross-references
-    external_ids: Dict[str, str] = Field(default_factory=dict)
-    extra: Dict[str, Any] = Field(default_factory=dict)
+    # Cross-references — description (A6, §7.1); extra is the §8.3 escape hatch
+    external_ids: Dict[str, str] = Field(default_factory=dict)    # canonical persistence form (§7.1)
+    extra: Dict[str, Any] = Field(default_factory=dict)           # escape hatch (§8.3); never read by mediavocab
 
     @property
     def external_ids_model(self) -> ExternalIds:
@@ -250,11 +265,15 @@ class Work(BaseModel):
 
     @model_validator(mode="after")
     def _check(self) -> "Work":
+        # T8: pipeline sentinels never reach a canonical Work (← A4). A Work
+        # constructed with GENERIC / NOT_MEDIA / CONTROL raises at validation.
         if self.media_type in PIPELINE_SENTINELS:
             raise ValueError(
                 f"Work.media_type must be a concrete kind; "
                 f"{self.media_type.value!r} is a pipeline sentinel (T8)"
             )
+        # §5.3: at most one country slot non-empty (the single work_hash
+        # country_slot input, §6.3). All-empty is valid (co-productions, etc.).
         slots = [self.production_country, self.publication_country, self.broadcaster_country]
         if sum(1 for s in slots if s) > 1:
             raise ValueError(
@@ -342,25 +361,32 @@ class Work(BaseModel):
 
 
 class Release(BaseModel):
-    """A specific physical or digital manifestation of a Work (§5.4)."""
+    """A specific physical or digital manifestation of a Work — the second
+    identity of §1.3 (spec: T2/A3/T6, §5.4).
+
+    Distinct from the Work by T2 and varying independently of it by A3 (delivery
+    is not identity). Every technical attribute here is a Release field by T6;
+    none back-propagates into the Work. Identity fields are the ``release_hash``
+    inputs (§6.4); packaging/quality/availability are description (A6).
+    """
 
     model_config = _CFG
 
-    work: Work
+    work: Work                               # the Work this Release manifests (§5.4)
 
-    # Packaging (description-family)
+    # Packaging — description-family (A6); excluded from release_hash (§6.4)
     packaging: Optional[ReleasePackaging] = None
     edition: str = ""
-    region: str = ""
+    region: str = ""                         # identity: release_hash input (§6.4)
 
-    # Format identity (T6)
+    # Format identity (T6) — release_hash inputs (§6.4)
     container: str = ""
     codec: str = ""
     bitrate: str = ""
     platform: str = ""
     resolution: str = ""
 
-    # Audio / video quality (description, not identity)
+    # Audio / video quality — description (T6 attributes, not identity); excluded from release_hash (§6.4)
     hdr: str = ""
     audio_channels: str = ""
     sample_rate: Optional[int] = None
@@ -370,12 +396,12 @@ class Release(BaseModel):
     audio_present: Optional[bool] = None
     picture_format: Optional[PictureFormat] = None   # presentation attr (T6); routing (A6)
 
-    # Delivery
+    # Delivery — routing (A3, §3.9); not identity
     stream_mode: StreamMode = StreamMode.ON_DEMAND
 
     # Localisation
-    audio_language: str = ""                          # identity (defines the dub/version)
-    subtitle_languages: List[str] = Field(default_factory=list)   # description
+    audio_language: str = ""                          # identity: release_hash input — the dub defines the version (§6.4)
+    subtitle_languages: List[str] = Field(default_factory=list)   # description (A6); added freely
 
     # Lifecycle
     release_status: ReleaseStatus = ReleaseStatus.RELEASED
@@ -451,7 +477,9 @@ class Release(BaseModel):
 
     @model_validator(mode="after")
     def _check(self) -> "Release":
-        # Availability windows — ordered, non-overlapping, at most one open-ended (must be last)
+        # §5.5 closure: availability windows ordered, non-overlapping, at most
+        # one open-ended (must be last) — the broadcast-slot invariant that lets
+        # AvailabilityWindow subsume a Schedule/Programme model (§1.4 closure).
         wins = sorted(
             self.availability_windows,
             key=lambda w: (w.start is not None, w.start or ""),

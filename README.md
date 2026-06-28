@@ -96,6 +96,27 @@ pipeline-sentinel `NOT_MEDIA` / `CONTROL` flow.
 
 See [`docs/`](./docs/) for full reference and pattern guides.
 
+## Traceability — code cites the spec
+
+The formal specification ([`docs/mediavocab_spec.md`](./docs/mediavocab_spec.md),
+`SPEC_VERSION`) is **prescriptive**: it is the source of truth, and the code
+implements it. Its §2 axioms (A1–A9) and theorems (T1–T9), together with §3–§8,
+admit and justify every axis, enum value, model field, and operation.
+
+So the two stay bidirectionally traceable, every public enum, model, and
+operation carries a **greppable clause citation** in its docstring naming the
+axiom / theorem / section that admits it, in the form `(spec: <clause>)` — e.g.
+`(spec: A1, §3.2/§4.1)` on `MediaType`, `(spec: A8a, §3.3/§4.2)` on
+`ContentForm`, `(spec: §6.3, A6)` on `work_hash`. Field-level comments cite the
+§1.5 identity / routing / description family and, for identity-hash inputs, the
+hash rule (e.g. `content_form` → A8b enters `work_hash` §6.3; routing fields →
+excluded by A6). Validators cite the axiom they enforce (sentinel rejection →
+T8; one-MediaType-for-life → A4; `org_kind` warn → §4.5/A9).
+
+Grep the convention with `grep -rn "(spec:" mediavocab/`. To find which clause
+governs a symbol, open it; to find the code for a clause, grep the clause id
+(e.g. `grep -rn "A8b" mediavocab/`).
+
 ## Workspace position
 
 `mediavocab` sits at the bottom of the stack. Every other package in

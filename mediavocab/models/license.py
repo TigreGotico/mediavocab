@@ -1,6 +1,8 @@
-"""License — typed companion to ``Release.license`` string.
+"""License — typed companion to the ``Release.license`` string (spec: A7, §3.10/§7.2).
 
-The free-form ``Release.license: str`` field on Release stays the
+Per A7 (one source of truth per fact), the SPDX-style ``Release.license: str``
+is the single canonical form; this typed view never persists and is never the
+field. The free-form ``Release.license: str`` field on Release stays the
 canonical persisted form (SPDX identifier, free text, or empty). The
 typed ``License`` model is an ergonomic overlay for callers that want
 to filter on rights without string-matching every variation
@@ -29,10 +31,11 @@ CC_BY_NC_ND = "CC-BY-NC-ND-4.0"
 
 
 class License(BaseModel):
-    """Typed companion to ``Release.license: str``.
+    """Typed companion to ``Release.license: str`` (spec: A7, §3.10/§7.2).
 
-    Captures the four orthogonal rights questions Creative Commons
-    formalised plus an open / proprietary flag:
+    A read-only overlay, never the persisted field (A7 — the SPDX string is the
+    single source of truth). Captures the four orthogonal rights questions
+    Creative Commons formalised plus an open / proprietary flag:
 
     - ``attribution`` — must credit the rights holder
     - ``share_alike`` — derivative works must use the same licence

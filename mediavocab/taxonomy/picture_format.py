@@ -1,4 +1,4 @@
-"""PictureFormat — the presentation/picture-attribute axis. Spec §3.11, §4.15.
+"""PictureFormat — the presentation/picture-attribute axis (spec: T6/A6, §3.11/§4.15).
 
 Technical Release attribute (T6): colour, dimensionality, and resolution
 describe the manifestation, not the canonical Work. Routing-family (A6) —
@@ -12,7 +12,12 @@ from enum import Enum
 
 
 class PictureFormat(str, Enum):
-    """Presentation / picture attributes of a manifestation (T6, routing)."""
+    """Presentation / picture attributes of a manifestation (spec: T6/A6, §3.11/§4.15).
+
+    Routing-family (A6): excluded from ``work_hash`` / ``release_hash`` /
+    ``compare_signals``. ``None`` is the default (A2). Distinct from the
+    free-text ``source_format`` (the distribution container / capture medium).
+    """
 
     BLACK_AND_WHITE = "black_and_white"  # monochrome image
     SILENT          = "silent"           # no synchronised audio track
