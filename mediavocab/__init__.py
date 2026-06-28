@@ -71,7 +71,7 @@ from mediavocab.text import (
     extract_tags,
 )
 
-SPEC_VERSION: str = "1.3"
+SPEC_VERSION: str = "1.4"
 
 __all__ = [
     "__version__", "SPEC_VERSION",
