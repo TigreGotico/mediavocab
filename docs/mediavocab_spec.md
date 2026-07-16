@@ -2,6 +2,15 @@
 
 **Version:** 1.4 (the `SPEC_VERSION` constant; the v1.x stability line — §8)
 **Status:** Stable. See §8 for versioning policy.
+
+`SPEC_VERSION` numbers *this document*: it advances only when a normative
+clause is added, changed, or removed, and its major tracks the §8 stability
+line (identity hashes, enum values, model fields). The package version on
+PyPI is independent — it follows semantic versioning derived from the API
+surface, so the package major may advance (e.g. for a breaking API rename)
+while the spec line stays 1.x, and a spec minor may land inside a package
+patch. Consumers pin behaviour by `SPEC_VERSION` and imports by the package
+version.
 **Scope:** Vocabulary and data-model library for any software that catalogues,
 resolves, plays, or recommends media content.
 
