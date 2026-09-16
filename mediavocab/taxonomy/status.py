@@ -1,9 +1,17 @@
-"""ReleaseStatus and StreamMode. Spec §4.7, §4.8."""
+"""ReleaseStatus (lifecycle axis, §4.9) and StreamMode (delivery axis, §3.9/§4.10)."""
 from enum import Enum
 
 
 class ReleaseStatus(str, Enum):
-    """Lifecycle state of a Work or Release."""
+    """Lifecycle state of a Work or Release (spec: A8, §4.9).
+
+    Description-family (§1.5): accumulates and is corrected as sources report,
+    excluded from both hashes (A6), and merge collapses it to the
+    highest-confidence state (§6.6). Each value is a distinct catalogue state a
+    consumer routes on (A8). WITHDRAWN (shipped, then pulled) is distinct from
+    CANCELLED (never shipped). A RUMOURED value is rejected (§4.9) — an
+    unverifiable work is not catalogued as a Work at all (T8-adjacent).
+    """
 
     RELEASED = "released"
     ANNOUNCED = "announced"
@@ -14,7 +22,7 @@ class ReleaseStatus(str, Enum):
 
 
 class StreamMode(str, Enum):
-    """How a Release's content is delivered at playback time.
+    """How a Release's content is delivered at playback time (spec: A3, §3.9/§4.10).
 
     A property of the Release (delivery), not the Work (content). Looping is
     a delivery concern, not an identity concern (A3).

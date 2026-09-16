@@ -3,7 +3,7 @@
 mediavocab spec §3.8 / §4.11 defines `PlaybackType` (`AUDIO` / `VIDEO`
 / `PAGED` / `INTERACTIVE` / `UNKNOWN`) as a *derived* routing axis (A6)
 orthogonal to `MediaType` and `content_genres`. This pattern documents
-the flow from a consumer-side request through the four-axis provider
+the flow from a consumer-side request through the three-axis provider
 gate to the right provider subset.
 
 ## When to populate
@@ -32,15 +32,14 @@ should leave `playback_type=None`. Gating on `PlaybackType.UNKNOWN` would
 exclude every provider; `None` is the gate's "no preference" sentinel
 and lets the resolver fan out fully.
 
-## The four-axis gate
+## The three-axis gate
 
-`MetadataProvider.matches(signals)` short-circuits on four independent
-checks (mediavocab/models/protocols.py:`_four_axis_gate`):
+`MetadataProvider.matches(signals)` short-circuits on three independent
+checks (mediavocab/models/protocols.py:`_three_axis_gate`):
 
 ```
 (no `media`         declared OR signals.medium         in self.media)
 AND (no `playback_type` declared OR signals.playback_type in self.playback_type)
-AND (no `content_form`  declared OR signals.content_form  in self.content_form)
 AND (no `genre_filter`  declared OR self.genre_filter ∩ signals.content_genres)
 ```
 

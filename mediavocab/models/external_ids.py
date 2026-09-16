@@ -1,6 +1,8 @@
-"""External identifiers — known keys + typed model.
+"""External identifiers — known keys + typed model (spec: A7, §7.1).
 
-The string constants below are the canonical key names for the free-form
+Every model carries ``external_ids: Dict[str, str]`` as its canonical
+persistence form (§7.1); per A7 a fact with a typed field lives there, not
+here. The string constants below are the canonical key names for the free-form
 ``external_ids`` dicts on :class:`Work` / :class:`Release` / :class:`Entity`
 / :class:`EntityRef`. Using the constants improves cross-package
 interoperability without forcing a closed enum.
@@ -211,11 +213,12 @@ _STREAM_MAP = (
 
 
 class Stream(BaseModel):
-    """A playable media stream from a known platform.
+    """A playable media stream from a known platform (spec: §7.1).
 
-    Constructed from :meth:`ExternalIds.streams` — aggregates playable
-    URLs and IDs stored in ``ExternalIds.extra`` into a typed, uniform
-    list. Consumers building players should iterate
+    A *view*, not a persisted record (§7.1): the canonical data is the
+    underlying ``external_ids`` key. Constructed from
+    :meth:`ExternalIds.streams` — aggregates playable URLs and IDs stored in
+    ``ExternalIds.extra`` into a typed, uniform list. Consumers building players should iterate
     ``ids.streams`` rather than reaching into the raw dict.
 
     `kind` is the platform's *asset category* ("track", "album",
@@ -239,10 +242,11 @@ class Stream(BaseModel):
 
 class ExternalIds(BaseModel):
     """Typed, validated companion to the ``Dict[str, str]`` ``external_ids``
-    field.
+    field (spec: A7, §7.1).
 
-    Use this when you want IDE completion, ISBN auto-pairing, typed
-    merging, or stream extraction. The model can serialise to and from a
+    *Not* the canonical persistence form — ``Dict[str, str]`` is (§7.1); per A7
+    the dict is the single source of truth. Use this when you want IDE
+    completion, ISBN auto-pairing, typed merging, or stream extraction. The model can serialise to and from a
     plain dict via :meth:`to_dict` / :meth:`from_dict` so consumers that
     prefer the dict representation stay compatible.
 

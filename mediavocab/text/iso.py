@@ -1,4 +1,4 @@
-"""ISO 639 / ISO 3166 helpers. Spec §7.3. Stdlib only."""
+"""ISO 639 / ISO 3166 helpers (spec: §6.7). Stdlib only."""
 from __future__ import annotations
 
 from mediavocab.text._iso_data import (

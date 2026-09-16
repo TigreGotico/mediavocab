@@ -1,4 +1,10 @@
-"""Predicate helpers for routing decisions in consuming code."""
+"""Predicate helpers for routing decisions in consuming code (non-normative).
+
+Convenience predicates over the spec's routing/sentinel rules — e.g.
+``is_not_media`` (T8 sentinels never reach a Work), ``is_device_entity`` (A3 —
+a device is an Entity, not a Work), ``is_continuous_release`` (A3 — delivery on
+the Release). Each predicate cites the governing clause.
+"""
 from __future__ import annotations
 
 from mediavocab.taxonomy import EntityKind, MediaType, StreamMode

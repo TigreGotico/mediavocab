@@ -20,7 +20,7 @@ lists every break a consumer must handle to move onto 1.0.
 | Was | Now |
 |---|---|
 | `Work.country` (method) | `Work.country` (**property**) — `work.country`, no parens. The value lives in a per-`MediaType` slot (`production_country` / `publication_country` / `broadcaster_country`); set via the slot or `COUNTRY_SLOT_FOR`. There is no flat `country=` kwarg. |
-| `Release.codec` / `container` hashed verbatim | Canonicalised before hashing (`normalise_codec` / `normalise_container`) — `"audio/mpeg"` and `"mp3"` now dedup to one `release_hash`. **This changes release identity** for records that stored MIME-form codec/container. |
+| `Release.codec` / `container` hashed verbatim | Canonicalised before hashing (`normalise_codec` / `normalise_container`) — `"audio/mpeg"` and `"mp3"` dedup to one `release_hash`. **This changes release identity** for records that stored MIME-form codec/container. |
 
 ## Never existed (use these instead)
 

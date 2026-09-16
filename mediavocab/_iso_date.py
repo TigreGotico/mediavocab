@@ -2,9 +2,10 @@
 
 Pydantic field validator + reusable annotated alias for fields that
 carry "an ISO-8601 date or datetime, possibly with a timezone." Used
-on Release availability windows, Programme slots, Schedule windows,
-fetched_at timestamps — anywhere mediavocab persists a wire-format
-date string instead of a typed ``datetime``.
+on ``Release.release_date`` and on ``AvailabilityWindow`` start / end
+boundaries (which carry broadcast slots in datetime form, spec §5.5) —
+anywhere mediavocab persists a wire-format date string instead of a
+typed ``datetime``.
 
 Why a string and not :class:`~datetime.datetime`?
 

@@ -143,20 +143,26 @@ def release_to_schema_org(release: "Release", **extra_props) -> Dict[str, Any]:
         out["inLanguage"] = release.audio_language  # override with dub language
 
     if release.license:
-        if release.license.url:
-            out["license"] = release.license.url
-        elif release.license.identifier:
-            out["license"] = release.license.identifier
+        lic = release.license_model            # typed read-only overlay (§7.2)
+        if lic and lic.url:
+            out["license"] = lic.url
+        else:
+            out["license"] = release.license   # canonical SPDX string
 
     if release.regions_available:
         out["availableInCountry"] = [
             {"@type": "Country", "name": r} for r in release.regions_available
         ]
 
-    if release.available_from:
-        out["availabilityStarts"] = str(release.available_from)
-    if release.available_until:
-        out["availabilityEnds"] = str(release.available_until)
+    # Availability timing has one typed home: availability_windows (A7).
+    # Map the earliest start / latest end across windows.
+    if release.availability_windows:
+        starts = [w.start for w in release.availability_windows if w.start]
+        ends = [w.end for w in release.availability_windows if w.end]
+        if starts:
+            out["availabilityStarts"] = str(min(starts))
+        if ends:
+            out["availabilityEnds"] = str(max(ends))
 
     if release.image:
         out["image"] = release.image

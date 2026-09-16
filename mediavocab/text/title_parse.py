@@ -1,4 +1,4 @@
-"""Structured extraction from raw media title strings.
+"""Structured extraction from raw media title strings (spec: §3.4/§3.5).
 
 Parses a single raw title into clean components — year, season/episode,
 variant/edition/format markers, alternative titles, language hints.
@@ -62,7 +62,7 @@ _LANG_BRACKET_RE = re.compile(
 # ---------------------------------------------------------------------------
 
 # (voc_name, VariantKind | None, ReleasePackaging | None, edition_label)
-# Spec §3.4 / §3.5: Work-level restructurings (cuts, remasters, fanedits)
+# (spec: §3.4/§3.5): Work-level restructurings (cuts, remasters, fanedits)
 # go into variant_kind; Release-level packaging (deluxe, reissue, anniversary,
 # criterion box-set) goes into packaging. Both may fire from the same title
 # label — a "Director's Cut Anniversary Edition" emits both.

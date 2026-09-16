@@ -29,7 +29,8 @@ dependencies = [
 test = ["pytest>=7", "pytest-cov"]
 
 [project.urls]
-Homepage = "https://github.com/JarbasAi/mediavocab"
+Homepage = "https://github.com/TigreGotico/mediavocab"
+Repository = "https://github.com/TigreGotico/mediavocab"
 
 [tool.setuptools.dynamic]
 version = {attr = "mediavocab.version.__version__"}

@@ -1,5 +1,5 @@
 from mediavocab import (
-    Appearance, MediaType, Release, ReleaseStatus, Work,
+    Appearance, AvailabilityWindow, MediaType, Release, ReleaseStatus, Work,
 )
 
 
@@ -29,12 +29,13 @@ def test_rights_and_availability():
                 license="cc_by_sa",
                 region_locked=True,
                 regions_available=["US", "CA"],
-                available_until="2026-01-31")
-    assert r.license is not None
-    assert r.license.identifier == "cc_by_sa"
+                availability_windows=[AvailabilityWindow(end="2026-01-31")])
+    assert r.license == "cc_by_sa"
+    assert r.license_model is not None
+    assert r.license_model.identifier == "cc_by_sa"
     assert r.region_locked is True
     assert r.regions_available == ["US", "CA"]
-    assert r.available_until == "2026-01-31"
+    assert r.availability_windows[0].end == "2026-01-31"
 
 
 def test_box_set_contents_no_synthetic_work():

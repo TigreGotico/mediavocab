@@ -91,21 +91,25 @@ like `"Star.Wars.Episode.IV.1977.Directors.Cut.1080p.BluRay"`. The
 classify_video(title, description="", length=0,
                is_live=False, is_upcoming=False,
                is_official_artist=False, is_podcast=False,
-               channel_tags=None, lang=None) -> ContentType
-classify_video_dict(d, lang=None) -> ContentType
-extract_tags(title, description="", channel_tags=None,
-             lang=None) -> List[str]
+               channel_tags=None, lang=None) -> ClassificationResult
+extract_tags(title, description="", lang=None) -> List[str]
 ```
 
-Title / description / metadata classifier returning a fine-grained
-`ContentType` (movie / trailer / documentary / anime / tv_episode /
-podcast / stand_up / concert / music_video / etc.). `extract_tags`
-returns orthogonal genre / era / format labels (horror, full-album,
-narrated, silent-era, …). Both are locale-aware via the optional
-`lang` parameter.
+Title / description / metadata classifier returning a multi-axis
+`ClassificationResult` with typed mediavocab fields:
 
-`ContentType.to_media_type()` maps to the canonical 17-value
-`MediaType`.
+| Field | Type | Notes |
+|---|---|---|
+| `media_type` | `Optional[MediaType]` | Inferred canonical type, or `None` |
+| `content_form` | `ContentForm` | `PRIMARY` / `TRAILER` / `EXCERPT` / … |
+| `content_genres` | `List[str]` | Genre tags from `GENRE_*` |
+| `programme_format` | `Optional[ProgrammeFormat]` | Documentary / concert / news / … |
+| `confidence` | `float` | Rough [0.0, 1.0] hint, not a guarantee |
+
+All fields are optional or have safe defaults — partial results are
+valid. `extract_tags` returns orthogonal genre / era / format labels
+(horror, full-album, narrated, silent-era, …). Both are locale-aware
+via the optional `lang` parameter.
 
 ## `mediavocab.text.isbn`
 

@@ -26,6 +26,10 @@ from mediavocab.taxonomy import (
     PlaybackType,
     MEDIA_TYPE_TO_PLAYBACK_TYPE,
     infer_playback_type,
+    PictureFormat,
+    Structure,
+    MEDIA_TYPE_TO_STRUCTURE,
+    infer_structure,
 )
 from mediavocab.models import (
     EntityRef,
@@ -67,7 +71,7 @@ from mediavocab.text import (
     extract_tags,
 )
 
-SPEC_VERSION: str = "1.1"
+SPEC_VERSION: str = "1.4"
 
 __all__ = [
     "__version__", "SPEC_VERSION",
@@ -82,6 +86,8 @@ __all__ = [
     "ContentForm",
     "ProgrammeFormat", "AccessibilityKind",
     "PlaybackType", "MEDIA_TYPE_TO_PLAYBACK_TYPE", "infer_playback_type",
+    "PictureFormat",
+    "Structure", "MEDIA_TYPE_TO_STRUCTURE", "infer_structure",
     # Models
     "EntityRef", "Membership", "Credit",
     "Appearance", "Work", "Release", "WorkRelation", "ReleaseRelation",

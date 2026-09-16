@@ -1,7 +1,11 @@
-"""Canonical genre constant spellings. Spec §4.14.
+"""Canonical genre constant spellings — the aesthetic axis (spec: T1/A6, §3.6/§4.14).
 
-Genre is a free `List[str]` on Work.content_genres. These constants ensure
-consistent spelling when the genre is known. Consumers may add their own.
+Genre is *what the experience is like*, never *what kind of thing it is* (T1):
+it changes neither schema, databases, nor tolerances, so A1 bars it from
+MediaType and it lives here. Routing-family (A6): a free ``List[str]`` on
+``Work.content_genres``, an open vocabulary (genre is culturally negotiated),
+excluded from both hashes. These constants are canonical spellings for when the
+genre is known; consumers may use any string.
 
 Programme formats (concert, stand-up, talk show, reality, news, sports,
 documentary, quiz) live in `mediavocab.taxonomy.programme_format`, not here.

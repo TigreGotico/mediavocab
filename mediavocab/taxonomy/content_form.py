@@ -1,4 +1,4 @@
-"""ContentForm — the experiential-kind axis. Spec §4.10.
+"""ContentForm — the experiential axis (spec: A8a, §3.3/§4.2).
 
 Orthogonal to MediaType (which captures schema) and content_genres (which captures
 aesthetic). ContentForm answers: "is this a primary work, or supplementary to one?"
@@ -11,7 +11,13 @@ from enum import Enum
 
 
 class ContentForm(str, Enum):
-    """Experiential kind of a Work — orthogonal to MediaType."""
+    """Experiential kind of a Work — orthogonal to MediaType (spec: A8a, §3.3/§4.2).
+
+    The one human-perception axis admitted to identity: it enters ``work_hash``
+    by A8b (a trailer shares title/year/media_type with the primary work and
+    would otherwise collide — spec §6.3) and is immutable after canonicalisation
+    (§8.1). ``PRIMARY`` is the default, not an absence value (A2).
+    """
 
     PRIMARY       = "primary"        # the canonical work itself (default)
     TRAILER       = "trailer"        # promotional excerpt of a primary work
