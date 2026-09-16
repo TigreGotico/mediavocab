@@ -1,5 +1,14 @@
 # Changelog
 
+## [2.0.0a3](https://github.com/TigreGotico/mediavocab/tree/2.0.0a3) (2026-09-16)
+
+[Full Changelog](https://github.com/TigreGotico/mediavocab/compare/2.0.0a2...2.0.0a3)
+
+**Merged pull requests:**
+
+- translate\(da-dk\): add Danish media vocabulary, full parity with en-us [\#22](https://github.com/TigreGotico/mediavocab/pull/22) ([andlo](https://github.com/andlo))
+- docs: state the SPEC\_VERSION vs package-version policy [\#21](https://github.com/TigreGotico/mediavocab/pull/21) ([JarbasAl](https://github.com/JarbasAl))
+
 ## [2.0.0a2](https://github.com/TigreGotico/mediavocab/tree/2.0.0a2) (2026-06-28)
 
 [Full Changelog](https://github.com/TigreGotico/mediavocab/compare/2.0.0a1...2.0.0a2)
