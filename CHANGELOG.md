@@ -1,5 +1,13 @@
 # Changelog
 
+## [2.0.0a4](https://github.com/TigreGotico/mediavocab/tree/2.0.0a4) (2026-11-25)
+
+[Full Changelog](https://github.com/TigreGotico/mediavocab/compare/2.0.0a3...2.0.0a4)
+
+**Merged pull requests:**
+
+- docs: README, docs index, navigation and agent hints [\#25](https://github.com/TigreGotico/mediavocab/pull/25) ([openvoiceos-bot](https://github.com/openvoiceos-bot))
+
 ## [2.0.0a3](https://github.com/TigreGotico/mediavocab/tree/2.0.0a3) (2026-09-16)
 
 [Full Changelog](https://github.com/TigreGotico/mediavocab/compare/2.0.0a2...2.0.0a3)
