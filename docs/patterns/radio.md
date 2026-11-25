@@ -1,10 +1,17 @@
 # Radio station identity
+<!-- agent-hint
+covers: radio station identity
+source: mediavocab/models/work.py
+generated: no
+verify: python -m pytest -q tests/test_station_mirrors.py
+see: playback-type.md
+-->
 
 A radio station is a `Work` (T4: *a station is a Work*). Its stream URLs
 are `Release`s. This document covers when changes to a station produce a
 new Work versus a new Release of the same Work.
 
-## Same Work — change is a Release-level concern
+## Same Work: change is a Release-level concern
 
 The Work identity is stable across all of these:
 
@@ -17,7 +24,7 @@ The Work identity is stable across all of these:
 These all produce additional `Release` records pointing at the same Work, or
 modifications to the existing Release without touching the Work record.
 
-## New Work — identity has changed
+## New Work: identity has changed
 
 Create a new Work (linked to the old via `WorkRelation` if useful) when:
 
@@ -26,7 +33,7 @@ Create a new Work (linked to the old via `WorkRelation` if useful) when:
   cataloguing entry in radio databases.
 - **Content identity changes fundamentally.** A station that switches format
   (classical → talk, rock → urban) and rebrands is a different cataloguing
-  target. The old Work persists in history; the new Work begins on rebrand
+  target. The old Work persists in history. The new Work begins on rebrand
   date.
 
 ## Regional opt-outs
@@ -41,3 +48,6 @@ NPR member stations carrying syndicated programming with local breaks) is:
   drive-time hosts, different music rotation, materially different
   schedules). Link via `WorkRelation(kind=PART_OF)` to a `SERIES` Entity
   representing the network.
+
+---
+[← IoT and device-mediated playback](iot-devices.md) · [Home](../README.md) · [Playback type: the derived player-surface axis →](playback-type.md)

@@ -1,4 +1,11 @@
 # Reader-paced and user-paced content
+<!-- agent-hint
+covers: how to model reader-paced and user-paced content
+source: mediavocab/taxonomy/genre.py
+generated: no
+verify: python -m pytest -q tests/taxonomy/test_genre_constants.py
+see: accessibility.md
+-->
 
 Books, comics, slideshows, and interactive fiction share an attribute that
 isn't representable as a runtime: the user controls pacing. A novel's page
@@ -6,13 +13,13 @@ count is finite but reading time depends on the reader. A photo slideshow
 ends when the viewer dismisses it. An IF session ends when the player saves.
 
 `mediavocab` encodes this as `runtime=None`. There is intentionally no
-`Pacing` axis — adding one would force every consumer to handle a third state
+`Pacing` axis: adding one would force every consumer to handle a third state
 for a property they don't use.
 
 `runtime=None` has two interpretations:
 
-1. **Unknown** — not yet resolved by the consumer's pipeline
-2. **Indeterminate** — user-paced or open-ended
+1. **Unknown**: not yet resolved by the consumer's pipeline
+2. **Indeterminate**: user-paced or open-ended
 
 Distinguish at the consumer per the rule in §5.3 (`Work.runtime`):
 
@@ -24,13 +31,13 @@ Distinguish at the consumer per the rule in §5.3 (`Work.runtime`):
 
 A photo collection is a `BOOK` Work:
 
-- `content_genres=[GENRE_PHOTO_BOOK]` — unordered or arbitrary order
-- `content_genres=[GENRE_SLIDESHOW]` — ordered for sequential viewing
+- `content_genres=[GENRE_PHOTO_BOOK]`: unordered or arbitrary order
+- `content_genres=[GENRE_SLIDESHOW]`: ordered for sequential viewing
 
-A slideshow timer (if any) is a Release-level concern; store interval seconds
+A slideshow timer (if any) is a Release-level concern. Store interval seconds
 in `Release.extra["slide_interval"]` or rely on the consumer's default.
 
-A motion-comic slideshow with embedded animation is **not** this — it is
+A motion-comic slideshow with embedded animation is **not** this: it is
 `MOVIE`/`TV` with `GENRE_MOTION_COMIC` (see [motion-comics.md](./motion-comics.md)).
 
 ## Branching narratives
@@ -43,3 +50,6 @@ The MediaType follows distribution channel (T7), not narrative structure:
 | Twine, ChoiceScript, Inform | `INTERACTIVE_FICTION` | `GENRE_CHOICE_IF` / `GENRE_PARSER_IF` + `GENRE_BRANCHING` |
 | Voice-only narrative app | `INTERACTIVE_FICTION` | `GENRE_VOICE_GAME` + `GENRE_BRANCHING` |
 | Telltale, Detroit: Become Human | `GAME` | `GENRE_BRANCHING` |
+
+---
+[← Classifying scraped content](classifying-scraped-content.md) · [Home](../README.md) · [Accessibility tracks and localisation →](accessibility.md)

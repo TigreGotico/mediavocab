@@ -1,4 +1,11 @@
 # Quickstart
+<!-- agent-hint
+covers: a walk-through of Work, Release, Entity and the text helpers
+source: mediavocab/models/, mediavocab/text/
+generated: no
+verify: python scripts/check_doc_examples.py docs/quickstart.md
+see: taxonomy.md
+-->
 
 ```bash
 pip install mediavocab
@@ -19,7 +26,7 @@ w = Work(
 )
 ```
 
-`Work` is the *canonical* creative work — abstract, no playback URI. To
+`Work` is the *canonical* creative work: abstract, no playback URI. To
 represent a specific manifestation (a CD pressing, a remaster, a stream URL)
 wrap the Work in a `Release`:
 
@@ -77,13 +84,13 @@ r = parse_title("Blade Runner (1982) [Director's Cut] [4K UHD].mkv")
 ```
 
 Locale-aware via the optional `lang=` parameter (`"pt-pt"`, `"es"`,
-`"fr-fr"`, …) — the `.voc` keyword tree lives at
+`"fr-fr"`, …): the `.voc` keyword tree lives at
 `mediavocab/locale/<lang>/`.
 
 ## Resolve across providers
 
 `mediavocab.Signals` is the disambiguation bag every cross-source resolver
-shares. The `playback_type` field gates which providers are invoked — orthogonal to
+shares. The `playback_type` field gates which providers are invoked: orthogonal to
 `medium` (A6):
 
 ```python
@@ -117,10 +124,10 @@ print(release_hash(remaster))
 
 ## Filter to available releases
 
-Each cut is its own Work (§3.4); `release.work.variant_kind` carries the
+Each cut is its own Work (§3.4). `release.work.variant_kind` carries the
 cut and `release.packaging` the edition. mediavocab ships the
-availability predicate; ranking by preference (4K > 1080p, Atmos >
-stereo) is application logic — see
+availability predicate. Ranking by preference (4K > 1080p, Atmos >
+stereo) is application logic: see
 [`patterns/quality-and-ranking.md`](./patterns/quality-and-ranking.md)
 for a reference scorer.
 
@@ -154,3 +161,6 @@ accessible = [r for r in (theatrical, directors)
 
 See `docs/text-utilities.md` for the full text / parsing / classifier
 surface and `docs/models.md` for the model catalogue.
+
+---
+[← mediavocab: Formal Specification](mediavocab_spec.md) · [Home](README.md) · [Taxonomy reference →](taxonomy.md)

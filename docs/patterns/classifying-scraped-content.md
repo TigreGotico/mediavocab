@@ -1,14 +1,21 @@
 # Classifying scraped content
+<!-- agent-hint
+covers: how to classify scraped content
+source: mediavocab/text/classify.py, mediavocab/helpers/classify.py
+generated: no
+verify: python scripts/check_doc_examples.py docs/patterns/classifying-scraped-content.md
+see: reader-paced-content.md
+-->
 
 This pattern shows how to turn raw scraped media (a filename, a feed entry,
-a video title) into structured mediavocab signals — and, when you have no
+a video title) into structured mediavocab signals: and, when you have no
 resolver, a best-guess `MediaType`.
 
-## Step 0 — Classify from text + metadata
+## Step 0: Classify from text + metadata
 
 `classify_video()` is a heuristic title / description / metadata classifier.
 It returns a multi-axis `ClassificationResult` (`media_type`, `content_form`,
-`content_genres`, `programme_format`, `confidence`) — a hint, not a
+`content_genres`, `programme_format`, `confidence`): a hint, not a
 guarantee:
 
 ```python
@@ -22,7 +29,7 @@ r = classify_video("Inception (2010) Official Trailer", is_official_artist=False
 
 For finer signal extraction, parse the title and build a `Signals` bag.
 
-## Step 1 — Parse the title
+## Step 1: Parse the title
 
 `parse_title()` extracts structured signals without needing to know the MediaType:
 
@@ -37,7 +44,7 @@ result = parse_title("Blade Runner: The Director's Cut [1992] [Blu-ray]")
 # result.packaging     → None
 ```
 
-## Step 2 — Build a query Signals
+## Step 2: Build a query Signals
 
 Use the parse result plus any domain knowledge (channel tags, feed metadata)
 to build a Signals bag:
@@ -58,7 +65,7 @@ query = Signals.as_query(
 If you don't know the MediaType, leave `medium=None` and let the resolver
 fan out to all compatible providers.
 
-## Step 3 — Resolve with a provider
+## Step 3: Resolve with a provider
 
 Pass the query to a resolver (e.g. metadatarr):
 
@@ -104,7 +111,7 @@ def guess_media_type(title: str, description: str = "") -> "MediaType":
 
 ## Using content_genres for routing
 
-Set `content_genres` from known tags before passing to a resolver — it
+Set `content_genres` from known tags before passing to a resolver: it
 narrows provider dispatch via `genre_filter`:
 
 ```python
@@ -122,3 +129,6 @@ def sanitise_genres(raw_tags):
             result.append(normalised)
     return result
 ```
+
+---
+[← Independent creators, YouTube, AI-generated content](independent-creators.md) · [Home](../README.md) · [Reader-paced and user-paced content →](reader-paced-content.md)

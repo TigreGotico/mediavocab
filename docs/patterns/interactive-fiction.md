@@ -1,4 +1,11 @@
 # Interactive fiction and voice games
+<!-- agent-hint
+covers: how to model interactive fiction and voice games
+source: mediavocab/models/work.py
+generated: no
+verify: python scripts/check_doc_examples.py docs/patterns/interactive-fiction.md
+see: soundtracks.md
+-->
 
 `MediaType.INTERACTIVE_FICTION` covers parser-based IF (Inform 7, Infocom),
 choice-based IF (Twine, ChoiceScript, Ink), and voice-driven narrative apps
@@ -6,7 +13,7 @@ choice-based IF (Twine, ChoiceScript, Ink), and voice-driven narrative apps
 
 ## Why a separate type from `GAME`
 
-`GAME` records belong on IGDB, MobyGames, Steam — platforms tracking binary
+`GAME` records belong on IGDB, MobyGames, Steam: platforms tracking binary
 distributions. `INTERACTIVE_FICTION` records belong on **IFDB.org** (the
 Interactive Fiction Database) and ifiction.org. The schemas diverge:
 
@@ -17,9 +24,9 @@ Interactive Fiction Database) and ifiction.org. The schemas diverge:
 | `container` / `platform` | `container="Steam"`, `platform="PS4"` | `container="Glulx"`, `platform="Alexa Skill"` |
 | External DBs | `igdb`, `mobygames`, `steam` | `ifdb`, `ifiction`, `alexa_skill` |
 
-A graphic adventure with a parser (Sierra-era titles) is `GAME` — it ships as
+A graphic adventure with a parser (Sierra-era titles) is `GAME`: it ships as
 a platform binary. A voice-only branching narrative on Alexa is
-`INTERACTIVE_FICTION` — there is no binary at all.
+`INTERACTIVE_FICTION`: there is no binary at all.
 
 ## Modelling
 
@@ -53,9 +60,12 @@ Voice-game IF: same MediaType, `container="Skill"`, `platform="Alexa Skill"`,
 
 Two databases have historically been called "IFDB":
 
-- **IFDB.org** — Interactive Fiction Database. `external_ids` key: `ifdb`.
+- **IFDB.org**: Interactive Fiction Database. `external_ids` key: `ifdb`.
 - **Internet Fanedit Database** (the fanedit.org community catalogue).
   `external_ids` key: `fanedit_ifdb`.
 
 The shorter `ifdb` is reserved for the Interactive Fiction Database, which is
 the more widely cited externally. Fanedit catalogues use `fanedit_ifdb`.
+
+---
+[← Games](games.md) · [Home](../README.md) · [Soundtracks →](soundtracks.md)
