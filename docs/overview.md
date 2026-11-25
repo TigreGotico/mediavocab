@@ -30,7 +30,7 @@ minimal environments.
 - **Devices are entities, not works (A3).** `EntityKind.DEVICE` represents
   physical playback endpoints. The Work is still a RADIO/MOVIE/MUSIC. The
   device is how the consumer routes playback. A receiver-class device
-  additionally has a `Work` counterpart for *"turn on the radio"* invocation.
+  also has a `Work` counterpart for *"turn on the radio"* invocation.
 - **Pipeline sentinels never reach a canonical Work (T8).** `MediaType.GENERIC`,
   `NOT_MEDIA`, and `CONTROL` live on the resolver bag and are rejected at
   `Work` construction.

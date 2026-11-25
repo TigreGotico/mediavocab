@@ -75,7 +75,7 @@ cut on Blu-ray vs DVD does not. Use as a per-edition dedup seed.
 `MediaType` mismatch (with `GENERIC` permissive on either side),
 halves on `country` and `language` mismatch (when both sides specify
 them), and: for episodic media (`EPISODIC_SERIES` / `PODCAST` /
-`RADIO` / `AUDIO_DRAMA`): additionally halves on `series_title`
+`RADIO` / `AUDIO_DRAMA`): it also halves on `series_title`
 mismatch and on differing `season` / `episode`. It adds small bonuses
 for matching `variant_kind` and overlapping `content_genres`.
 
