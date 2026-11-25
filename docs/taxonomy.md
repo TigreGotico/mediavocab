@@ -12,9 +12,9 @@ databases, and comparison tolerances (A1).
 | Value | Use for |
 |---|---|
 | `MOVIE` | Feature films (with `ProgrammeFormat.DOCUMENTARY` for feature documentaries) |
-| `SHORT_FILM` | Festival-circuit short film (≤40 min); disjoint databases per A1(b) |
-| `EPISODIC_SERIES` | On-demand episodic video — anime, drama, sitcom, web series |
-| `TV` | Live linear / IPTV broadcast channel (parallel to `RADIO`; channel-as-Work) |
+| `SHORT_FILM` | Festival-circuit short film (≤40 min). Disjoint databases per A1(b) |
+| `EPISODIC_SERIES` | On-demand episodic video: anime, drama, sitcom, web series |
+| `TV` | Live linear / IPTV broadcast channel (parallel to `RADIO`. Channel-as-Work) |
 | `MUSIC` | Audio with music-pipeline identity (artist, ISRC, MusicBrainz) |
 | `MUSIC_VIDEO` | Promotional / performance video for a musical work |
 | `PODCAST` | Episodic non-music audio via RSS or podcast platforms |
@@ -28,14 +28,14 @@ databases, and comparison tolerances (A1).
 | `SOUND_EFFECT` | Short triggered audio clips (one-shots) |
 | `PROCEDURAL_AMBIENT` | Generator-platform ambient audio (myNoise, Moodist, Noisli, Endel) |
 | `PLAYLIST` | Cross-media-type curated collection (Spotify / YouTube playlist, M3U) |
-| `GENERIC` | Pipeline sentinel — type unknown; rejected at Work construction (T8) |
-| `NOT_MEDIA` | Pipeline sentinel — definitely not a media request; rejected on Work |
-| `CONTROL` | Pipeline sentinel — playback-control verb; rejected on Work |
+| `GENERIC` | Pipeline sentinel: type unknown. Rejected at Work construction (T8) |
+| `NOT_MEDIA` | Pipeline sentinel: definitely not a media request. Rejected on Work |
+| `CONTROL` | Pipeline sentinel: playback-control verb. Rejected on Work |
 
 `PIPELINE_SENTINELS = {GENERIC, NOT_MEDIA, CONTROL}` is exported as a
 frozenset for membership checks.
 
-## `VariantKind` (Work-only — §3.4)
+## `VariantKind` (Work-only: §3.4)
 
 Restructurings of the canonical artefact. Each cut is its own Work
 linked by `WorkRelation`.
@@ -46,32 +46,32 @@ Restoration: `PRESERVATION`, `COLORIZED`, `REMASTERED`, `UPSCALED`.
 Derived aggregations: `COMPILATION`.
 Catch-all: `OTHER`.
 
-A canonical/default edition uses `variant_kind=None` — `STANDARD` is
+A canonical/default edition uses `variant_kind=None`: `STANDARD` is
 intentionally absent (A2).
 
-## `ReleasePackaging` — Release-level packaging (§3.5)
+## `ReleasePackaging`: Release-level packaging (§3.5)
 
 How a Release is packaged independently of the Works it carries.
 
 `DELUXE`, `REISSUE`, `REGIONAL`, `BOOTLEG`, `BOX_SET`, `PROMO`, `OTHER`.
 
-Description-family (A6); excluded from `release_hash`.
+Description-family (A6). Excluded from `release_hash`.
 
-## `ContentForm` — experiential kind (§3.3)
+## `ContentForm`: experiential kind (§3.3)
 
 `PRIMARY` (default), `TRAILER`, `TEASER`, `EXCERPT`, `BEHIND_SCENES`,
 `REACTION`, `SOCIAL_CLIP`, `SUPPLEMENT`, `OTHER`.
 
-The one human-perception axis admitted to `work_hash` (A8b) — a trailer
+The one human-perception axis admitted to `work_hash` (A8b): a trailer
 for *Inception* and the film *Inception* would otherwise collide on
 `(title, year, media_type)`.
 
-## `ProgrammeFormat` — structural format (§3.7)
+## `ProgrammeFormat`: structural format (§3.7)
 
 `CONCERT`, `STAND_UP`, `TALK_SHOW`, `REALITY`, `NEWS`, `SPORTS`, `QUIZ`,
 `DOCUMENTARY`, `OTHER`.
 
-Routing axis on `Work.programme_format`; excluded from `work_hash` (A6).
+Routing axis on `Work.programme_format`. Excluded from `work_hash` (A6).
 
 ## `EntityKind` and `OrganisationKind`
 
@@ -81,7 +81,7 @@ When `kind == ORGANISATION`, `Entity.org_kind` must be set to one of
 `LABEL`, `PUBLISHER`, `STUDIO`, `BROADCASTER`, `DEVELOPER`,
 `STREAMING_SERVICE`, `DISTRIBUTOR`, `OTHER` (validator enforced).
 
-`PERSON` entities may set `birth_year` / `death_year`; rejected on other
+`PERSON` entities may set `birth_year` / `death_year`. Rejected on other
 kinds.
 
 ## `RelationRole`
@@ -127,7 +127,7 @@ streaming, rights reverted). Distinct from `CANCELLED` (never shipped).
 ## `StreamMode`
 
 `ON_DEMAND` (default) / `LIVE` / `CONTINUOUS`. Looping a track is
-`StreamMode` on the Release — *not* an identity property of the Work
+`StreamMode` on the Release: *not* an identity property of the Work
 (A3).
 
 ## `WorkRelationKind`
@@ -152,9 +152,9 @@ most distinctions are encoded by format / packaging fields plus
 `SUBTITLES`, `CAPTIONS`, `AUDIO_DESCRIPTION`, `SIGN_LANGUAGE`,
 `TRANSCRIPT`, `LYRICS`. Used on `AccessibilityTrack.kind`.
 
-## `PlaybackType` — derived routing axis (§3.8, §4.11)
+## `PlaybackType`: derived routing axis (§3.8, §4.11)
 
-`mediavocab/taxonomy/modality.py` — derived from `MediaType` (A6);
+`mediavocab/taxonomy/modality.py`: derived from `MediaType` (A6);
 never persisted on Work or Release.
 
 | Value | Intent |
@@ -175,12 +175,12 @@ Provider declaration:
 playback_type: ClassVar[Set[PlaybackType]] = {PlaybackType.AUDIO}
 ```
 Empty set means universal. When non-empty, a `Signals` with
-`playback_type=None` always passes; a set `Signals.playback_type` must
+`playback_type=None` always passes. A set `Signals.playback_type` must
 be a member.
 
 ## `genre.py` constants
 
-Canonical lowercase spellings — additive only. Narrative genres
+Canonical lowercase spellings: additive only. Narrative genres
 (`HORROR`, `COMEDY`, `DRAMA`, `THRILLER`, `SCI_FI`, `FANTASY`,
 `ROMANCE`, `WESTERN`, `MYSTERY`, `ACTION`, `ADVENTURE`, `CRIME`, `WAR`,
 `HISTORICAL`, `BIOGRAPHY`, `MUSICAL`, `FAMILY`, `NOIR`), music genres
@@ -192,8 +192,8 @@ Canonical lowercase spellings — additive only. Narrative genres
 `AI_GENERATED`) apply alongside any other.
 
 Programme formats (concert, stand-up, talk-show, reality, news, sports,
-documentary) are NOT in `genre.py` — they live in `ProgrammeFormat`.
+documentary) are NOT in `genre.py`: they live in `ProgrammeFormat`.
 
 Genre is a free `List[str]` on `Work.content_genres`. Adding new
-constants is non-breaking; renaming an existing constant value is a
+constants is non-breaking. Renaming an existing constant value is a
 breaking change.

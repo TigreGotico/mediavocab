@@ -1,12 +1,12 @@
-# mediavocab — Formal Specification
+# mediavocab: Formal Specification
 
-**Version:** 1.4 (the `SPEC_VERSION` constant; the v1.x stability line — §8)
+**Version:** 1.4 (the `SPEC_VERSION` constant. The v1.x stability line: §8)
 **Status:** Stable. See §8 for versioning policy.
 
 `SPEC_VERSION` numbers *this document*: it advances only when a normative
 clause is added, changed, or removed, and its major tracks the §8 stability
 line (identity hashes, enum values, model fields). The package version on
-PyPI is independent — it follows semantic versioning derived from the API
+PyPI is independent: it follows semantic versioning derived from the API
 surface, so the package major may advance (e.g. for a breaking API rename)
 while the spec line stays 1.x, and a spec minor may land inside a package
 patch. Consumers pin behaviour by `SPEC_VERSION` and imports by the package
@@ -24,19 +24,19 @@ Every project that touches media content independently re-defines the same
 vocabulary: what kinds of media exist, who participates in them, how editions
 relate to canonical works, how band members come and go. The definitions are
 subtly incompatible, which makes cross-project data exchange painful and turns
-small differences load-bearing in the wrong places — a missing season number
+small differences load-bearing in the wrong places: a missing season number
 breaks dedup, a stray "Director's Cut" string forks the catalogue.
 
 `mediavocab` defines these concepts once, prescriptively. It provides the
-shared data model; consuming packages provide the application logic —
+shared data model. Consuming packages provide the application logic —
 resolving, scraping, playing, recommending.
 
 ### 1.2 Two views: human and machine
 
 A media object has two identities at once. To a machine it is a schema row
-with an ID — an ISRC, an IMDB number, a file path. To a human it is a memory,
-a mood, a category, a thing someone shared. Both are real; neither is the
-correct view; a vocabulary that collapses one into the other will be wrong
+with an ID: an ISRC, an IMDB number, a file path. To a human it is a memory,
+a mood, a category, a thing someone shared. Both are real. Neither is the
+correct view. A vocabulary that collapses one into the other will be wrong
 for half its users.
 
 mediavocab carries both on purpose. The model splits, on every field, what is
@@ -46,19 +46,19 @@ machine-stable from what is human-mutable, and forbids mixing.
 
 Creative artefact, physical manifestation, and contributing participant vary
 independently. The same film exists across many discs, broadcasts, and
-streams; the same band stars on many records; the same recording is reissued
+streams. The same band stars on many records. The same recording is reissued
 under many editions. A vocabulary that conflates any two of these will
 struggle to model splits, compilations, reissues, mirrors, or lineup changes.
 
 The model therefore names three concrete things, each with its own identity:
 
-- **Work** — the canonical creative artefact. The song *Battery*. The film
+- **Work**: the canonical creative artefact. The song *Battery*. The film
   *Alien*. An individual episode of *Doctor Who*. A radio station. A book.
   A game.
-- **Release** — a specific manifestation of a Work. The original 1986 CD
-  pressing of *Master of Puppets*; the 2016 remaster; a Spotify stream; a
+- **Release**: a specific manifestation of a Work. The original 1986 CD
+  pressing of *Master of Puppets*. The 2016 remaster. A Spotify stream. A
   4K Blu-ray. One Work has many Releases.
-- **Entity** — anything that *participates in* a Work without being one: a
+- **Entity**: anything that *participates in* a Work without being one: a
   person, a band, a record label, a publisher, a series container, a smart
   speaker.
 
@@ -66,15 +66,15 @@ The model therefore names three concrete things, each with its own identity:
 
 Three further models describe how the three identities connect:
 
-- **Appearance** — the position of a Work inside a container Release (track
+- **Appearance**: the position of a Work inside a container Release (track
   5 on the album, episode 12 of the season, issue 4 in a story arc).
-- **Credit** — an Entity's contribution to a specific Work (Cliff Burton
+- **Credit**: an Entity's contribution to a specific Work (Cliff Burton
   played bass on *Master of Puppets*).
-- **Membership** — an Entity's time-sliced presence in a group Entity
+- **Membership**: an Entity's time-sliced presence in a group Entity
   (Cliff Burton was in Metallica from 1982 to 1986).
 
-That is the whole object graph. Everything else in the spec — taxonomy enums
-and text utilities — exists to describe, identify, route, or compare instances
+That is the whole object graph. Everything else in the spec: taxonomy enums
+and text utilities: exists to describe, identify, route, or compare instances
 of these six models.
 
 ### 1.5 Identity, routing, description
@@ -84,14 +84,14 @@ them apart is what prevents the recurring failure where a genre gets jammed
 into MediaType, a routing hint gets hashed as identity, or an enrichment is
 treated as a conflict.
 
-- **Identity** — fields whose disagreement means *this is a different
+- **Identity**: fields whose disagreement means *this is a different
   thing*. Title, year, runtime, type, edition. These feed `work_hash` and
-  `release_hash`. After canonicalisation they are immutable; a record that
+  `release_hash`. After canonicalisation they are immutable. A record that
   differs on an identity field is a different record.
-- **Routing** — fields that gate which providers to consult, which pipeline
+- **Routing**: fields that gate which providers to consult, which pipeline
   to dispatch to, which UI surface to render in. Playback type, content
   genres, programme format. Excluded from hashes. Freely changeable.
-- **Description** — fields that accumulate as more sources contribute.
+- **Description**: fields that accumulate as more sources contribute.
   Credits, tracklist, accessibility tracks, `external_ids`, `extra`. A new
   provider supplying a value is enrichment, not conflict.
 
@@ -122,66 +122,66 @@ later carries a reference to the axiom or theorem that admits it.
 
 ### 2.1 Axioms
 
-**A1 — Schema-or-database admission for `MediaType`.**
+**A1: Schema-or-database admission for `MediaType`.**
 A `MediaType` value earns its place when at least one of the following holds,
 and no orthogonal axis would fit:
 - (a) the mandatory-field schema differs from every existing type;
 - (b) the authoritative external databases (canonical identifier spaces such
-  as ISRC, ISBN, IFDB ID, etc.) are disjoint from every existing type's; or
+  as ISRC, ISBN, IFDB ID, etc.) are disjoint from every existing type's. Or
 - (c) the comparison tolerances diverge from every existing type's.
 
 Two kinds that share schema, databases, and tolerances are the same type —
 genre tags distinguish them.
 
-**A2 — Absence is not a value.**
+**A2: Absence is not a value.**
 *Standard edition* means `variant_kind = None`, not `variant_kind = STANDARD`.
 *Ongoing membership* means `date_to = None` combined with `temporal = ACTIVE`.
 Never add an enum value to mark the absence of a distinction.
 
-**A3 — Delivery is not identity.**
+**A3: Delivery is not identity.**
 A livestream of a radio station is not a different kind of content from the
-station — it is a Release with a streaming URI. `MediaType` describes what a
+station: it is a Release with a streaming URI. `MediaType` describes what a
 work IS, not how it is delivered. Physical playback devices, codecs,
 containers, resolutions, and bitrates are properties of the Release, never
 of the Work.
 
-**A4 — One Work, one `MediaType` for life.**
+**A4: One Work, one `MediaType` for life.**
 A Work has a single `MediaType` value, committed at construction. Two
 distribution channels of the same artefact produce two `Release`s of one
-Work — not two Works. If a single recording has materially different schemas
+Work: not two Works. If a single recording has materially different schemas
 in two channels (an ASMR ISRC release on a label and the same recording on
 an RSS feed), it is two Works linked by `WorkRelation(DERIVED_FROM)`. The
 classifier must commit to one type before a Work exists.
 
-**A5 — Membership is temporal and has a status (orthogonal pair).**
+**A5: Membership is temporal and has a status (orthogonal pair).**
 `date_to = None` does NOT mean *current member*. A defunct band's last-known
 member has `date_to = None` and `temporal = INACTIVE_GROUP`. Temporal state
 and membership kind are orthogonal and must both be stored.
 
-**A6 — Routing axes are orthogonal to identity.**
+**A6: Routing axes are orthogonal to identity.**
 A concern that doesn't change the schema earns a typed field (typically a
 ClassVar on the provider and an optional hint on the resolver bag), not a
 `MediaType` value. Routing axes are absent from `work_hash` and
-`release_hash`. Identity is `(media + identity-fields)`; the resolver gate
+`release_hash`. Identity is `(media + identity-fields)`. The resolver gate
 is three-axis: `(media × playback_type × genre_filter)`. `content_form` is
-*absent from the resolver gate* — no real provider filters on it, so adding
+*absent from the resolver gate*: no real provider filters on it, so adding
 it would buy gate complexity with no benefit. Yet `content_form` is **a
 field of the model**: it lives, typed, on `Work` and `Signals` and is an
 identity-hash input via A8b (a trailer must not collide with the primary
-work). The distinction is deliberate — `content_form` routes nothing at the
+work). The distinction is deliberate: `content_form` routes nothing at the
 gate, yet still separates identity once a `Work` exists.
 
-**A7 — One source of truth per fact.**
+**A7: One source of truth per fact.**
 If a value has a typed home, the provider populates that. The same value
 must not also appear as a relation, an `extra` key, or a free string
 elsewhere in the same record. Double-writing produces silent conflicts and
 inflates merge scores.
 
-**A8 — Human distinction → typed field, on a threshold.**
+**A8: Human distinction → typed field, on a threshold.**
 When humans systematically treat two records as different things, and no
 combination of existing identity fields separates them, the distinction
 earns its own typed field. The bar is restrictive: "humans sometimes call
-this differently" is not enough (that is `aka`); "humans treat these as
+this differently" is not enough (that is `aka`). "humans treat these as
 separate things and the catalogue would silently collide them" is.
 
 A8 has two consequences, applied in order:
@@ -189,98 +189,98 @@ A8 has two consequences, applied in order:
   family (identity / routing / description) is determined by whether
   collision *would* happen without it.
 - **A8b (hash inclusion).** The typed field enters the identity hash when —
-  and only when — its absence would cause two records with disjoint human
+  and only when: its absence would cause two records with disjoint human
   meaning to share a digest. The field is otherwise routing or description.
 
-`ContentForm` is admitted by A8a; it enters `work_hash` (§6.3) by A8b
+`ContentForm` is admitted by A8a. It enters `work_hash` (§6.3) by A8b
 because `(title, year, media_type)` cannot separate a trailer from the
 primary work.
 
-**A9 — A relation kind earns its place.**
+**A9: A relation kind earns its place.**
 A `RelationRole`, `WorkRelationKind`, or `ReleaseRelationKind` value is
 admitted only when both of the following hold:
 - (a) the connection it expresses is **not already implied by an identity
   field**. `season` / `episode` / `series_title` already place an episode
-  within its series; a relation that restates that double-writes (A7) and
+  within its series. A relation that restates that double-writes (A7) and
   inflates merge scores. A relation earns its place only when it carries a
-  link the fields cannot — typically an edge from one Work/Release/Entity to
+  link the fields cannot: typically an edge from one Work/Release/Entity to
   a *different* one.
 - (b) it is **not subsumed by an existing relation kind of the same
   family**. A more specific kind is admitted only when consumers
   systematically traverse it as a distinct edge (the A8 threshold):
-  "humans sometimes name it differently" is not enough; "consumers navigate
+  "humans sometimes name it differently" is not enough. "consumers navigate
   it differently, and conflating it with the existing kind would merge two
   real links" is.
 
-Relation kinds are navigation and description, never identity — they are
+Relation kinds are navigation and description, never identity: they are
 absent from `work_hash` and `release_hash` (A6), so this axiom is about
 non-redundancy, not hashing. Two relations pointing the same direction with
 the same navigational meaning are the same relation. The same admission
 discipline A1 gives `MediaType` and A8 gives typed fields, A9 gives the
-relation enums — without it the relation vocabulary sprawls.
+relation enums: without it the relation vocabulary sprawls.
 
 `EPISODE_OF` is rejected by A9(a): episode membership is already carried by
 the `season` / `episode` / `series_title` identity fields. A *channel* is
-rejected as a `RelationRole` for a different reason — it is an Entity (a
-Work, per T4), not a way an entity participates — so it never reaches A9.
+rejected as a `RelationRole` for a different reason: it is an Entity (a
+Work, per T4), not a way an entity participates: so it never reaches A9.
 
 ### 2.2 Theorems
 
-Each theorem is a direct consequence of the axioms; the citation says which.
+Each theorem is a direct consequence of the axioms. The citation says which.
 
-**T1 — Genre is not type.** (← A1)
-*Documentary* is a film with a non-fiction treatment; *anime* is TV with a
-cultural origin; *noir* is an aesthetic. None changes the schema, the
+**T1: Genre is not type.** (← A1)
+*Documentary* is a film with a non-fiction treatment. *anime* is TV with a
+cultural origin. *noir* is an aesthetic. None changes the schema, the
 authoritative databases, or the comparison tolerances enough to warrant a
 separate `MediaType`. `content_genres` carries them.
 
-**T2 — Work ≠ Release ≠ Appearance.** (← §1.3 decomposition)
+**T2: Work ≠ Release ≠ Appearance.** (← §1.3 decomposition)
 *Battery* (the song), *Master of Puppets* (the album), and its position as
 track 1 are three distinct concepts. Conflating them makes splits,
 compilations, reissues, and mirrors impossible to model.
 
-**T3 — Band roster ≠ release lineup.** (← A3, three-thing decomposition)
+**T3: Band roster ≠ release lineup.** (← A3, three-thing decomposition)
 Who is currently *in* a band is different from who *played on* a specific
 album. Producers, session musicians, and guest vocalists contribute to a
 Release but are not members of the band Entity.
 
-**T4 — A station is a Work.** (← A3, three-thing decomposition)
+**T4: A station is a Work.** (← A3, three-thing decomposition)
 A radio station or TV channel has stable cataloguable identity, multiple
 stream URLs (mirrors, bitrates, transmitters), and cross-references across
-providers exactly like a film. The station is the Work; its stream URLs
+providers exactly like a film. The station is the Work. Its stream URLs
 are Releases.
 
-**T5 — Credit structure is schema.** (← A1)
+**T5: Credit structure is schema.** (← A1)
 A work requiring a cast, a director, and a sound designer has a different
 schema from one requiring a single narrator. That difference warrants a
-distinct `MediaType` — the test that admits `AUDIO_DRAMA` next to
+distinct `MediaType`: the test that admits `AUDIO_DRAMA` next to
 `AUDIOBOOK`.
 
-**T6 — Technical attributes are Release fields.** (← A3)
+**T6: Technical attributes are Release fields.** (← A3)
 Colour, aspect ratio, frame rate, audio-channel count, codec, container,
 bitrate, resolution describe the manifestation, not the canonical work.
 Two editions of the same Work can differ on every one without changing
 identity.
 
-**T7 — `MediaType` follows distribution schema.** (← A1)
+**T7: `MediaType` follows distribution schema.** (← A1)
 A rap track is `MUSIC` because it has an ISRC and appears in music
-databases — not because it contains melody. An ASMR recording is `MUSIC`
+databases: not because it contains melody. An ASMR recording is `MUSIC`
 if distributed through a label, `PODCAST` if distributed via RSS.
-`content_genres` handles the aesthetic; `MediaType` handles the schema.
+`content_genres` handles the aesthetic. `MediaType` handles the schema.
 
-**T8 — Pipeline sentinels never reach a canonical Work.** (← A4)
+**T8: Pipeline sentinels never reach a canonical Work.** (← A4)
 The classifier may report `MediaType.GENERIC`, `NOT_MEDIA`, or `CONTROL`
 during resolution. A `Work` constructed with any of these raises at
 validation. By the time a Work exists, the classifier has committed.
 
-**T9 — A channel / feed is an Entity or a Work, never a relation role.** (← T4, A9)
+**T9: A channel / feed is an Entity or a Work, never a relation role.** (← T4, A9)
 A YouTube channel, podcast feed, or radio/TV station is a *publishing
 container*, not a way an entity participates in a work. When it has stable
-cataloguable identity with playable streams it is a Work (T4 — a station is a
-Work, its stream URLs are Releases); otherwise it is an Entity (an
+cataloguable identity with playable streams it is a Work (T4: a station is a
+Work, its stream URLs are Releases). Otherwise it is an Entity (an
 `OrganisationKind`, e.g. `BROADCASTER` or `NETWORK`). Its link to content is
 expressed through an existing `RelationRole` such as `PUBLISHER` or `CREATOR`,
-or through a Work/Entity reference — never a bespoke `CHANNEL` role, which A9
+or through a Work/Entity reference: never a bespoke `CHANNEL` role, which A9
 would reject as not-a-participation. This is why `RelationRole` has no
 `CHANNEL` value.
 
@@ -305,34 +305,34 @@ routing, description).
 | Derived            | `PlaybackType`, `Structure` (functions of `MediaType`)          | routing     |
 | Signals-hint       | `content_form`, `playback_type`, `picture_format`, `programme_format`, `accessibility`, `include_variants` | routing |
 
-Identity axes hash; routing axes gate dispatch; description axes accumulate.
+Identity axes hash. Routing axes gate dispatch. Description axes accumulate.
 No axis appears in two layers.
 
-### 3.2 `MediaType` — schema axis
+### 3.2 `MediaType`: schema axis
 
 What schema, what databases, what tolerances. Carried on `Work.media_type`
 for the Work's lifetime (A4). Values admitted by A1's three-clause test.
 Enumerated in §4.1.
 
-### 3.3 `ContentForm` — experiential axis
+### 3.3 `ContentForm`: experiential axis
 
 Whether a Work is a primary creative artefact or supplementary to one. A
 trailer for *Inception* is `MOVIE + ContentForm.TRAILER` with
-`WorkRelation(TRAILER_FOR=parent)`; a reaction video covering an anime
+`WorkRelation(TRAILER_FOR=parent)`. A reaction video covering an anime
 episode is `EPISODIC_SERIES + REACTION` with
 `WorkRelation(REACTION_TO=parent)` (§4.13). Orthogonal to schema and to
-genre — a trailer for a podcast is `PODCAST + TRAILER`.
+genre: a trailer for a podcast is `PODCAST + TRAILER`.
 
 ContentForm is the one human-perception axis admitted to identity, by A8: a
 trailer for *Inception* and the film *Inception* have the same title, year,
 and `MediaType`. Without form in `work_hash` they would collide.
 
-### 3.4 `VariantKind` — restructuring axis (Work-only)
+### 3.4 `VariantKind`: restructuring axis (Work-only)
 
 Why a Work differs from a canonical sibling. Theatrical, director's cut,
 extended, fanedit, tv-to-movie, movie-to-tv, remastered, upscaled,
 colorized, preservation, compilation. The only difference between official
-and fan cuts is the producer; the model treats both uniformly.
+and fan cuts is the producer. The model treats both uniformly.
 
 Each cut is a distinct `Work` linked to siblings via `WorkRelation`
 (`FANEDIT_OF`, `DERIVED_FROM`, `ADAPTED_FROM`). A multi-cut Blu-ray box set
@@ -341,42 +341,42 @@ is one `Release` whose `contents` lists every cut. `Release` has no
 
 `None` is the canonical / default form (A2).
 
-### 3.5 `ReleasePackaging` — packaging axis
+### 3.5 `ReleasePackaging`: packaging axis
 
 How a Release is packaged independently of which Works it carries: deluxe,
 reissue, regional, bootleg, box-set, single. Lives on `Release.packaging`.
-Description-family (§1.5) — packaging does not change which artefact is being
+Description-family (§1.5): packaging does not change which artefact is being
 shipped, only how it is shipped.
 
-### 3.6 `content_genres` — aesthetic axis
+### 3.6 `content_genres`: aesthetic axis
 
 Free-string list of canonical genre tags. Open vocabulary because genre is
 culturally negotiated and inherently extensible. Genre is *what the
 experience is like*, never *what kind of thing it is* (T1). Routing-family
-(A6) — providers may declare a `genre_filter` ClassVar; identity hashes
+(A6): providers may declare a `genre_filter` ClassVar. Identity hashes
 exclude genres.
 
-### 3.7 `ProgrammeFormat` — programme-format axis
+### 3.7 `ProgrammeFormat`: programme-format axis
 
 Programme *format* rather than aesthetic flavour: concert, stand-up
 comedy, talk show, reality, news, sports. Lives on
 `Work.programme_format: Optional[ProgrammeFormat]`. Routing-family
-(A6) — distinct from `content_genres` because real-world databases
+(A6): distinct from `content_genres` because real-world databases
 treat format as a structural facet, not a flavour.
 
-### 3.8 `PlaybackType` — derived player-surface axis
+### 3.8 `PlaybackType`: derived player-surface axis
 
 What player surface a Work needs. Derived from `MediaType` via
-`infer_playback_type()`; never persisted on `Work` or `Release` (A6, A7).
+`infer_playback_type()`. Never persisted on `Work` or `Release` (A6, A7).
 A consumer may override by passing `playback_type` on the resolver bag.
 
-### 3.9 `StreamMode` — delivery axis
+### 3.9 `StreamMode`: delivery axis
 
 How the Release is delivered at playback time: on-demand, live, continuous.
 A property of the Release, never of the Work (A3). A live concert stream
 becomes on-demand when archived without the underlying Work changing.
 
-### 3.10 `license` — rights axis
+### 3.10 `license`: rights axis
 
 `Release.license: str` is an SPDX-style identifier (`"CC-BY-SA-4.0"`,
 `"all_rights_reserved"`, `""` for unknown). Helper predicates
@@ -384,12 +384,12 @@ becomes on-demand when archived without the underlying Work changing.
 `license.requires_attribution()`) operate on the string. No parallel typed
 view (A7).
 
-### 3.11 `PictureFormat` — presentation/picture-attribute axis
+### 3.11 `PictureFormat`: presentation/picture-attribute axis
 
 The colour, dimensionality, and resolution of a presentation: black-and-white,
 silent, colorized, colour, 2d, 3d, sd, hd, 4k, widescreen, imax. A technical
-attribute of the manifestation (T6) — two editions of the same Work can differ
-on it without changing identity. Routing-family (A6); excluded from `work_hash`,
+attribute of the manifestation (T6): two editions of the same Work can differ
+on it without changing identity. Routing-family (A6). Excluded from `work_hash`,
 `release_hash`, and `compare_signals`.
 
 Distinct from the free-text `source_format`, which names the *distribution
@@ -400,12 +400,12 @@ black-and-white silent film, and a 4K stream can carry a colorized restoration.
 `Work.picture_format` and `Release.picture_format` (both `Optional`, A2 default
 `None`), and as the `Signals.picture_format` routing hint.
 
-### 3.12 `Structure` — derived temporal-shape axis
+### 3.12 `Structure`: derived temporal-shape axis
 
 How a Work is shaped in time: a single self-contained unit, a series of discrete
 instalments (`episodic`), an unbounded live/looping stream (`continuous`), or an
 ordered set of members (`collection`). Derived from `MediaType` via
-`infer_structure()`; never persisted on `Work` or `Release` (A6, A7) — the same
+`infer_structure()`. Never persisted on `Work` or `Release` (A6, A7): the same
 derived-axis pattern as `PlaybackType` (§3.8). Routing-family (A6). A trained
 classifier MAY override the leaf default per-utterance (e.g. "play the *album*"
 → `COLLECTION`).
@@ -449,89 +449,89 @@ class MediaType(str, Enum):
     CONTROL             = "control"
 ```
 
-**`MOVIE`** *(admitted by A1(a)(b))* — Feature-length narrative film with a
+**`MOVIE`** *(admitted by A1(a)(b))*: Feature-length narrative film with a
 theatrical or theatrical-class release pipeline. Schema: title, director,
 cast, runtime (≥40 min by convention), theatrical release date, IMDB/TMDB
 IDs, production country. Documentaries, animated films, and adult films
-all sit here with an appropriate `content_genres` tag — they share
+all sit here with an appropriate `content_genres` tag: they share
 IMDB/TMDB identity space and theatrical-class economics.
 
-**`SHORT_FILM`** *(A1(b)(c))* — Festival-circuit short film. Disjoint
+**`SHORT_FILM`** *(A1(b)(c))*: Festival-circuit short film. Disjoint
 authoritative databases (Sundance Shorts, Cannes Court Métrage,
 Clermont-Ferrand, Vimeo Staff Picks, shortoftheweek), separate award lists,
 festival premiere date instead of theatrical release date, runtime ≤ 40 min
 by convention, precise comparison tolerance (5 s, vs MOVIE's 120 s).
 
-**`EPISODIC_SERIES`** *(A1(a)(b))* — On-demand episodic video: anime, drama,
+**`EPISODIC_SERIES`** *(A1(a)(b))*: On-demand episodic video: anime, drama,
 sitcoms, web series, streaming originals. Anything with ordered episodes
 the viewer can pause, resume, and binge. Schema: series title, season,
 episode number, network, first air date, TVmaze/TVDB IDs.
 
-**`TV`** *(A1(b)(c), T4)* — Live linear / IPTV broadcast channels. The
+**`TV`** *(A1(b)(c), T4)*: Live linear / IPTV broadcast channels. The
 channel is the Work, identified by the broadcaster, not by programmes
-airing on it. Cannot skip ahead — schedule is publisher-controlled,
+airing on it. Cannot skip ahead: schedule is publisher-controlled,
 content is continuous. Distinct from `EPISODIC_SERIES` by databases (IPTV
 M3U / EPG / DVB identifiers) and tolerance (runtime 0, schedule-driven).
 
-**`MUSIC`** *(A1(a)(b)(c), T7)* — Audio recording distributed through
+**`MUSIC`** *(A1(a)(b)(c), T7)*: Audio recording distributed through
 music pipelines. Schema: artist, album, track number, ISRC, duration,
 MusicBrainz recording ID, label. Runtime tolerance ±3 s. Criterion is
 distribution schema, not audio content (T7).
 
-**`MUSIC_VIDEO`** *(A1(a)(b)(c))* — Promotional or performance video for a
+**`MUSIC_VIDEO`** *(A1(a)(b)(c))*: Promotional or performance video for a
 musical work. Director field (distinct from MUSIC), different providers
 (Vevo, YouTube Music), runtime tolerance ±30 s.
 
-**`PODCAST`** *(A1(b))* — Episodic non-music audio distributed via RSS or a
+**`PODCAST`** *(A1(b))*: Episodic non-music audio distributed via RSS or a
 podcast platform. Schema: host, show title, episode GUID, RSS feed URL,
 Podcast Index / Apple Podcasts IDs.
 
-**`AUDIOBOOK`** *(A1(a)(b), T5)* — Complete narrated literary work read by
+**`AUDIOBOOK`** *(A1(a)(b), T5)*: Complete narrated literary work read by
 a single narrator. Schema: author, narrator, chapter count, ISBN-derived
 IDs, Audible/LibriVox IDs. Distinct from AUDIO_DRAMA by credit structure
 (single narrator vs cast).
 
-**`AUDIO_DRAMA`** *(A1(a)(b), T5)* — Fully performed audio production with
+**`AUDIO_DRAMA`** *(A1(a)(b), T5)*: Fully performed audio production with
 a cast, director, and sound design. Schema: cast (multiple actors),
 director, sound designer, screenwriter, production-company IDs (Big
 Finish, BBC Sounds, Audible Originals).
 
-**`RADIO`** *(A1(b)(c), T4)* — Live linear audio broadcasting: stations and
+**`RADIO`** *(A1(b)(c), T4)*: Live linear audio broadcasting: stations and
 channels. The audio counterpart to `TV`. Station is a Work with
-`episode = None`, `runtime = None`; its stream URLs (mirrors, bitrates,
+`episode = None`, `runtime = None`. Its stream URLs (mirrors, bitrates,
 DAB vs web) are Releases. Distinct databases (radio-station directories,
 RDS PI codes) and Release shape (audio codec/bitrate, no video).
 
-**`BOOK`** *(A1(a)(b))* — Text-based written work: prose fiction,
+**`BOOK`** *(A1(a)(b))*: Text-based written work: prose fiction,
 non-fiction, poetry collections, essays, short-story anthologies. Schema:
 ISBN, author, publisher, page count, edition, OpenLibrary/Goodreads IDs.
 An ebook is a Release with `container = "EPUB"` or `"PDF"`. Comic books
 and graphic novels are COMIC.
 
-**`COMIC`** *(A1(a)(b))* — Sequential art: single issues, graphic novels,
+**`COMIC`** *(A1(a)(b))*: Sequential art: single issues, graphic novels,
 manga, manhwa, manhua, webcomics, comic strips. Schema: issue/chapter,
 story arc, variant cover flag, publisher series, ComicVine / GCD /
-MangaDex IDs. `episode` carries issue/chapter; `season` carries volume;
+MangaDex IDs. `episode` carries issue/chapter. `season` carries volume;
 `series_title` carries the run title.
 
-**`GAME`** *(A1(a)(b))* — Interactive software. Schema: platform,
+**`GAME`** *(A1(a)(b))*: Interactive software. Schema: platform,
 developer, publisher, IGDB/RAWG IDs. Exists so resolvers can route the
-verb *"play"* — the only verb shared across every media type — to the
+verb *"play"* (the only verb shared across every media type) to the
 right pipeline.
 
-**`INTERACTIVE_FICTION`** *(A1(a)(b))* — Text- or voice-driven branching
+**`INTERACTIVE_FICTION`** *(A1(a)(b))*: Text- or voice-driven branching
 narrative software: parser-based (Infocom, Inform 7), choice-based
 (Twine, ChoiceScript), voice-driven (Alexa Skills, Google Actions).
 Distinct from GAME because the database axis splits: GAME records belong
-on IGDB/MobyGames/Steam; IF records belong on IFDB.org and ifiction.org.
+on IGDB/MobyGames/Steam. IF records belong on IFDB.org and ifiction.org.
 
-**`SOUND_EFFECT`** *(A1(a)(b)(c))* — A discrete catalogued audio clip whose
+**`SOUND_EFFECT`** *(A1(a)(b)(c))*: A discrete catalogued audio clip whose
 identity is a *category taxonomy*, not an artist or album. Schema:
 category hierarchy, precise runtime (0 s tolerance), source-library IDs
 (freesound.org, BBC Sound Effects, ZapSplash, Soundsnap). Mandatory schema
 diverges from MUSIC (no artist, no ISRC).
 
-**`PROCEDURAL_AMBIENT`** *(A1(a)(b))* — Procedurally generated,
+**`PROCEDURAL_AMBIENT`** *(A1(a)(b))*: Procedurally generated,
 parameterised, or looping-preset ambient audio. Defining test:
 **registry membership in a generator platform** (myNoise, Moodist, Noisli,
 Endel) AND **no ISRC**. Identity is the *generator preset*, catalogued in
@@ -543,23 +543,23 @@ recorded loop on repeat, the *playback experience* is parameterised and
 there is no ISRC binding the artefact to a music catalogue.
 `StreamMode.CONTINUOUS` is a playback choice on a Release, not a MediaType.
 
-**`PLAYLIST`** *(A1(a)(b))* — User-curated cross-media-type collection:
+**`PLAYLIST`** *(A1(a)(b))*: User-curated cross-media-type collection:
 Spotify playlists, YouTube playlists, M3U files, OPML podcast bundles.
 Constituent Works keep their own MediaType. Schema: `tracklist` of
 `Appearance`s, `Credit` for the curator with `RelationRole.CURATOR`,
 distinct external databases (Spotify Playlist API, YouTube Playlist API).
 
 Playlists are the deliberate exception to *Work = canonical artefact*.
-Identity is anchored at the **source** — the `external_ids` entry pointing
+Identity is anchored at the **source**: the `external_ids` entry pointing
 at the upstream playlist record. The same playlist may be reordered or
-have tracks added/removed without becoming a different Work; the
+have tracks added/removed without becoming a different Work. The
 source-side ID is stable. A standalone `.m3u` with no upstream source
-inherits identity from the file path; consumers needing content-based
+inherits identity from the file path. Consumers needing content-based
 dedup hash `(title, [appearance.work.external_ids for ...])` themselves.
 
 #### Decision tree: MUSIC vs SOUND_EFFECT vs PROCEDURAL_AMBIENT
 
-Apply in order — first match wins:
+Apply in order: first match wins:
 
 1. Has an ISRC (or MusicBrainz/Discogs ID) → **`MUSIC`**.
 2. Catalogued in a generator-platform database (myNoise, Moodist, Noisli,
@@ -574,12 +574,12 @@ Apply in order — first match wins:
 the `MediaType` namespace so dispatch tables stay exhaustive over a single
 enum (T8). A `Work` constructed with any of them raises at validation.
 
-- `GENERIC` — *this is media, but the kind is unresolved*. Transient.
-- `NOT_MEDIA` — *this query is positively not a media intent*. Terminal.
+- `GENERIC`: *this is media, but the kind is unresolved*. Transient.
+- `NOT_MEDIA`: *this query is positively not a media intent*. Terminal.
   Factual questions (*"when is a director's birthday"*), pure
   device-control on non-media devices (*"turn off the lights"*), calendar
   / reminders, entity-info queries (*"who starred in X"*).
-- `CONTROL` — a playback-control verb (*"pause"*, *"skip"*, *"volume up"*,
+- `CONTROL`: a playback-control verb (*"pause"*, *"skip"*, *"volume up"*,
   *"seek to 3:00"*). Acts on the current session, not on a queryable
   Work. Terminal. Carried separately from `NOT_MEDIA` because downstream
   players route these to a session controller.
@@ -588,7 +588,7 @@ enum (T8). A `Work` constructed with any of them raises at validation.
 
 | Rejected           | Reason                                                                  |
 |--------------------|-------------------------------------------------------------------------|
-| `DOCUMENTARY`      | Programme format (`ProgrammeFormat.DOCUMENTARY`); same schema as MOVIE/TV. |
+| `DOCUMENTARY`      | Programme format (`ProgrammeFormat.DOCUMENTARY`). Same schema as MOVIE/TV. |
 | `ANIME`            | Cultural category of animation. Same schema as TV/MOVIE.                |
 | `CARTOON`          | Production technique. Same schema as TV/MOVIE.                          |
 | `NEWS`             | Programme format. Distributed as TV, RADIO, or PODCAST.                 |
@@ -626,11 +626,11 @@ class ContentForm(str, Enum):
 A Work is `PRIMARY` unless its very reason for existing is supplementary to
 another Work, in which case it carries a non-PRIMARY form *and* a
 `WorkRelation` to its parent: the generic `BONUS_FOR`, or the matching
-typed edge where one exists — `TRAILER`→`TRAILER_FOR`,
+typed edge where one exists: `TRAILER`→`TRAILER_FOR`,
 `REACTION`→`REACTION_TO`, `EXCERPT`/`SOCIAL_CLIP`→`CLIP_OF` (§4.13). The
-form names what this Work *is*; the relation names *which* primary it
+form names what this Work *is*. The relation names *which* primary it
 attaches to. ContentForm earns its place when the experiential
-relationship to a primary work is fundamentally different — short vs full
+relationship to a primary work is fundamentally different: short vs full
 is *not* a form (runtime), live vs recorded is *not* a form (`StreamMode`),
 kid-friendly is *not* a form (audience).
 
@@ -669,29 +669,29 @@ class VariantKind(str, Enum):
     OTHER        = "other"
 ```
 
-**`THEATRICAL`** — Marker for the theatrical cut when a director's cut also
+**`THEATRICAL`**: Marker for the theatrical cut when a director's cut also
 exists. Without a counterpart, `variant_kind = None` is preferred (A2).
 
-**`FANEDIT`** — Foundation-level catch-all for fan-made narrative
+**`FANEDIT`**: Foundation-level catch-all for fan-made narrative
 restructurings. Downstream packages may sub-classify.
 
-**`TV_TO_MOVIE` / `MOVIE_TO_TV`** — Structural transformations that change
+**`TV_TO_MOVIE` / `MOVIE_TO_TV`**: Structural transformations that change
 narrative structure and cross the `MediaType` boundary. By A4 the result
-is a new Work; the link to source is `WorkRelation(ADAPTED_FROM)` or
+is a new Work. The link to source is `WorkRelation(ADAPTED_FROM)` or
 `WorkRelation(FANEDIT_OF)`.
 
-**`PRESERVATION`** — Reconstructs content from degraded or partially lost
+**`PRESERVATION`**: Reconstructs content from degraded or partially lost
 source material, sometimes resulting in an incomplete work. Distinct from
 REMASTERED.
 
-**`REMASTERED`** — New mastering from existing source elements.
+**`REMASTERED`**: New mastering from existing source elements.
 
-**`UPSCALED`** — No new source elements, purely computational. Relevant
+**`UPSCALED`**: No new source elements, purely computational. Relevant
 for libraries tracking source-quality provenance.
 
-**`COMPILATION`** — A derived Work aggregating content from multiple other
+**`COMPILATION`**: A derived Work aggregating content from multiple other
 Works (a "best of" album-as-Work, an anthology Work). Not a re-packaging
-of a single Release — for that see `ReleasePackaging`.
+of a single Release: for that see `ReleasePackaging`.
 
 #### Rejected `VariantKind` values
 
@@ -715,12 +715,12 @@ class ReleasePackaging(str, Enum):
     OTHER         = "other"
 ```
 
-Description-family (§1.5); `Release.packaging` is excluded from
+Description-family (§1.5). `Release.packaging` is excluded from
 `release_hash` because the same SKU may be re-labelled across catalogues
 without becoming a different Release. `None` is the unmarked default.
 
-`BOOTLEG` lives here because the performance or recording IS real — the
-Work is the performance; the Release is the bootleg pressing or tape.
+`BOOTLEG` lives here because the performance or recording IS real: the
+Work is the performance. The Release is the bootleg pressing or tape.
 
 ### 4.5 `EntityKind` and `OrganisationKind`
 
@@ -746,27 +746,27 @@ class OrganisationKind(str, Enum):
     OTHER             = "other"
 ```
 
-`Entity` is the third identity of §1.3 — a participant that is not a Work.
+`Entity` is the third identity of §1.3: a participant that is not a Work.
 `EntityKind` classifies its *structural type* by the A1 test applied to
 entities: a value earns its place when it needs a different schema. A
-`PERSON` carries birth/death years; a `GROUP` carries memberships; an
+`PERSON` carries birth/death years. A `GROUP` carries memberships. An
 `ORGANISATION` carries `org_kind` and a founding year. A musician and a
-documentary director are both `PERSON` — their differing contributions are
+documentary director are both `PERSON`: their differing contributions are
 `RelationRole` credits (A6/A9), not `EntityKind` values. `SERIES` and
 `DEVICE` are admitted below by A3 (a container and a delivery channel are
 not Works).
 
 `OrganisationKind` discriminates legal entities that share a schema (name,
 country, founding year, external IDs) but differ in role within the media
-graph. Set when `kind == ORGANISATION`; `None` otherwise. The validator
+graph. Set when `kind == ORGANISATION`. `None` otherwise. The validator
 *rejects* the contradiction (`org_kind` set on a non-`ORGANISATION` entity)
 and *warns* on the under-specification (an `ORGANISATION` with no `org_kind`
-yet) — the same warn-not-reject discipline applied to `Credit.relation_role`
+yet): the same warn-not-reject discipline applied to `Credit.relation_role`
 (§5.2): a contradiction is wrong, a not-yet-known value is incomplete, and
 incomplete records must survive cross-provider ingestion.
 
-**`SERIES` as Entity** (§1.3 decomposition; A3). A series is a *container*, not a Work.
-*The Dark Tower* contains seven Books; *Doctor Who* contains hundreds of
+**`SERIES` as Entity** (§1.3 decomposition. A3). A series is a *container*, not a Work.
+*The Dark Tower* contains seven Books. *Doctor Who* contains hundreds of
 episodes. The series has metadata (title, creator, instalment count) but
 is not played, read, or watched directly. Modelling it as an Entity allows
 `part_of` relations from individual Works to their containing series.
@@ -782,10 +782,10 @@ have a `Work` counterpart for invocation (§5.6).
 values are admitted by A9's discipline applied to participation: a role
 earns a value when consumers route on it as a distinct contribution and no
 existing value subsumes it (a `DIRECTOR` and a `COMPOSER` are navigated
-differently; a "Best Boy" is not — it stays `CREATOR` + a raw `role`
+differently. A "Best Boy" is not: it stays `CREATOR` + a raw `role`
 string). The film/music/book/game groupings reflect T5: differing credit
 structures are part of what makes those `MediaType`s distinct, so each
-needs its own routable roles. `CREATOR` is the generic fallback (A2 — it is
+needs its own routable roles. `CREATOR` is the generic fallback (A2: it is
 not an "absence" value but a genuine "creator, kind unspecified").
 
 ```python
@@ -853,7 +853,7 @@ combination of `RelationRole` + `entity.kind` separates them (a producer is
 STAFF on one record and a billed PRINCIPAL on another). It generalises
 across media types: a film's cast/crew split, a book's
 author/editor/publisher split, and a metal album's members/guests/staff
-split all use the same three-way taxonomy. Description-family (§1.5) — a
+split all use the same three-way taxonomy. Description-family (§1.5): a
 section is editorial billing, never identity.
 
 ### 4.8 `MembershipKind` and `TemporalState`
@@ -879,7 +879,7 @@ and rejoined).
 
 `MembershipKind.SESSION` covers both session musicians and one-off guest
 contributors at the *roster* level. Guest-status at the *recording* level
-is `Credit.section=GUEST` on the specific Work — orthogonal scopes, do not
+is `Credit.section=GUEST` on the specific Work: orthogonal scopes, do not
 conflate.
 
 ### 4.9 `ReleaseStatus`
@@ -896,12 +896,12 @@ class ReleaseStatus(str, Enum):
 
 Lifecycle is description-family (§1.5): it accumulates and is corrected as
 sources report (A6 keeps it out of both hashes), and merge collapses it to
-the highest-confidence state (§6.6). Each value is admitted by A8 — humans
+the highest-confidence state (§6.6). Each value is admitted by A8: humans
 treat *announced*, *in production*, *released*, *withdrawn*, and *cancelled*
 as distinct catalogue states a consumer routes on (hide cancelled, surface
 upcoming). `WITHDRAWN` is distinct from `CANCELLED` by A8(b)-style human
 meaning: the work shipped, then was pulled, versus never shipped.
-`RUMOURED` is rejected by A1's database clause — a rumoured work has no
+`RUMOURED` is rejected by A1's database clause: a rumoured work has no
 verifiable record in any authoritative database, so it is not catalogued as
 a Work at all (T8-adjacent: it never reaches a canonical Work).
 
@@ -929,7 +929,7 @@ class PlaybackType(str, Enum):
     UNKNOWN     = "unknown"
 ```
 
-Derived from `MediaType` via `infer_playback_type()`; no persisted field
+Derived from `MediaType` via `infer_playback_type()`. No persisted field
 on `Work` or `Release` (A6, A7).
 
 | Playback type | MediaTypes |
@@ -938,14 +938,14 @@ on `Work` or `Release` (A6, A7).
 | `VIDEO`       | `MOVIE`, `SHORT_FILM`, `EPISODIC_SERIES`, `TV`, `MUSIC_VIDEO` |
 | `PAGED`       | `BOOK`, `COMIC` |
 | `INTERACTIVE` | `GAME`, `INTERACTIVE_FICTION` |
-| `UNKNOWN`     | `PLAYLIST` (membership-dependent); pipeline sentinels |
+| `UNKNOWN`     | `PLAYLIST` (membership-dependent). Pipeline sentinels |
 
 A request verb is an ambiguous hint, not a gate. When the caller asserts
-`playback_type` explicitly, providers honour it; when unset, the resolver
+`playback_type` explicitly, providers honour it. When unset, the resolver
 falls back to `infer_playback_type(media_type)`.
 
 `PAGED` covers everything that advances on user action with no playback
-clock — books, comics, photo books, slideshows, paged ebooks.
+clock: books, comics, photo books, slideshows, paged ebooks.
 
 ### 4.12 `ProgrammeFormat`
 
@@ -965,7 +965,7 @@ class ProgrammeFormat(str, Enum):
 Structural programme *format*, distinct from aesthetic genre (T1). Lives
 on `Work.programme_format` and as the `Signals.programme_format` routing
 hint (mapped through by `Work.from_signals`). Routing-family (A6);
-excluded from `work_hash`, `release_hash`, and `compare_signals` — two
+excluded from `work_hash`, `release_hash`, and `compare_signals`: two
 records differing only in `programme_format` are the same Work and do not
 conflict.
 
@@ -973,7 +973,7 @@ A concert film released theatrically is `MOVIE` with
 `programme_format=CONCERT`. A stand-up special on Netflix is
 `EPISODIC_SERIES` or `MOVIE` (depending on series structure) with
 `programme_format=STAND_UP`. A feature-length documentary is `MOVIE` with
-`programme_format=DOCUMENTARY`; a documentary series is `EPISODIC_SERIES`
+`programme_format=DOCUMENTARY`. A documentary series is `EPISODIC_SERIES`
 with the same.
 
 ### 4.13 `WorkRelationKind` and `ReleaseRelationKind`
@@ -1012,41 +1012,41 @@ class ReleaseRelationKind(str, Enum):
 ```
 
 **Admission (A9).** Every value here passes both A9 clauses: it carries a
-link no identity field carries — an edge to a *different* Work/Release —
+link no identity field carries: an edge to a *different* Work/Release —
 and consumers traverse it as a distinct edge. `COVERS` / `SAMPLES` /
 `REMIX_OF` / `MIX_OF` / `LIVE_VERSION` connect one recording to another
 (`MIX_OF` admitted next to `REMIX_OF` by A9(b): a consumer browsing "DJ
 sets that include this track" navigates differently from "remixes of this
-track"); `SEQUEL_TO` / `PREQUEL_TO` / `ADAPTED_FROM` / `DERIVED_FROM`
+track"). `SEQUEL_TO` / `PREQUEL_TO` / `ADAPTED_FROM` / `DERIVED_FROM`
 connect distinct narrative or cross-channel Works (A4 makes each a separate
-Work); `SOUNDTRACK_FOR` / `DLC_FOR` / `EXPANSION_OF` / `FANEDIT_OF` connect
+Work). `SOUNDTRACK_FOR` / `DLC_FOR` / `EXPANSION_OF` / `FANEDIT_OF` connect
 supplementary or derived Works to their primary (§3.3, §3.4).
 
 The supplementary-edge family deserves note. `BONUS_FOR` is the generic
-supplementary→primary edge; `TRAILER_FOR`, `REACTION_TO`, and `CLIP_OF`
+supplementary→primary edge. `TRAILER_FOR`, `REACTION_TO`, and `CLIP_OF`
 are the typed companions to the `ContentForm` values `TRAILER`,
 `REACTION`, and `EXCERPT`/`SOCIAL_CLIP` (§4.2). They are admitted next to
 `BONUS_FOR` by A9(b): consumers systematically traverse "trailers for this
 film", "reactions to this episode", and "clips of this work" as *separate*
 queries, and conflating them under `BONUS_FOR` would merge three distinct
-real links. The form is the node's own attribute; the relation is the
-edge — each `ContentForm` that names a distinct supplementary relationship
+real links. The form is the node's own attribute. The relation is the
+edge: each `ContentForm` that names a distinct supplementary relationship
 to a primary work earns the matching edge.
 
 `PART_OF` is admitted only for groupings that are *not* a series and *not* a
-tracklist — A9(a) rejects it for those because `series_title` (+ a SERIES
+tracklist: A9(a) rejects it for those because `series_title` (+ a SERIES
 Entity) and `Appearance` already carry them, and restating would
 double-write (A7). `EPISODE_OF` is rejected outright by A9(a): episode
 membership is already the `season` / `episode` / `series_title` identity
-fields. A `CHANNEL` role is rejected by T9 — a channel is an Entity or a
+fields. A `CHANNEL` role is rejected by T9: a channel is an Entity or a
 Work, not a participation.
 
-Relation kinds are navigation, never identity (A6) — absent from both
+Relation kinds are navigation, never identity (A6): absent from both
 hashes. Most Release-to-Release distinctions are already encoded by the
 format / packaging fields plus `release_hash`, so `ReleaseRelationKind` is
 deliberately small. `SUPERSEDES` carries obsolescence ("this replaces that,
-hide the older"); `REMASTER_OF` and `REISSUE_OF` are admitted *beside* it by
-A9(b) precisely because they carry the opposite navigational claim — a
+hide the older"). `REMASTER_OF` and `REISSUE_OF` are admitted *beside* it by
+A9(b) precisely because they carry the opposite navigational claim: a
 remaster or reissue relates to its source *without* obsoleting it, and a
 consumer surfacing "earlier editions, still valid" must not conflate them
 with supersession. `PORT_OF` and `MIRROR_OF` (alternate streams of one
@@ -1056,13 +1056,13 @@ broadcast, §7.1) round out the set. Each points at a *different* Release
 ### 4.14 `content_genres`
 
 Genre is *what the experience is like*, never *what kind of thing it is*
-(T1) — it changes neither schema, nor databases, nor tolerances, so by A1 it
+(T1): it changes neither schema, nor databases, nor tolerances, so by A1 it
 is barred from `MediaType` and lives here instead. Routing-family (A6):
-excluded from both hashes; a provider may declare a `genre_filter` ClassVar.
-The vocabulary is therefore an open string list — genre is culturally
+excluded from both hashes. A provider may declare a `genre_filter` ClassVar.
+The vocabulary is therefore an open string list: genre is culturally
 negotiated and inherently extensible, which is exactly why it cannot be a
 closed identity axis. The constants in `mediavocab/taxonomy/genre.py` are
-canonical spellings; consumers may use any string. The closed list exists so
+canonical spellings. Consumers may use any string. The closed list exists so
 providers agree on common spellings when the genre is known.
 
 ```python
@@ -1163,7 +1163,7 @@ GENRE_AI_GENERATED   = "ai_generated"   # primary creative content produced by A
 ```
 
 The list is intentionally flat. Sub-genres (house, techno, trance, dubstep,
-drum_and_bass) sit beside their parents (electronic); consumers needing a
+drum_and_bass) sit beside their parents (electronic). Consumers needing a
 hierarchy build it on top.
 
 ### 4.15 `PictureFormat`
@@ -1184,10 +1184,10 @@ class PictureFormat(str, Enum):
     OTHER           = "other"
 ```
 
-Presentation/picture attributes of a manifestation — a technical Release
+Presentation/picture attributes of a manifestation: a technical Release
 attribute (T6), admitted alongside the existing per-Release `color` /
 `audio_present` booleans as a typed, multi-valued enum. Routing-family (A6);
-**excluded from `work_hash`, `release_hash`, and `compare_signals`** — two
+**excluded from `work_hash`, `release_hash`, and `compare_signals`**: two
 records differing only in `picture_format` are the same Work and do not
 conflict. Lives on `Work.picture_format` and `Release.picture_format`
 (`Optional`, default `None` per A2) and as the `Signals.picture_format`
@@ -1197,7 +1197,7 @@ Distinct from the free-text `source_format` (§5.3): `source_format` is the
 distribution container / capture medium ("Blu-ray", "Vinyl", "35mm");
 `PictureFormat` is the typed presentation enum. `silent` /
 `black_and_white` are also expressible as the booleans `audio_present=False`
-/ `color=False` on a Release (§4.1, T6) — `PictureFormat` is the routing-axis
+/ `color=False` on a Release (§4.1, T6): `PictureFormat` is the routing-axis
 view that travels on `Signals` and that classifiers emit.
 
 ### 4.16 `Structure`
@@ -1211,8 +1211,8 @@ class Structure(str, Enum):
     UNKNOWN    = "unknown"
 ```
 
-Derived from `MediaType` via `infer_structure()`; no persisted field on `Work`
-or `Release` (A6, A7) — the same derived-axis pattern as `PlaybackType`
+Derived from `MediaType` via `infer_structure()`. No persisted field on `Work`
+or `Release` (A6, A7): the same derived-axis pattern as `PlaybackType`
 (§4.11). Routing-family (A6).
 
 | Structure    | MediaTypes |
@@ -1231,21 +1231,21 @@ leaf default per-utterance.
 
 ## 5. Models
 
-The six models in §1.3–§1.4 and the references that link them. Nothing
+The six models in §1.3-§1.4 and the references that link them. Nothing
 beyond those six is a model: §5.5 shows a scheduled broadcast and §5.6 a
 playable device are both *applications* of the six, not additions to them.
 
 ### 5.1 References
 
-`Entity` has a dedicated lightweight pointer (`EntityRef`); `Work` and
-`Release` do not — pointers to them are themselves a `Work` / `Release`
+`Entity` has a dedicated lightweight pointer (`EntityRef`). `Work` and
+`Release` do not: pointers to them are themselves a `Work` / `Release`
 populated only with identity fields. The model surface deliberately
-accepts the full record; consumers needing a strictly-typed reference
+accepts the full record. Consumers needing a strictly-typed reference
 populate `title` / `media_type` / `external_ids` and leave everything
 else empty.
 
 Wire-format recursion is bounded by consumer convention: when filling a
-`WorkRelation.target`, populate identity fields only — do not recurse
+`WorkRelation.target`, populate identity fields only: do not recurse
 into the target's own `relations`, `tracklist`, or `credits`.
 
 ```python
@@ -1291,11 +1291,11 @@ relation table persist the same data under `(work_hash, kind)` or
 
 ### 5.2 People and groups
 
-`Entity` is the third identity of §1.3 — a participant that is not itself a
+`Entity` is the third identity of §1.3: a participant that is not itself a
 Work. `Membership` is admitted by A5 (membership is a temporal state paired
-with an orthogonal kind, and both must be stored); `Credit` is the
+with an orthogonal kind, and both must be stored). `Credit` is the
 Entity→Work edge of §1.4 (an Entity's contribution to a *specific* Work,
-T3 — distinct from band-roster membership).
+T3: distinct from band-roster membership).
 
 ```python
 class Membership(BaseModel):
@@ -1363,18 +1363,18 @@ class Entity(BaseModel):
         return self
 ```
 
-Credit list order is the editorial credit order — poster billing, liner
+Credit list order is the editorial credit order: poster billing, liner
 notes, opening titles. `Work.credits[0]` is *billed first*. Consumers
 merging credits from multiple providers preserve first-seen order.
 
-`Credit.role` preserves the raw source string for display; `relation_role`
+`Credit.role` preserves the raw source string for display. `relation_role`
 maps it to the closed `RelationRole` enum so consumer code can route
 without string-matching. When the raw role is not available, set `role` to
 `relation_role.value`. When the typed role has not yet been inferred,
 `relation_role` is `None` (a provider may surface a raw `role` before the
-mapping is known); a normaliser later sets it to a `RelationRole` value, or
-to `RelationRole.OTHER` when no value fits. A validator *warns* — it does
-not reject — when `relation_role` is `None` while `role` is set, or when a
+mapping is known). A normaliser later sets it to a `RelationRole` value, or
+to `RelationRole.OTHER` when no value fits. A validator *warns*: it does
+not reject: when `relation_role` is `None` while `role` is set, or when a
 set `role` and `relation_role` visibly disagree: cross-provider ingestion
 routinely carries provider-specific labels before normalisation, and a hard
 reject would lose data (the same warn-not-reject discipline §4.5 applies to
@@ -1382,9 +1382,9 @@ a missing `org_kind`).
 
 ### 5.3 Works
 
-`Work` is the canonical creative artefact — the first identity of §1.3 and,
+`Work` is the canonical creative artefact: the first identity of §1.3 and,
 by T2, distinct from both `Release` and `Appearance`. Its identity fields
-(§1.5) are the `work_hash` inputs (§6.3); its routing and description fields
+(§1.5) are the `work_hash` inputs (§6.3). Its routing and description fields
 are excluded from the hash by A6. `Appearance` is the §1.4 edge placing a
 Work inside a container Release.
 
@@ -1483,9 +1483,9 @@ class Work(BaseModel):
 International co-productions and Works without a single origin leave all
 three empty.
 
-The model validator enforces *at most one slot non-empty* — it is valid for
+The model validator enforces *at most one slot non-empty*: it is valid for
 all three slots to be empty (international productions, PLAYLIST, SOUND_EFFECT).
-The validator does NOT enforce which slot matches the MediaType; the table
+The validator does NOT enforce which slot matches the MediaType. The table
 is editorial guidance for canonical records. Ingestion code may populate
 the slot that best fits the source metadata.
 
@@ -1518,7 +1518,7 @@ or a `Credit` to the parent station Entity with `RelationRole.DISTRIBUTOR`.
 
 ### 5.4 Releases
 
-`Release` is the second identity of §1.3 — a manifestation of a Work,
+`Release` is the second identity of §1.3: a manifestation of a Work,
 distinct from it by T2 and varying independently of it by A3 (delivery is
 not identity). Every technical attribute here is a Release field by T6;
 none back-propagates into the Work. `Chapter`, `AccessibilityTrack`, and
@@ -1558,7 +1558,7 @@ class AccessibilityTrack(BaseModel):
 A `Work` acquires accessibility as per-Release *assets*
 (`Release.accessibility: List[AccessibilityTrack]`). At the resolver layer
 a caller may instead carry the desired *kinds* as a routing hint:
-`Signals.accessibility: List[AccessibilityKind]`. Routing-family (A6); the
+`Signals.accessibility: List[AccessibilityKind]`. Routing-family (A6). The
 hint is **excluded from `signal_hash` and `compare_signals`** and has no
 `Work` target (it is dropped by `Work.from_signals`, since accessibility on
 a Work lives on its Releases as rich tracks, not a Work-level kind list).
@@ -1672,15 +1672,15 @@ class Release(BaseModel):
 
 **Inheritance.** Release has no identity fields of its own beyond format
 and packaging. Title, year, runtime, language, country, credits, and
-content_genres are always read through `release.work`; the Release model
+content_genres are always read through `release.work`. The Release model
 deliberately does not declare those fields, and Release values never
 back-propagate into Work.
 
-**`Work.tracklist` vs `Release.contents`** — both are `List[Appearance]`
+**`Work.tracklist` vs `Release.contents`**: both are `List[Appearance]`
 but answer different questions:
 
 - `Work.tracklist` is the *canonical* track / chapter / episode order of
-  a single Work — the album's intended sequence, the book's chapter list.
+  a single Work: the album's intended sequence, the book's chapter list.
   Identity-level.
 - `Release.contents` is the *aggregation* of multiple distinct Works in
   one box-set, anthology, or multi-cut disc. Manifestation-level.
@@ -1689,22 +1689,22 @@ but answer different questions:
 
 A scheduled airing on a live linear channel (`MediaType.TV`,
 `MediaType.RADIO`) introduces no seventh model. §1.4 closes the object
-graph at six models; a `Schedule` / `Programme` pair would be the seventh,
+graph at six models. A `Schedule` / `Programme` pair would be the seventh,
 and A9 forbids new structure that an existing combination already expresses.
 A scheduled broadcast is fully subsumed by three things the model already
 carries:
 
-- the **station** is a `Work` (T4 — a station has stable cataloguable
-  identity, mirrors, and cross-references; the channel is the Work, its
+- the **station** is a `Work` (T4: a station has stable cataloguable
+  identity, mirrors, and cross-references. The channel is the Work, its
   stream URLs are Releases);
 - the **programme** being aired is itself a `Work` (its own title, year,
-  credits — the same Work whether aired, streamed, or pressed to disc, by
+  credits: the same Work whether aired, streamed, or pressed to disc, by
   A4);
-- the **airing** — a programme manifested on a station within a time
-  window — is a **`Release` of the programme `Work`** carrying an
+- the **airing**: a programme manifested on a station within a time
+  window: is a **`Release` of the programme `Work`** carrying an
   **`AvailabilityWindow`** (§5.4). The window's `start` / `end` accept
   RFC 3339 / ISO 8601 datetimes with offset (the `IsoDate` boundary type,
-  §6.7); a slot is the window `[start, end)`.
+  §6.7). A slot is the window `[start, end)`.
 
 Thus the derivation:
 
@@ -1725,20 +1725,20 @@ timing on a `Release`, which is exactly what `AvailabilityWindow` is.
 
 "What is on right now" is not a model method: select the Release whose
 `AvailabilityWindow` slot `[start, end)` contains the consumer's clock.
-A refreshed schedule replaces the affected `Release`s wholesale — the
+A refreshed schedule replaces the affected `Release`s wholesale: the
 window ordering / overlap invariants on `Release` (§5.4) validate at
 construction.
 
 ### 5.6 Device-as-Work
 
-A *receiver-class* device — radio set, TV set, console, sound-machine
-appliance, tunable streaming receiver — can be invoked as an experience
+A *receiver-class* device: radio set, TV set, console, sound-machine
+appliance, tunable streaming receiver: can be invoked as an experience
 without a content query. *"Turn on the radio"* names the device, not a
-station; the user accepts whatever it produces.
+station. The user accepts whatever it produces.
 
 Like §5.5, this introduces no model. The receiver is `Work` *applied to* a
-device (T4 — a thing with stable cataloguable identity and playable
-streams is a Work) plus the existing `Entity(EntityKind.DEVICE)`; A3
+device (T4: a thing with stable cataloguable identity and playable
+streams is a Work) plus the existing `Entity(EntityKind.DEVICE)`. A3
 (delivery is not identity) keeps the device's `MediaType` identical to any
 other Work of that medium. The physical thing has two representations:
 
@@ -1747,7 +1747,7 @@ other Work of that medium. The physical thing has two representations:
 - A `Work` for invocation. Its `MediaType` is the medium the device serves
   (`RADIO` / `TV` / `GAME` / `PROCEDURAL_AMBIENT`).
 
-The two records share an `external_ids` key — typically
+The two records share an `external_ids` key: typically
 `home_assistant_entity_id`, `sonos_udn`, `chromecast_device_id`, or
 `alexa_device_id`.
 
@@ -1771,7 +1771,7 @@ A consumer asked to handle *"turn on the radio"*:
 
 1. Looks up Works whose `external_ids` matches a known
    `EntityKind.DEVICE` of receiver class in the household scope.
-2. If exactly one → return that Work; the player invokes its current
+2. If exactly one → return that Work. The player invokes its current
    Release (read from the device's tune-state or default Release).
 3. If multiple → disambiguate by room or device name.
 4. If zero → fall back to a generic `MediaType.RADIO` query.
@@ -1779,7 +1779,7 @@ A consumer asked to handle *"turn on the radio"*:
 A device is receiver-class when invoking it without specifying content
 produces a coherent media experience. Radios, TVs, consoles, sound
 machines, and tunable streaming receivers qualify. Lights, locks,
-thermostats, and plugs do not — invoking them produces no media output
+thermostats, and plugs do not: invoking them produces no media output
 (`MediaType.NOT_MEDIA`).
 
 A3 holds: delivery is not identity. The Work IS the experience (not a
@@ -1787,18 +1787,18 @@ delivery channel for some other content), and its identity is rooted in
 the device. The `MediaType` and `PlaybackType` of a kitchen radio are
 identical to any other `RADIO` Work.
 
-### 5.7 Work vs Release — decision guide
+### 5.7 Work vs Release: decision guide
 
 | Question                                                              | Answer                                                                   |
 |-----------------------------------------------------------------------|--------------------------------------------------------------------------|
-| Is *Alien* the same film as *Alien (Director's Cut)*?                 | Different Works (each cut is its own Work — §3.4); linked by `FANEDIT_OF` |
+| Is *Alien* the same film as *Alien (Director's Cut)*?                 | Different Works (each cut is its own Work: §3.4). Linked by `FANEDIT_OF` |
 | Is *Battery* on the original album the same as on a compilation?      | Same Work, two Appearances in two Release containers                     |
 | Are the primary stream URL and backup mirror of BBC Radio 4 the same? | Same Work, two Releases with different URIs                              |
-| Is the 1986 CD and the 2016 remaster of *Master of Puppets* the same? | Different Works (the remaster restructures the source); linked by `DERIVED_FROM` |
+| Is the 1986 CD and the 2016 remaster of *Master of Puppets* the same? | Different Works (the remaster restructures the source). Linked by `DERIVED_FROM` |
 | Is the same 1986 CD pressing in Japan and the US the same?            | Same Work, two Releases (`region`, `packaging` differ)                   |
-| Is a cover version of *Hallelujah* the same Work as the original?     | Different Works; a `COVERS` relation may link them                       |
+| Is a cover version of *Hallelujah* the same Work as the original?     | Different Works. A `COVERS` relation may link them                       |
 
-### 5.8 Worked example — *Master of Puppets*
+### 5.8 Worked example: *Master of Puppets*
 
 The album, its principal track, two Releases, the band, and one departed
 member. Every cross-reference resolves.
@@ -1949,8 +1949,8 @@ remaster_cd = Release(
 ```
 
 Two Works (1986 album + 2017 remastered album) linked by
-`WorkRelation(DERIVED_FROM)`; each has its own Release(s). Packaging
-differences (deluxe, regional, format) stay on the Release; structural
+`WorkRelation(DERIVED_FROM)`. Each has its own Release(s). Packaging
+differences (deluxe, regional, format) stay on the Release. Structural
 changes to the artefact (remastering, recutting) promote to a new Work.
 
 ---
@@ -1963,16 +1963,16 @@ quantum table → hashes → compare/score → merge → ISO helpers.
 
 Every operation here is admitted by the identity/routing/description split
 of §1.5: a hash digests exactly the identity fields (A6 keeps routing and
-description out); `compare` diffs the same identity fields (absence is never
-a conflict, A2); `merge` unions the description fields as enrichment while
-holding identity constant (A7 — one source of truth per fact, so disagreeing
+description out). `compare` diffs the same identity fields (absence is never
+a conflict, A2). `merge` unions the description fields as enrichment while
+holding identity constant (A7: one source of truth per fact, so disagreeing
 identity is a *different record*, never a merge). The normalisation
 primitives (§6.1) exist so that the identity inputs collapse provider
 spelling differences before they reach the digest.
 
 ### 6.1 Normalisation primitives
 
-All functions are pure and deterministic — same input, same output, no I/O.
+All functions are pure and deterministic: same input, same output, no I/O.
 
 ```python
 def strip_diacritics(text: str) -> str:
@@ -2049,9 +2049,9 @@ RUNTIME_HASH_QUANTUM_S: Dict[MediaType, int] = {
 
 Sentinel semantics:
 
-- **`0`** — include runtime at second precision.
-- **`N > 0`** — round to the nearest multiple of N seconds.
-- **`QUANTUM_SKIP` (`-1`)** — exclude runtime from the hash entirely.
+- **`0`**: include runtime at second precision.
+- **`N > 0`**: round to the nearest multiple of N seconds.
+- **`QUANTUM_SKIP` (`-1`)**: exclude runtime from the hash entirely.
 
 ### 6.3 `work_hash`
 
@@ -2233,7 +2233,7 @@ def merge_releases(*releases: Release, strategy: MergeStrategy = DEFAULT_STRATEG
 ```
 
 `compare(a, b)` MUST be called before `merge` when callers cannot rule out
-identity conflicts; `merge` is the commit step, not the diff step.
+identity conflicts. `merge` is the commit step, not the diff step.
 
 ### 6.7 ISO helpers
 
@@ -2241,11 +2241,11 @@ The `IsoDate` boundary type carries date / datetime fields (`release_date`,
 `AvailabilityWindow.start` / `.end`). It is a string, not a `datetime`,
 because sources hand over partial precision ("2025", "2025-09") a
 `datetime` cannot hold, and because the string is the round-trip-stable
-canonical form for cross-source dedup — reformatting via
+canonical form for cross-source dedup: reformatting via
 `datetime.isoformat()` would drop precision and break hash equality. The
 validator enforces *parseability* only (an ISO-8601 date, year-month, year,
-or datetime with offset) and never normalises; empty / `None` is always
-admitted (A2 — absence is not a value). `iso_compare(a, b)` orders two such
+or datetime with offset) and never normalises. Empty / `None` is always
+admitted (A2: absence is not a value). `iso_compare(a, b)` orders two such
 strings semantically (year → first day of year, etc.).
 
 ```python
@@ -2300,7 +2300,7 @@ ALEXA_DEVICE_ID            = "alexa_device_id"
 
 Provider-namespaced keys (`bandcamp_album_id`) follow the
 `<provider>_<entity>_id` pattern. Well-known key spellings are frozen for
-the v1.x line — renames are a breaking change.
+the v1.x line: renames are a breaking change.
 
 Per A7, when a fact has a typed field (e.g. `Release.bitrate`), it lives
 there and not in `external_ids`. The dict is for *third-party identifiers*,
@@ -2309,26 +2309,26 @@ not for refitting model fields.
 **Optional helper.** `mediavocab.models.ExternalIds` is a Pydantic
 companion model exposing the well-known keys as typed fields plus an
 ISBN-10/-13 auto-pairing rule and a first-writer-wins `merge()`. It is
-*not* the canonical persistence form — `Dict[str, str]` is — but
+*not* the canonical persistence form (`Dict[str, str]` is) but
 consumers wanting IDE completion and validation can build the dict
 through it: `ExternalIds(imdb="tt0083658").to_dict()`.
 
 **Streams.** `mediavocab.models.Stream` is a helper that derives
 playable `(platform, url, media_type)` triples from
 provider-namespaced keys in an `ExternalIds.extra` map
-(`youtube_video_id` → `youtube` Stream; `bandcamp_track_url` → `bandcamp`
-Stream). The Stream is a *view*, not a persisted record — the canonical
+(`youtube_video_id` → `youtube` Stream. `bandcamp_track_url` → `bandcamp`
+Stream). The Stream is a *view*, not a persisted record: the canonical
 data is the underlying `external_ids` key.
 
 **Station mirrors and multi-bitrate streams.** A radio station or TV
-channel typically publishes several stream URLs — DAB, web high-bitrate,
+channel typically publishes several stream URLs: DAB, web high-bitrate,
 web low-bitrate, regional transmitter, backup mirror. The station is one
-Work (T4); each stream URL is a separate `Release`, distinguished by
+Work (T4). Each stream URL is a separate `Release`, distinguished by
 `codec` / `bitrate` / `container` / `region`. A
 `ReleaseRelation(MIRROR_OF, target=primary_release)` may link mirrors to
 a canonical primary stream when consumers want to surface lineage.
 
-There is no `Stream` sub-model — the existing `Release` shape carries
+There is no `Stream` sub-model: the existing `Release` shape carries
 everything a stream needs (`uri`, `codec`, `bitrate`, `container`,
 `region`, `stream_mode`).
 
@@ -2365,10 +2365,10 @@ answer: `is_open=False`, `is_public_domain=False`, `allows_commercial=False`,
 
 **Optional helper.** `mediavocab.models.License` is a Pydantic companion
 model. Like `ExternalIds`, it is *not* the canonical persisted form —
-`Release.license: str` is — but consumers can parse an SPDX string into
+`Release.license: str` is: but consumers can parse an SPDX string into
 typed flags via `License.from_spdx(spdx)`, or read the overlay directly as
 `Release.license_model` (a read-only property: `None` when `license` is
-empty, else `License.from_spdx(license)`) — the exact mirror of
+empty, else `License.from_spdx(license)`): the exact mirror of
 `Release.external_ids_model`. Per A7 the string is the single source of
 truth: the typed view never persists and is never the field. Writing the
 field is always `release.license = "<spdx>"`.
@@ -2377,17 +2377,17 @@ field is always `release.license = "<spdx>"`.
 
 ## 8. Versioning and stability
 
-- **`taxonomy/`** — stable from v1.0. Enum values are never removed; new
+- **`taxonomy/`**: stable from v1.0. Enum values are never removed. New
   values may be added in minor versions. Renaming a value is a breaking
   change.
-- **`models/`** — stable from v1.0. Fields are never removed; optional
+- **`models/`**: stable from v1.0. Fields are never removed. Optional
   fields may be added in minor versions. Changing a field type is a
   breaking change.
-- **`text/`** — function signatures are stable from v1.0. Tolerance
+- **`text/`**: function signatures are stable from v1.0. Tolerance
   defaults may be tuned in minor versions with changelog notes.
-- **`genre.py` constants** — additive only. New constants may be added in
+- **`genre.py` constants**: additive only. New constants may be added in
   any version. Changing a constant string value is a breaking change.
-- **`external_ids` well-known keys** — additive only. Renaming an existing
+- **`external_ids` well-known keys**: additive only. Renaming an existing
   key is a breaking change.
 
 ### 8.1 Field mutability after canonicalisation
@@ -2399,16 +2399,16 @@ fields are mutable because a new source supplying a value is enrichment,
 not conflict. Once a Work has been canonicalised (assigned a `work_hash`),
 its fields fall into these two classes:
 
-**Immutable** — changing these produces a *different* Work:
+**Immutable**: changing these produces a *different* Work:
 
 - `media_type`, `content_form`, `year`, `runtime` (except for PLAYLIST),
   `production_country`, `publication_country`, `broadcaster_country`,
   `language`, `season`, `episode`, `series_title`, `variant_kind`,
   `edition`, `source_format`.
 
-(These are the inputs to `work_hash`; §6.3.)
+(These are the inputs to `work_hash`. §6.3.)
 
-**Mutable** — these accumulate as more sources are merged. A new provider
+**Mutable**: these accumulate as more sources are merged. A new provider
 supplying additional values is *enrichment*, not conflict:
 
 - `content_genres`, `programme_format`, `aka`, `localized_titles`,
@@ -2418,7 +2418,7 @@ supplying additional values is *enrichment*, not conflict:
 **`tracklist` on a `PLAYLIST` Work** is mutable even though *what tracks
 are in the playlist* is the playlist's reason to exist. A reordered or
 membership-edited Spotify playlist is the same playlist in source-side
-terms (same `spotify_playlist_id`); the hash agrees by design.
+terms (same `spotify_playlist_id`). The hash agrees by design.
 
 ### 8.2 Release mutability
 
@@ -2438,7 +2438,7 @@ Every model surfacing external metadata carries an `extra` dict, typed
 `Dict[str, Any]` throughout the spec. This is an explicit landfill for
 provider-specific values that have not yet earned a typed field.
 
-1. **Strings are the portable form; JSON-serialisable values are
+1. **Strings are the portable form. JSON-serialisable values are
    tolerated.** A string round-trips through every serialiser and every
    provider, so strings are always the safe choice. The dict nonetheless
    admits any JSON-serialisable value (int, bool, list, nested dict) so
@@ -2464,7 +2464,7 @@ provider-specific values that have not yet earned a typed field.
 
 `mediavocab` provides vocabulary and structure. Application logic lives
 downstream. Patterns resolve to existing `MediaType`, `ContentForm`,
-`EntityKind`, and `Work` / `Release` / `Entity` fields — no new schema.
+`EntityKind`, and `Work` / `Release` / `Entity` fields: no new schema.
 
 - Adult media → `docs/patterns/adult-media.md`
 - Games → `docs/patterns/games.md`

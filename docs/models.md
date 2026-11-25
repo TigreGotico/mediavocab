@@ -4,16 +4,16 @@ All models are pydantic v2 with `ConfigDict(extra="ignore",
 populate_by_name=True)`. Unknown input fields are dropped silently —
 flexibility at consumer boundaries.
 
-## `Work` — the canonical creative work
+## `Work`: the canonical creative work
 
 | Field | Type | Notes |
 |---|---|---|
 | `title` | `str` | Required |
-| `media_type` | `MediaType` | Required; pipeline sentinels rejected (T8) |
-| `content_form` | `ContentForm` | Default `PRIMARY`; enters `work_hash` (A8b) |
+| `media_type` | `MediaType` | Required. Pipeline sentinels rejected (T8) |
+| `content_form` | `ContentForm` | Default `PRIMARY`. Enters `work_hash` (A8b) |
 | `year` | `Optional[int]` | Original release/broadcast year of *this* Work |
-| `runtime` | `Optional[float]` | Seconds; `None` for stations / paged / interactive |
-| `language` | `str` | ISO 639-1 / 639-2; `""` = unknown |
+| `runtime` | `Optional[float]` | Seconds. `None` for stations / paged / interactive |
+| `language` | `str` | ISO 639-1 / 639-2. `""` = unknown |
 | `original_languages` | `List[str]` | For multi-lingual originals (e.g. Quebec FR+EN) |
 | `production_country` | `str` | MOVIE, SHORT_FILM, EPISODIC_SERIES, MUSIC_VIDEO, GAME, IF |
 | `publication_country` | `str` | MUSIC, BOOK, COMIC, AUDIOBOOK |
@@ -21,25 +21,25 @@ flexibility at consumer boundaries.
 | `season`, `episode` | `Optional[int]` | TV / episodic podcast / comic |
 | `series_title` | `Optional[str]` | Container series name (denormalised) |
 | `episode_orderings` | `Dict[str, int]` | Alternative orderings (`production`, `broadcast`, …) |
-| `variant_kind` | `Optional[VariantKind]` | Work-level restructuring; `None` = canonical (A2) |
+| `variant_kind` | `Optional[VariantKind]` | Work-level restructuring. `None` = canonical (A2) |
 | `edition` | `str` | Free text |
 | `source_format` | `str` | Original capture: `"35mm"`, `"DAB"`, `"Analogue tape"` |
-| `content_genres` | `List[str]` | Free; use `GENRE_*` constants when known |
+| `content_genres` | `List[str]` | Free. Use `GENRE_*` constants when known |
 | `programme_format` | `Optional[ProgrammeFormat]` | Structural format (documentary, concert, stand-up …) |
 | `release_status` | `ReleaseStatus` | Defaults to `RELEASED` |
-| `aka` | `List[str]` | Alternative spellings; not part of identity hash |
+| `aka` | `List[str]` | Alternative spellings. Not part of identity hash |
 | `localized_titles` | `List[LocalizedTitle]` | Language-tagged titles |
 | `credits` | `List[Credit]` | Who contributed |
 | `tracklist` | `List[Appearance]` | Canonical track / chapter order |
 | `relations` | `List[WorkRelation]` | Work→Work lineage (COVERS, DERIVED_FROM, …) |
 | `external_ids` | `Dict[str, str]` | `{"imdb": "tt..."}` |
-| `extra` | `Dict[str, str]` | Escape hatch — strings only |
+| `extra` | `Dict[str, str]` | Escape hatch: strings only |
 
 The model validator rejects pipeline sentinels and enforces at most one
 country slot non-empty. The `country()` method returns whichever slot is
 populated, or `""`.
 
-## `Release` — a specific manifestation
+## `Release`: a specific manifestation
 
 | Block | Fields |
 |---|---|
@@ -59,11 +59,11 @@ populated, or `""`.
 | Resolver | `match_confidence: float`, `external_ids`, `extra` |
 
 The model validator enforces (a) ordered, non-overlapping
-`availability_windows` with at most one open-ended (must be last); and
+`availability_windows` with at most one open-ended (must be last). And
 (b) `region_locked=False → regions_available` must be empty.
 
 Each cut (theatrical / director's / extended / remaster) is its own
-Work (§3.4); `Release.variant_kind` does not exist. The Release-side
+Work (§3.4). `Release.variant_kind` does not exist. The Release-side
 distinctions are `packaging` (deluxe / reissue / box-set / bootleg /
 regional / promo) and the format-identity block.
 
@@ -71,24 +71,24 @@ regional / promo) and the format-identity block.
 order). `Release.contents` is manifestation-level (multiple Works
 shipped together in a box set / anthology / multi-cut disc).
 
-## `Chapter` — mid-Release marker
+## `Chapter`: mid-Release marker
 
 `offset` (seconds), `title`, optional `image`, optional `end`,
 optional `work_ref`. Chapters are markers, not Works.
 
-## `AccessibilityTrack` — per-Release a11y asset
+## `AccessibilityTrack`: per-Release a11y asset
 
 `kind: AccessibilityKind`, `language: str` (ISO 639-1), `uri`, `forced`,
 `sdh`, `note`. Per-Release because the same Work commonly ships
 different a11y profiles across editions.
 
-## `AvailabilityWindow` — single (start, end) availability span
+## `AvailabilityWindow`: single (start, end) availability span
 
 `start: Optional[str]`, `end: Optional[str]` (ISO date), `note: str`.
-Ordered, non-overlapping; the trailing window may have `end=None`
+Ordered, non-overlapping. The trailing window may have `end=None`
 (open-ended current availability).
 
-## `Appearance` — Work in a container
+## `Appearance`: Work in a container
 
 | Field | Type | Notes |
 |---|---|---|
@@ -100,16 +100,16 @@ Ordered, non-overlapping; the trailing window may have `end=None`
 | `is_bonus` | `bool` | Bonus track / chapter flag |
 | `attributed_to` | `Optional[EntityRef]` | Required on every Appearance of a split release |
 
-## `Entity` — person / group / organisation / series / device
+## `Entity`: person / group / organisation / series / device
 
 | Field | Notes |
 |---|---|
 | `name` | Canonical / search spelling |
 | `kind` | `EntityKind` |
-| `org_kind` | `Optional[OrganisationKind]` — required iff `kind=ORGANISATION` |
-| `birth_year`, `death_year` | `Optional[int]` — PERSON-only |
-| `memberships` | `List[Membership]` — for GROUP / SERIES |
-| `part_of` | `Optional[EntityRef]` — imprint, sub-label, franchise membership |
+| `org_kind` | `Optional[OrganisationKind]`: required iff `kind=ORGANISATION` |
+| `birth_year`, `death_year` | `Optional[int]`: PERSON-only |
+| `memberships` | `List[Membership]`: for GROUP / SERIES |
+| `part_of` | `Optional[EntityRef]`: imprint, sub-label, franchise membership |
 | `formed`, `disbanded` | `Optional[str]` |
 | `years_active` | `List[str]` |
 | `external_ids` | `Dict[str, str]` |
@@ -120,47 +120,47 @@ The model validator enforces:
 - `birth_year` / `death_year` only on `kind=PERSON`;
 - `death_year >= birth_year` when both set.
 
-## `Credit` — entity participation in a Work
+## `Credit`: entity participation in a Work
 
-`role` keeps the raw source string ("Bass Guitar"); `relation_role`
+`role` keeps the raw source string ("Bass Guitar"). `relation_role`
 maps to the closed `RelationRole` enum for programmatic routing.
 Section: `PRINCIPAL` / `GUEST` / `STAFF`.
 
-## `EntityRef` — a lightweight pointer
+## `EntityRef`: a lightweight pointer
 
 `name`, `kind`, `external_ids`, `localized_names: List[Tuple[str, str]]`.
 
 **When to use `EntityRef` vs `Entity`:**
 
-- `EntityRef` — lightweight reference embedded inside a Work's `credits`
+- `EntityRef`: lightweight reference embedded inside a Work's `credits`
   list, `Appearance.attributed_to`, or `Membership.entity`. Use it when
   you know the name and possibly an external ID, but don't have the full
   entity record. `Work.credits` always contains `EntityRef`, never `Entity`.
-- `Entity` — the full persistent record (aliases, memberships, birth/death
-  years, lifecycle dates). Stored separately in your entity store; linked by
+- `Entity`: the full persistent record (aliases, memberships, birth/death
+  years, lifecycle dates). Stored separately in your entity store. Linked by
   matching `external_ids` or name when you need the full record.
 
 Resolve `EntityRef` against the consumer's entity store using
 `external_ids` overlap (authoritative) or `name` equality (fallback).
 
-## `Membership` — temporal group membership (§5.2)
+## `Membership`: temporal group membership (§5.2)
 
 Two orthogonal facets (A5):
 
 | Field | Notes |
 |---|---|
 | `entity` | `EntityRef` |
-| `roles` | `List[str]` — lowercase free text |
-| `kind` | `MembershipKind` — `MEMBER` / `TOURING` / `SESSION` |
-| `temporal` | `TemporalState` — `ACTIVE` / `ENDED` / `INACTIVE_GROUP` |
-| `date_from`, `date_to` | `Optional[str]` — year or ISO date |
+| `roles` | `List[str]`: lowercase free text |
+| `kind` | `MembershipKind`: `MEMBER` / `TOURING` / `SESSION` |
+| `temporal` | `TemporalState`: `ACTIVE` / `ENDED` / `INACTIVE_GROUP` |
+| `date_from`, `date_to` | `Optional[str]`: year or ISO date |
 | `note` | `Optional[str]` |
 
-**`date_to=None` does NOT mean "current"** — check `temporal`. A defunct
+**`date_to=None` does NOT mean "current"**: check `temporal`. A defunct
 band's last member has `temporal=INACTIVE_GROUP, date_to=None`. Validator
 enforces `ACTIVE → date_to=None`.
 
-## Helpers — `mediavocab.helpers.queries`
+## Helpers: `mediavocab.helpers.queries`
 
 ```python
 # Credit traversal
@@ -182,14 +182,14 @@ all_cuts(work) -> List[WorkRelation] # all DERIVED_FROM relations
 release_variants(release) -> List[ReleaseRelation]  # all SUPERSEDES relations
 ```
 
-These are non-normative convenience wrappers — every consumer could write
-them in two lines. They are stable for v1.x — signatures will not change
+These are non-normative convenience wrappers: every consumer could write
+them in two lines. They are stable for v1.x: signatures will not change
 in minor releases. "Non-normative" means they add no new semantics beyond
-what the models already express; they do not introduce new constraints or
-side effects. Use them for convenience; don't depend on them for correctness
+what the models already express. They do not introduce new constraints or
+side effects. Use them for convenience. Don't depend on them for correctness
 assertions in your own spec.
 
-## `WorkRelation` — Work→Work links
+## `WorkRelation`: Work→Work links
 
 ```python
 class WorkRelation(BaseModel):
@@ -200,18 +200,18 @@ class WorkRelation(BaseModel):
 
 **When to use `WorkRelation` vs `variant_kind`:**
 
-- `Work.variant_kind` — describes what *this record* is ("this is the
+- `Work.variant_kind`: describes what *this record* is ("this is the
   Director's Cut"). Set it on the record that holds the variant.
-- `WorkRelation(kind=DERIVED_FROM, target=original)` — links two records
+- `WorkRelation(kind=DERIVED_FROM, target=original)`: links two records
   together ("this Director's Cut was derived from the Theatrical Cut").
   Set it when you have both records and want to trace the lineage.
 - Both can and should coexist: a Director's Cut Work has `variant_kind=DIRECTORS`
   AND a `WorkRelation(DERIVED_FROM, target=theatrical_work)`.
 
-The `target` is a `Work` populated with only identity fields — don't
+The `target` is a `Work` populated with only identity fields: don't
 recurse into the target's own `relations`, `tracklist`, or `credits`.
 
-## `ReleaseRelation` — Release→Release links
+## `ReleaseRelation`: Release→Release links
 
 ```python
 class ReleaseRelation(BaseModel):
@@ -222,10 +222,10 @@ class ReleaseRelation(BaseModel):
 
 **WorkRelation vs ReleaseRelation:**
 
-- `WorkRelation` — conceptual link between *creative works* (this film is a
-  sequel of that film; this cover is derived from the original recording).
-- `ReleaseRelation` — format-level link between *manifested releases* (this
-  4K remaster supersedes the original DVD release; this stream is a mirror of
+- `WorkRelation`: conceptual link between *creative works* (this film is a
+  sequel of that film. This cover is derived from the original recording).
+- `ReleaseRelation`: format-level link between *manifested releases* (this
+  4K remaster supersedes the original DVD release. This stream is a mirror of
   the broadcast).
 
 | `ReleaseRelationKind` | Semantics |
@@ -235,10 +235,10 @@ class ReleaseRelation(BaseModel):
 | `MIRROR_OF` | Alternate stream of the same broadcast |
 | `DERIVED_FROM` | Generic catch-all |
 
-Use sparingly — most distinctions are encoded by format / packaging
+Use sparingly: most distinctions are encoded by format / packaging
 plus `release_hash`.
 
-## `License` — typed rights
+## `License`: typed rights
 
 `Release.license` accepts either a plain SPDX-style string or a `License`
 object. Strings are coerced to `License.from_spdx()` on intake:
@@ -258,9 +258,9 @@ Well-known constants in `mediavocab.models.license`:
 `ALL_RIGHTS_RESERVED`, `PUBLIC_DOMAIN`, `CC0`, `CC_BY`, `CC_BY_SA`,
 `CC_BY_NC`, `CC_BY_NC_SA`, `CC_BY_ND`, `CC_BY_NC_ND`. Free-function
 predicates (`is_open`, `requires_attribution`, `allows_commercial`, etc.)
-operate directly on SPDX strings — see spec §7.2.
+operate directly on SPDX strings: see spec §7.2.
 
-## `ExternalIds` — optional typed external identifiers
+## `ExternalIds`: optional typed external identifiers
 
 `mediavocab.ExternalIds` is a typed companion to the canonical
 `Dict[str, str]` form. Known fields plus an `extra: Dict[str, Any]`
@@ -295,19 +295,19 @@ field under a structured `signals_meta` dictionary (e.g.,
 `extra["signals_meta"]["artist"]`).
 
 `KNOWN_EXTERNAL_IDS` (exported from `mediavocab`) is a frozenset of every
-well-known key string — the `ALL_KNOWN_KEYS` constants plus every typed
-`ExternalIds` field name — for O(1) membership testing.
+well-known key string: the `ALL_KNOWN_KEYS` constants plus every typed
+`ExternalIds` field name: for O(1) membership testing.
 
-## `Stream` — playable media stream
+## `Stream`: playable media stream
 
 `platform` (e.g. `"youtube"`, `"bandcamp"`, `"radio"`), `url`, `kind`
-(`"track"` / `"album"` / `"video"` / `"playlist"` / `"stream"` — the
+(`"track"` / `"album"` / `"video"` / `"playlist"` / `"stream"`: the
 platform's *asset category*, distinct from mediavocab `MediaType`),
 optional raw `id`. Aggregated by `ExternalIds.streams`.
 
-## `Signals` — resolver pipeline bag
+## `Signals`: resolver pipeline bag
 
-`mediavocab.Signals` exists only in the resolver pipeline — it is not a
+`mediavocab.Signals` exists only in the resolver pipeline: it is not a
 persisted record. Persisted records are `Work`s. Use lifecycle constructors
 to make the role explicit:
 
@@ -360,10 +360,10 @@ class MyProvider(MetadataProvider):
 with `playback_type = {PlaybackType.AUDIO}` is skipped when
 `signals.playback_type == PlaybackType.VIDEO`. Empty sets are universal
 on that axis. Genre strings in `genre_filter` should be values from
-`KNOWN_GENRES`; unknown strings emit a `WARNING` at class-definition time.
+`KNOWN_GENRES`. Unknown strings emit a `WARNING` at class-definition time.
 
 Full walkthrough: [Writing a metadata provider](./patterns/writing-a-provider.md).
 
 ## Decision guide: Work vs Release
 
-See spec §5.7 — the canonical table is maintained there.
+See spec §5.7: the canonical table is maintained there.

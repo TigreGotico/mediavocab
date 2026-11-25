@@ -1,7 +1,7 @@
 # Motion comics
 
 A motion comic is a video adaptation of comic panels with camera moves,
-voice acting, and music. Despite the name, **it is not a `COMIC`** — the
+voice acting, and music. Despite the name, **it is not a `COMIC`**: the
 playable artefact is video (T6: playback surface is `VIDEO`, not `PAGED`).
 
 - `media_type` = `MOVIE` (single-volume) or `EPISODIC_SERIES` (when it

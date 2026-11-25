@@ -1,9 +1,9 @@
 # Writing a metadata provider
 
 A *provider* is a class that resolves a `Signals` query into a typed
-`ProviderMatch` against one source — IMDB, MusicBrainz, a local file
+`ProviderMatch` against one source: IMDB, MusicBrainz, a local file
 index, a Home Assistant entity registry. The mediavocab spec defines the
-provider contract (§4.11, three-axis routing gate); downstream packages
+provider contract (§4.11, three-axis routing gate). Downstream packages
 (e.g. `metadatarr`) supply the runtime registry, dispatcher, and
 consolidator.
 
@@ -32,7 +32,7 @@ class TVMazeProvider(MetadataProvider):
 ```
 
 The three-axis gate (`_three_axis_gate`) short-circuits independently on
-each axis. A `Signals` field that is `None` always passes — the caller has
+each axis. A `Signals` field that is `None` always passes: the caller has
 no preference on that axis. A non-empty class-level set that the
 corresponding `Signals` field is missing from rejects the provider.
 
@@ -42,7 +42,7 @@ declaring an unknown value logs a `WARNING` at class-definition time.
 
 ## 2. Implement `is_available` and `lookup`
 
-These are abstract; missing either raises `TypeError` at instantiation.
+These are abstract. Missing either raises `TypeError` at instantiation.
 
 ```python
 class TVMazeProvider(MetadataProvider):
@@ -74,16 +74,16 @@ providers via `match_quality`.
 
 ## 3. Re-emit your beliefs as `Signals`
 
-The same `Signals` shape carries three lifecycle roles — use the
+The same `Signals` shape carries three lifecycle roles: use the
 constructors to be explicit:
 
-- `Signals.as_query(**kwargs)` — query built by the caller before dispatch.
-- `Signals.as_observation(**kwargs)` — your provider's belief about the Work.
-- `signals.as_result()` — the merged consensus produced by the consolidator.
+- `Signals.as_query(**kwargs)`: query built by the caller before dispatch.
+- `Signals.as_observation(**kwargs)`: your provider's belief about the Work.
+- `signals.as_result()`: the merged consensus produced by the consolidator.
 
 In `lookup`, use `Signals.as_observation(...)` to fill the fields you can
 derive from your source. The consolidator runs `compare_signals(ours, theirs)`
-across providers and drops conflicts; non-overlap is treated as agreement (a
+across providers and drops conflicts. Non-overlap is treated as agreement (a
 missing value is *unknown*, not contradictory).
 
 ## 4. Anchor with `ExternalIds`
@@ -125,26 +125,26 @@ assert provider_matches(LocalIndex(), Signals(medium=MediaType.MUSIC))
   filters by `MediaType` first because that's the only axis that
   changes the schema.
 - **A6**: routing axes are orthogonal to identity. `playback_type` /
-  `genre_filter` are ClassVars on the provider; they do *not* live on
+  `genre_filter` are ClassVars on the provider. They do *not* live on
   `Work` and never enter `work_hash`.
 - **A7**: one source of truth per fact. `ExternalIds` keys go in
-  `ProviderMatch.external_ids`; they do *not* duplicate in
+  `ProviderMatch.external_ids`. They do *not* duplicate in
   `Signals.extra` or elsewhere.
 
 ## Common mistakes
 
 - **Hashing `ProviderMatch.signals` and using it as a key.** Use
-  `signal_hash` (a stable digest over the bag) — `Signals` itself isn't
+  `signal_hash` (a stable digest over the bag): `Signals` itself isn't
   hashable.
 - **Returning `MediaType.GENERIC` from `lookup`.** T8 forbids it on a
-  Work; downstream code that builds a Work will raise. If you can't
+  Work. Downstream code that builds a Work will raise. If you can't
   classify, leave `signals.medium = None`.
 - **Conflating `Stream.kind` and `MediaType`.** `Stream.kind` is the
-  *platform asset category* ("track", "video", "album"); it has
+  *platform asset category* ("track", "video", "album"). It has
   nothing to do with the mediavocab `MediaType` enum.
 - **Inheriting `RUNTIME_HASH_QUANTUM_S` semantics from the docs while
   comparing in your provider.** The consolidator handles runtime
-  tolerance; your `lookup` just emits a number.
+  tolerance. Your `lookup` just emits a number.
 
 ## Testing
 

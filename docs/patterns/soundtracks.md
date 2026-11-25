@@ -40,7 +40,7 @@ consumers query the relation index by `target.work_hash`).
 
 3. **Game soundtrack**: same shape as (1) or (2). Target is a `GAME` Work.
 
-4. **Audio drama / audiobook score**: rare — separate score Work with
+4. **Audio drama / audiobook score**: rare: separate score Work with
    `SOUNDTRACK_FOR` pointing at an `AUDIO_DRAMA` or `AUDIOBOOK` Work.
 
 ## Why a `WorkRelation`, not a `Credit`?

@@ -3,7 +3,7 @@
 Release ranking is application logic, not vocabulary. A scorer encodes
 preferences (4K > 1080p, Atmos > stereo) that differ meaningfully between a
 home-theatre collector, a mobile listener, and a bandwidth-constrained
-archivist — no single ranking is correct, so mediavocab ships the release
+archivist: no single ranking is correct, so mediavocab ships the release
 fields and the availability predicate but leaves the scoring to the consumer.
 
 This pattern shows how to implement release ranking for your use case.

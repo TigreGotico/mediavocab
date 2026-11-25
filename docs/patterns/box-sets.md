@@ -19,10 +19,10 @@ box = Release(
 ```
 
 For a multi-cut single-Work box (theatrical + director's + extended on one
-disc), each cut is its own Work (§3.4); the box set lists each cut as an
+disc), each cut is its own Work (§3.4). The box set lists each cut as an
 Appearance in `contents`.
 
-When the box has no headline (a true anthology — three unrelated short films,
+When the box has no headline (a true anthology: three unrelated short films,
 a label sampler), create a single Work to act as the headline:
 
 ```python

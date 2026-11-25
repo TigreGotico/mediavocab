@@ -2,13 +2,13 @@
 
 Reference vocabulary and pydantic data model for cataloguing media works:
 movies, music, books, comics, games, podcasts, audio dramas, radio,
-sound effects, and procedural ambient streams — all in a single shared
+sound effects, and procedural ambient streams: all in a single shared
 schema.
 
 `mediavocab` is a foundation library. It defines the *vocabulary* (enums,
 genre constants) and the *structural models* (Work, Release, Entity, Credit,
-Membership, Appearance). Application logic — provider clients, resolvers,
-playback, UI — lives outside this package.
+Membership, Appearance). Application logic: provider clients, resolvers,
+playback, UI: lives outside this package.
 
 ## Install
 
@@ -74,47 +74,47 @@ pipeline-sentinel `NOT_MEDIA` / `CONTROL` flow.
   `PROCEDURAL_AMBIENT`, `AUDIO_DRAMA`, `MUSIC_VIDEO`, etc. each catalogue
   against different external databases or with different runtime tolerances.
 - **Devices are entities, not works (A3).** `EntityKind.DEVICE` represents
-  physical playback endpoints. The Work is still a RADIO/MOVIE/MUSIC; the
+  physical playback endpoints. The Work is still a RADIO/MOVIE/MUSIC. The
   device is how the consumer routes playback. A receiver-class device
   additionally has a `Work` counterpart for *"turn on the radio"* invocation.
 - **Pipeline sentinels never reach a canonical Work (T8).** `MediaType.GENERIC`,
   `NOT_MEDIA`, and `CONTROL` live on the resolver bag and are rejected at
   `Work` construction.
 - **Each cut is its own Work (§3.4).** Theatrical, director's, extended,
-  remaster, fanedit — restructurings of the canonical artefact each get a
+  remaster, fanedit: restructurings of the canonical artefact each get a
   new Work linked by `WorkRelation`. `ReleasePackaging` (deluxe / reissue /
-  box-set / bootleg) is independent — that's how an edition ships.
+  box-set / bootleg) is independent: that's how an edition ships.
 - **`PlaybackType` is derived from `MediaType` (A6).** `AUDIO` / `VIDEO` /
   `PAGED` / `INTERACTIVE` routes resolver dispatch by playback intent. Never
   persisted on Work or Release. Declare
   `playback_type: ClassVar[Set[PlaybackType]]` on each provider.
 - **Genre is a free `List[str]`** with canonical spellings in
   `mediavocab.taxonomy.genre`. ASMR, ambient, anime, adult, etc. are genre
-  tags applied across multiple media types — not types of their own (T1).
+  tags applied across multiple media types: not types of their own (T1).
   Programme formats (documentary, concert, talk show) live in
   `ProgrammeFormat`, not in genres.
 
 See [`docs/`](./docs/) for full reference and pattern guides.
 
-## Traceability — code cites the spec
+## Traceability: code cites the spec
 
 The formal specification ([`docs/mediavocab_spec.md`](./docs/mediavocab_spec.md),
 `SPEC_VERSION`) is **prescriptive**: it is the source of truth, and the code
-implements it. Its §2 axioms (A1–A9) and theorems (T1–T9), together with §3–§8,
+implements it. Its §2 axioms (A1-A9) and theorems (T1-T9), together with §3-§8,
 admit and justify every axis, enum value, model field, and operation.
 
 So the two stay bidirectionally traceable, every public enum, model, and
 operation carries a **greppable clause citation** in its docstring naming the
-axiom / theorem / section that admits it, in the form `(spec: <clause>)` — e.g.
+axiom / theorem / section that admits it, in the form `(spec: <clause>)`: e.g.
 `(spec: A1, §3.2/§4.1)` on `MediaType`, `(spec: A8a, §3.3/§4.2)` on
 `ContentForm`, `(spec: §6.3, A6)` on `work_hash`. Field-level comments cite the
 §1.5 identity / routing / description family and, for identity-hash inputs, the
-hash rule (e.g. `content_form` → A8b enters `work_hash` §6.3; routing fields →
+hash rule (e.g. `content_form` → A8b enters `work_hash` §6.3. Routing fields →
 excluded by A6). Validators cite the axiom they enforce (sentinel rejection →
-T8; one-MediaType-for-life → A4; `org_kind` warn → §4.5/A9).
+T8. One-MediaType-for-life → A4. `org_kind` warn → §4.5/A9).
 
 Grep the convention with `grep -rn "(spec:" mediavocab/`. To find which clause
-governs a symbol, open it; to find the code for a clause, grep the clause id
+governs a symbol, open it. To find the code for a clause, grep the clause id
 (e.g. `grep -rn "A8b" mediavocab/`).
 
 ## Workspace position

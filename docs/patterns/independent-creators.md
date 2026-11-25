@@ -2,12 +2,12 @@
 
 ## YouTube and independent creators
 
-A YouTube series is a `SERIES` Entity; individual episodes are `Work`s with
+A YouTube series is a `SERIES` Entity. Individual episodes are `Work`s with
 `media_type=MediaType.EPISODIC_SERIES` and `episode` set. The channel/creator is a
 `PERSON` or `GROUP` Entity with `external_ids = {"youtube": "@channel"}`.
 The platform itself is an `ORGANISATION` Entity (rarely needed in records).
 
-Single one-off videos: `MediaType.MOVIE` with `runtime` set; YouTube channel
+Single one-off videos: `MediaType.MOVIE` with `runtime` set. YouTube channel
 as the publishing entity in `credits` (`RelationRole.PUBLISHER`).
 
 ## AI-generated content

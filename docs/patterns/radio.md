@@ -4,7 +4,7 @@ A radio station is a `Work` (T4: *a station is a Work*). Its stream URLs
 are `Release`s. This document covers when changes to a station produce a
 new Work versus a new Release of the same Work.
 
-## Same Work — change is a Release-level concern
+## Same Work: change is a Release-level concern
 
 The Work identity is stable across all of these:
 
@@ -17,7 +17,7 @@ The Work identity is stable across all of these:
 These all produce additional `Release` records pointing at the same Work, or
 modifications to the existing Release without touching the Work record.
 
-## New Work — identity has changed
+## New Work: identity has changed
 
 Create a new Work (linked to the old via `WorkRelation` if useful) when:
 
@@ -26,7 +26,7 @@ Create a new Work (linked to the old via `WorkRelation` if useful) when:
   cataloguing entry in radio databases.
 - **Content identity changes fundamentally.** A station that switches format
   (classical → talk, rock → urban) and rebrands is a different cataloguing
-  target. The old Work persists in history; the new Work begins on rebrand
+  target. The old Work persists in history. The new Work begins on rebrand
   date.
 
 ## Regional opt-outs

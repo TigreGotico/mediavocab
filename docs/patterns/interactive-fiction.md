@@ -6,7 +6,7 @@ choice-based IF (Twine, ChoiceScript, Ink), and voice-driven narrative apps
 
 ## Why a separate type from `GAME`
 
-`GAME` records belong on IGDB, MobyGames, Steam — platforms tracking binary
+`GAME` records belong on IGDB, MobyGames, Steam: platforms tracking binary
 distributions. `INTERACTIVE_FICTION` records belong on **IFDB.org** (the
 Interactive Fiction Database) and ifiction.org. The schemas diverge:
 
@@ -17,9 +17,9 @@ Interactive Fiction Database) and ifiction.org. The schemas diverge:
 | `container` / `platform` | `container="Steam"`, `platform="PS4"` | `container="Glulx"`, `platform="Alexa Skill"` |
 | External DBs | `igdb`, `mobygames`, `steam` | `ifdb`, `ifiction`, `alexa_skill` |
 
-A graphic adventure with a parser (Sierra-era titles) is `GAME` — it ships as
+A graphic adventure with a parser (Sierra-era titles) is `GAME`: it ships as
 a platform binary. A voice-only branching narrative on Alexa is
-`INTERACTIVE_FICTION` — there is no binary at all.
+`INTERACTIVE_FICTION`: there is no binary at all.
 
 ## Modelling
 
@@ -53,7 +53,7 @@ Voice-game IF: same MediaType, `container="Skill"`, `platform="Alexa Skill"`,
 
 Two databases have historically been called "IFDB":
 
-- **IFDB.org** — Interactive Fiction Database. `external_ids` key: `ifdb`.
+- **IFDB.org**: Interactive Fiction Database. `external_ids` key: `ifdb`.
 - **Internet Fanedit Database** (the fanedit.org community catalogue).
   `external_ids` key: `fanedit_ifdb`.
 

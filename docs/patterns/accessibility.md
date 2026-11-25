@@ -1,7 +1,7 @@
 # Accessibility tracks and localisation
 
 Subtitles, captions, audio description, sign-language inserts, lyric files,
-and transcripts are **per-Release** assets — the underlying Work is unchanged.
+and transcripts are **per-Release** assets: the underlying Work is unchanged.
 They live in `Release.accessibility: List[AccessibilityTrack]`.
 
 ```python
@@ -24,7 +24,7 @@ The same Work routinely ships with different accessibility profiles across its
 Releases: a theatrical print with no subtitles, a Blu-ray with full multi-
 language captions, an archival VOD with audio description added years later.
 Putting accessibility on the Work would force one of these to be the
-"canonical" version — which it isn't.
+"canonical" version: which it isn't.
 
 ## Why `kind` is a free string
 
@@ -32,12 +32,12 @@ Accessibility taxonomy is evolving (Easy Read editions, descriptive audio for
 games, sign language as picture-in-picture vs separate stream). The principal
 kinds are conventions, not validation:
 
-- `"subtitles"` — translated text track
-- `"captions"` — same-language text including non-speech sounds
-- `"audio_description"` — narrated visual description for blind viewers
-- `"sign_language"` — sign-language interpreter track
-- `"transcript"` — full text transcript
-- `"lyrics"` — lyric file synced or unsynced
+- `"subtitles"`: translated text track
+- `"captions"`: same-language text including non-speech sounds
+- `"audio_description"`: narrated visual description for blind viewers
+- `"sign_language"`: sign-language interpreter track
+- `"transcript"`: full text transcript
+- `"lyrics"`: lyric file synced or unsynced
 
 ## Dub vs sub vs market
 
@@ -51,14 +51,14 @@ These are three orthogonal axes on Release:
 
 A US-region Blu-ray of *Akira* with Japanese audio and English subtitles is
 `region="US"`, `audio_language="ja"`, `subtitle_languages=["en"]`. There is
-**no `ReleasePackaging.REGIONAL`** here — that packaging value is reserved for editorial
+**no `ReleasePackaging.REGIONAL`** here: that packaging value is reserved for editorial
 regional differences (censorship cuts, alternate scenes), not for language
 tracks.
 
-## Worked example — full accessibility profile
+## Worked example: full accessibility profile
 
 A modern streaming release of an anime film commonly carries every track
-type at once. The Work is unchanged; the Release tells the player what's
+type at once. The Work is unchanged. The Release tells the player what's
 available:
 
 ```python
@@ -108,22 +108,22 @@ release = Release(
 
 The three subtitle tracks all share `language="en"` but distinguish via
 flags (`forced`, `sdh`) and the free `note` field. A player picking
-"English subtitles" should prefer the unflagged track; an SDH-aware
-viewer should prefer `sdh=True`; a player honouring the disc's "forced
+"English subtitles" should prefer the unflagged track. An SDH-aware
+viewer should prefer `sdh=True`. A player honouring the disc's "forced
 narrative" toggle should prefer `forced=True`.
 
 ## What is *not* an `AccessibilityTrack`
 
 - A whole alternate audio cut (director's commentary as a self-contained
   audio mix) is the same Work in a different `Release` with
-  `audio_language="en"` and a `note`-rich title — not an
+  `audio_language="en"` and a `note`-rich title: not an
   `AccessibilityTrack`.
 - A Work that was *originally* silent (silent-era cinema) sets
   `Work.audio_present = False`. The captioned print of a silent film is
-  one Release; an unaltered restoration is another.
+  one Release. An unaltered restoration is another.
 - Lyrics for an album track are an `AccessibilityTrack(kind="lyrics")`
   on the Release, not a separate Work. Sheet music and tablature have
-  no first-class slot — store as `extra["sheet_music_url"]` until a
+  no dedicated slot: store as `extra["sheet_music_url"]` until a
   consumer demonstrates the need.
 
 ## Lookup pattern
@@ -146,6 +146,6 @@ def pick_subtitle(release, lang_pref="en", *, sdh=False, forced=False):
     return None
 ```
 
-Order in the list is preserved; the first match wins. Producers
+Order in the list is preserved. The first match wins. Producers
 populating the list should put the most user-visible track first
 (e.g. unflagged English before SDH English).
