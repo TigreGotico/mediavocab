@@ -2,7 +2,7 @@
 
 A soundtrack is a `MUSIC` Work that points at the film / game / drama it
 was composed or compiled for. The link is unidirectional from the
-soundtrack outward (the film does not carry a "has soundtrack" pointer —
+soundtrack outward (the film does not carry a "has soundtrack" pointer:
 consumers query the relation index by `target.work_hash`).
 
 ## Four canonical patterns

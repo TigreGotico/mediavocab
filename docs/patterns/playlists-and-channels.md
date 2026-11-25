@@ -113,5 +113,5 @@ vod  = Release(work=channel, uri="https://twitch.tv/videos/...",
 ```
 
 When a stream is a discrete catalogued piece (e.g. a one-off marathon)
-it becomes its own Work whose `series_title` is the channel name —
+it becomes its own Work whose `series_title` is the channel name:
 exactly as a specific radio programme on a station is its own Work.

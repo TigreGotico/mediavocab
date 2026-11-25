@@ -7,8 +7,8 @@ schema.
 
 `mediavocab` is a foundation library. It defines the *vocabulary* (enums,
 genre constants) and the *structural models* (Work, Release, Entity, Credit,
-Membership, Appearance). Application logic: provider clients, resolvers,
-playback, UI: lives outside this package.
+Membership, Appearance). Application logic (provider clients, resolvers,
+playback, UI) lives outside this package.
 
 ## Install
 

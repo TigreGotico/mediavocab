@@ -1,7 +1,7 @@
 # Models reference
 
 All models are pydantic v2 with `ConfigDict(extra="ignore",
-populate_by_name=True)`. Unknown input fields are dropped silently —
+populate_by_name=True)`. Unknown input fields are dropped silently:
 flexibility at consumer boundaries.
 
 ## `Work`: the canonical creative work
@@ -295,8 +295,8 @@ field under a structured `signals_meta` dictionary (e.g.,
 `extra["signals_meta"]["artist"]`).
 
 `KNOWN_EXTERNAL_IDS` (exported from `mediavocab`) is a frozenset of every
-well-known key string: the `ALL_KNOWN_KEYS` constants plus every typed
-`ExternalIds` field name: for O(1) membership testing.
+well-known key string (the `ALL_KNOWN_KEYS` constants plus every typed
+`ExternalIds` field name), for O(1) membership testing.
 
 ## `Stream`: playable media stream
 

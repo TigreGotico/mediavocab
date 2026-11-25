@@ -28,7 +28,7 @@ small differences load-bearing in the wrong places: a missing season number
 breaks dedup, a stray "Director's Cut" string forks the catalogue.
 
 `mediavocab` defines these concepts once, prescriptively. It provides the
-shared data model. Consuming packages provide the application logic —
+shared data model. Consuming packages provide the application logic:
 resolving, scraping, playing, recommending.
 
 ### 1.2 Two views: human and machine
@@ -130,7 +130,7 @@ and no orthogonal axis would fit:
   as ISRC, ISBN, IFDB ID, etc.) are disjoint from every existing type's. Or
 - (c) the comparison tolerances diverge from every existing type's.
 
-Two kinds that share schema, databases, and tolerances are the same type —
+Two kinds that share schema, databases, and tolerances are the same type:
 genre tags distinguish them.
 
 **A2: Absence is not a value.**
@@ -188,8 +188,8 @@ A8 has two consequences, applied in order:
 - **A8a (typed field).** The distinction earns a typed field. The field's
   family (identity / routing / description) is determined by whether
   collision *would* happen without it.
-- **A8b (hash inclusion).** The typed field enters the identity hash when —
-  and only when: its absence would cause two records with disjoint human
+- **A8b (hash inclusion).** The typed field enters the identity hash when,
+  and only when, its absence would cause two records with disjoint human
   meaning to share a digest. The field is otherwise routing or description.
 
 `ContentForm` is admitted by A8a. It enters `work_hash` (§6.3) by A8b
@@ -222,7 +222,7 @@ relation enums: without it the relation vocabulary sprawls.
 `EPISODE_OF` is rejected by A9(a): episode membership is already carried by
 the `season` / `episode` / `series_title` identity fields. A *channel* is
 rejected as a `RelationRole` for a different reason: it is an Entity (a
-Work, per T4), not a way an entity participates: so it never reaches A9.
+Work, per T4), not a way an entity participates, so it never reaches A9.
 
 ### 2.2 Theorems
 
@@ -1012,7 +1012,7 @@ class ReleaseRelationKind(str, Enum):
 ```
 
 **Admission (A9).** Every value here passes both A9 clauses: it carries a
-link no identity field carries: an edge to a *different* Work/Release —
+link no identity field carries (an edge to a *different* Work/Release),
 and consumers traverse it as a distinct edge. `COVERS` / `SAMPLES` /
 `REMIX_OF` / `MIX_OF` / `LIVE_VERSION` connect one recording to another
 (`MIX_OF` admitted next to `REMIX_OF` by A9(b): a consumer browsing "DJ
@@ -1522,7 +1522,7 @@ or a `Credit` to the parent station Entity with `RelationRole.DISTRIBUTOR`.
 distinct from it by T2 and varying independently of it by A3 (delivery is
 not identity). Every technical attribute here is a Release field by T6;
 none back-propagates into the Work. `Chapter`, `AccessibilityTrack`, and
-`AvailabilityWindow` are per-manifestation assets, not Works (T2) —
+`AvailabilityWindow` are per-manifestation assets, not Works (T2):
 acquired over a Release's lifetime and therefore excluded from
 `release_hash` (A6).
 
@@ -1731,8 +1731,8 @@ construction.
 
 ### 5.6 Device-as-Work
 
-A *receiver-class* device: radio set, TV set, console, sound-machine
-appliance, tunable streaming receiver: can be invoked as an experience
+A *receiver-class* device (radio set, TV set, console, sound-machine
+appliance, tunable streaming receiver) can be invoked as an experience
 without a content query. *"Turn on the radio"* names the device, not a
 station. The user accepts whatever it produces.
 
@@ -2364,8 +2364,8 @@ answer: `is_open=False`, `is_public_domain=False`, `allows_commercial=False`,
 `requires_attribution=True`.
 
 **Optional helper.** `mediavocab.models.License` is a Pydantic companion
-model. Like `ExternalIds`, it is *not* the canonical persisted form —
-`Release.license: str` is: but consumers can parse an SPDX string into
+model. Like `ExternalIds`, it is *not* the canonical persisted form
+(`Release.license: str` is), but consumers can parse an SPDX string into
 typed flags via `License.from_spdx(spdx)`, or read the overlay directly as
 `Release.license_model` (a read-only property: `None` when `license` is
 empty, else `License.from_spdx(license)`): the exact mirror of
@@ -2444,7 +2444,7 @@ provider-specific values that have not yet earned a typed field.
    admits any JSON-serialisable value (int, bool, list, nested dict) so
    ingestion need not pay a stringify/parse tax on data it has not yet
    promoted. The tolerance is bounded by rule 5: mediavocab never *reads*
-   `extra`, so a non-string value can never change mediavocab behaviour —
+   `extra`, so a non-string value can never change mediavocab behaviour:
    it is inert until a consumer or a future typed field gives it meaning.
 2. **Promotion is the goal.** A key that appears across two or more
    providers, or that downstream consumers branch on, is a candidate for

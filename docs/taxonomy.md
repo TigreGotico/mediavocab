@@ -106,7 +106,7 @@ cameos vs. crew.
 
 ## `MembershipKind` × `TemporalState` (§4.8)
 
-Two orthogonal facets (A5). **`date_to=None` does not mean "current"** —
+Two orthogonal facets (A5). **`date_to=None` does not mean "current"**:
 check `temporal`.
 
 `MembershipKind`: `MEMBER`, `TOURING`, `SESSION`.
@@ -143,7 +143,7 @@ remasters that produce new Works (§3.4).
 
 ## `ReleaseRelationKind`
 
-`SUPERSEDES`, `PORT_OF`, `MIRROR_OF`, `DERIVED_FROM`. Use sparingly —
+`SUPERSEDES`, `PORT_OF`, `MIRROR_OF`, `DERIVED_FROM`. Use sparingly:
 most distinctions are encoded by format / packaging fields plus
 `release_hash`.
 

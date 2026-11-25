@@ -5,7 +5,7 @@ destinations*, not creative works. A1 fails for a "device" MediaType:
 schema, databases, and tolerances are all consumer-side concerns. A3
 seals the case: delivery is not identity.
 
-mediavocab represents devices as `Entity(kind=EntityKind.DEVICE)` —
+mediavocab represents devices as `Entity(kind=EntityKind.DEVICE)`:
 addressed by `external_ids` (Home Assistant entity ID, Sonos UDN,
 Chromecast device ID, Alexa device ID). The Work is what the consumer
 plays. The device is where playback is routed.

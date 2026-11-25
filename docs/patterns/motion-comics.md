@@ -11,7 +11,7 @@ playable artefact is video (T6: playback surface is `VIDEO`, not `PAGED`).
   via `WorkRelation(kind=ADAPTED_FROM)` when both records are catalogued.
 
 A "comic book" label in a voice-playback context therefore maps to
-`MOVIE` / `EPISODIC_SERIES` with `GENRE_MOTION_COMIC`, never to `COMIC` —
+`MOVIE` / `EPISODIC_SERIES` with `GENRE_MOTION_COMIC`, never to `COMIC`:
 a static comic is `PAGED`, not a playback target for *"play the
 Watchmen motion comic"*.
 
