@@ -1,4 +1,11 @@
 # Independent creators, YouTube, AI-generated content
+<!-- agent-hint
+covers: how to model independent creators, YouTube and AI content
+source: mediavocab/models/entity.py
+generated: no
+verify: python -m pytest -q tests/models/test_entity.py
+see: classifying-scraped-content.md
+-->
 
 ## YouTube and independent creators
 
@@ -16,3 +23,6 @@ Tag with `content_genres += [GENRE_AI_GENERATED]`. The model used (Suno,
 Runway, etc.) goes in `Entity.extra` or on the relevant `Credit.note`. The
 Work itself is classified by what it *is* (MUSIC, MOVIE, IMAGE-as-MOVIE-still, …)
 and the AI-generated genre is an orthogonal flag exactly like `GENRE_ADULT`.
+
+---
+[← Motion comics](motion-comics.md) · [Home](../README.md) · [Classifying scraped content →](classifying-scraped-content.md)

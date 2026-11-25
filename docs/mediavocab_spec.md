@@ -1,4 +1,11 @@
 # mediavocab: Formal Specification
+<!-- agent-hint
+covers: the axioms, theorems and operations that the code implements
+source: mediavocab/
+generated: no
+verify: python -m pytest -q tests/test_spec_axioms.py tests/test_spec_citations.py
+see: quickstart.md
+-->
 
 **Version:** 1.4 (the `SPEC_VERSION` constant. The v1.x stability line: §8)
 **Status:** Stable. See §8 for versioning policy.
@@ -2483,3 +2490,6 @@ downstream. Patterns resolve to existing `MediaType`, `ContentForm`,
 - Playback-type routing → `docs/patterns/playback-type.md`
 - Writing a metadata provider → `docs/patterns/writing-a-provider.md`
 - Multiple episode orderings → see `Work.episode_orderings` field docs in §5.3
+
+---
+[← Overview](overview.md) · [Home](README.md) · [Quickstart →](quickstart.md)

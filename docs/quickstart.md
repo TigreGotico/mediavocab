@@ -1,4 +1,11 @@
 # Quickstart
+<!-- agent-hint
+covers: a walk-through of Work, Release, Entity and the text helpers
+source: mediavocab/models/, mediavocab/text/
+generated: no
+verify: python scripts/check_doc_examples.py docs/quickstart.md
+see: taxonomy.md
+-->
 
 ```bash
 pip install mediavocab
@@ -154,3 +161,6 @@ accessible = [r for r in (theatrical, directors)
 
 See `docs/text-utilities.md` for the full text / parsing / classifier
 surface and `docs/models.md` for the model catalogue.
+
+---
+[← mediavocab: Formal Specification](mediavocab_spec.md) · [Home](README.md) · [Taxonomy reference →](taxonomy.md)

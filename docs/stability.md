@@ -1,4 +1,11 @@
 # Stability policy
+<!-- agent-hint
+covers: what stays stable in 1.x and the tests that enforce it
+source: mediavocab/__init__.py
+generated: no
+verify: python -m pytest -q tests/test_public_api.py tests/test_hash_stability_pins.py
+see: migration-1.0.md
+-->
 
 mediavocab is the single source of truth for a fleet of consumer packages.
 Identity hashes get persisted. Enums and fields get imported. A silent break
@@ -50,3 +57,6 @@ pytest tests/contract -q
 
 Add a row to `tests/contract/adapters.py::CONSUMERS` when a new package converts
 to mediavocab.
+
+---
+[← Text utilities](text-utilities.md) · [Home](README.md) · [Migrating to 1.0 →](migration-1.0.md)

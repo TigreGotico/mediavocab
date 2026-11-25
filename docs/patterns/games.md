@@ -1,4 +1,11 @@
 # Games
+<!-- agent-hint
+covers: how to model games
+source: mediavocab/models/work.py
+generated: no
+verify: python scripts/check_doc_examples.py docs/patterns/games.md
+see: interactive-fiction.md
+-->
 
 User story for catalogueing a game library across native releases,
 console ports, romhacks, DLC, and standalone expansions.
@@ -78,3 +85,6 @@ A1 fails: SNES games and PS4 games share the same authoritative database
 (IGDB), the same mandatory schema (developer / publisher / platform), and
 the same comparison tolerances. The platform is a *Release* axis (T6);
 MediaType stays as `GAME` across every port.
+
+---
+[← Adult media](adult-media.md) · [Home](../README.md) · [Interactive fiction and voice games →](interactive-fiction.md)

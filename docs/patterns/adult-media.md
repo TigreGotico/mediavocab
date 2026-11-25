@@ -1,4 +1,11 @@
 # Adult media
+<!-- agent-hint
+covers: how to model adult media
+source: mediavocab/taxonomy/genre.py
+generated: no
+verify: python -m pytest -q tests/taxonomy/test_genre_constants.py
+see: games.md
+-->
 
 Adult content fits the existing model with **no new types or enums**.
 T1 (genre is not type) does the work: `GENRE_ADULT` is a content tag
@@ -18,3 +25,6 @@ applied across MediaTypes, not a type of its own.
   `content_genres = [GENRE_ANIME, GENRE_ADULT]`.
 - **`external_ids` keys**: `iafd`, `adultfilmdatabase` (constants in
   `mediavocab.models.external_ids`).
+
+---
+[← Migrating to 1.0](../migration-1.0.md) · [Home](../README.md) · [Games →](games.md)

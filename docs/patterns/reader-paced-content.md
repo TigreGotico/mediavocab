@@ -1,4 +1,11 @@
 # Reader-paced and user-paced content
+<!-- agent-hint
+covers: how to model reader-paced and user-paced content
+source: mediavocab/taxonomy/genre.py
+generated: no
+verify: python -m pytest -q tests/taxonomy/test_genre_constants.py
+see: accessibility.md
+-->
 
 Books, comics, slideshows, and interactive fiction share an attribute that
 isn't representable as a runtime: the user controls pacing. A novel's page
@@ -43,3 +50,6 @@ The MediaType follows distribution channel (T7), not narrative structure:
 | Twine, ChoiceScript, Inform | `INTERACTIVE_FICTION` | `GENRE_CHOICE_IF` / `GENRE_PARSER_IF` + `GENRE_BRANCHING` |
 | Voice-only narrative app | `INTERACTIVE_FICTION` | `GENRE_VOICE_GAME` + `GENRE_BRANCHING` |
 | Telltale, Detroit: Become Human | `GAME` | `GENRE_BRANCHING` |
+
+---
+[← Classifying scraped content](classifying-scraped-content.md) · [Home](../README.md) · [Accessibility tracks and localisation →](accessibility.md)

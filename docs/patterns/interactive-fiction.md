@@ -1,4 +1,11 @@
 # Interactive fiction and voice games
+<!-- agent-hint
+covers: how to model interactive fiction and voice games
+source: mediavocab/models/work.py
+generated: no
+verify: python scripts/check_doc_examples.py docs/patterns/interactive-fiction.md
+see: soundtracks.md
+-->
 
 `MediaType.INTERACTIVE_FICTION` covers parser-based IF (Inform 7, Infocom),
 choice-based IF (Twine, ChoiceScript, Ink), and voice-driven narrative apps
@@ -59,3 +66,6 @@ Two databases have historically been called "IFDB":
 
 The shorter `ifdb` is reserved for the Interactive Fiction Database, which is
 the more widely cited externally. Fanedit catalogues use `fanedit_ifdb`.
+
+---
+[← Games](games.md) · [Home](../README.md) · [Soundtracks →](soundtracks.md)

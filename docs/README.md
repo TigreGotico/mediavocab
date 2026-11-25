@@ -1,4 +1,11 @@
 # mediavocab documentation
+<!-- agent-hint
+covers: the reading order of the docs and one line for each page
+source: docs/
+generated: no
+verify: diff <(cd docs && find . -name '*.md' ! -name README.md | sed 's|^\./||' | sort) <(grep -o '(\./[a-z0-9_/.-]*\.md)' docs/README.md | tr -d '()' | sed 's|^\./||' | sort -u)
+see: overview.md, ../README.md
+-->
 
 Developer-facing reference for the `mediavocab` package. The top-level overview
 lives in the repo [README](../README.md).
@@ -17,6 +24,7 @@ reference pages below mirror the spec section-by-section.
 
 ## Index
 
+- [Overview](./overview.md): the modules, the design rules and the packages that depend on mediavocab
 - [Spec](./mediavocab_spec.md): prescriptive formal specification (axioms / theorems)
 - [Quickstart](./quickstart.md)
 - [Taxonomy reference](./taxonomy.md): every enum value

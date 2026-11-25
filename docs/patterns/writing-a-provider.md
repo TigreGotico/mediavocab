@@ -1,4 +1,11 @@
 # Writing a metadata provider
+<!-- agent-hint
+covers: the provider contract
+source: mediavocab/models/protocols.py
+generated: no
+verify: python -m pytest -q tests/contract tests/models/test_protocols.py
+see: ../README.md
+-->
 
 A *provider* is a class that resolves a `Signals` query into a typed
 `ProviderMatch` against one source: IMDB, MusicBrainz, a local file
@@ -151,3 +158,6 @@ assert provider_matches(LocalIndex(), Signals(medium=MediaType.MUSIC))
 See `tests/models/test_protocols.py` for the canonical three-axis-gate
 tests. Roll your provider's tests on top of `MetadataProvider` rather
 than re-deriving the gate logic.
+
+---
+[← Playback type: the derived player-surface axis](playback-type.md) · [Home](../README.md)

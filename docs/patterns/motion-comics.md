@@ -1,4 +1,11 @@
 # Motion comics
+<!-- agent-hint
+covers: how to model motion comics
+source: mediavocab/taxonomy/genre.py
+generated: no
+verify: python scripts/check_doc_examples.py docs/patterns/motion-comics.md
+see: independent-creators.md
+-->
 
 A motion comic is a video adaptation of comic panels with camera moves,
 voice acting, and music. Despite the name, **it is not a `COMIC`**: the
@@ -39,3 +46,6 @@ motion_comic = Work(
     )],
 )
 ```
+
+---
+[← Soundtracks](soundtracks.md) · [Home](../README.md) · [Independent creators, YouTube, AI-generated content →](independent-creators.md)

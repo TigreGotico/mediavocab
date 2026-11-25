@@ -1,4 +1,11 @@
 # Soundtracks
+<!-- agent-hint
+covers: how to link a soundtrack to its film
+source: mediavocab/taxonomy/relation.py
+generated: no
+verify: python -m pytest -q tests/taxonomy/test_work_relation_kind.py
+see: motion-comics.md
+-->
 
 A soundtrack is a `MUSIC` Work that points at the film / game / drama it
 was composed or compiled for. The link is unidirectional from the
@@ -49,3 +56,6 @@ A `Credit` records *who participated in this Work*. A soundtrack is a
 **different Work** that *relates to another Work*. `RelationRole.COMPOSER`
 on the composer's credit is set on the score Work (the composer
 participated in the score, not in the film itself).
+
+---
+[← Interactive fiction and voice games](interactive-fiction.md) · [Home](../README.md) · [Motion comics →](motion-comics.md)

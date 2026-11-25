@@ -1,4 +1,11 @@
 # Taxonomy reference
+<!-- agent-hint
+covers: every enum value and genre constant
+source: mediavocab/taxonomy/
+generated: no
+verify: python -m pytest -q tests/taxonomy
+see: models.md
+-->
 
 All enums inherit `(str, Enum)` so values compare equal to their string
 representation: `MediaType.MOVIE == "movie"`. Safe to use in JSON, env
@@ -197,3 +204,6 @@ documentary) are NOT in `genre.py`: they live in `ProgrammeFormat`.
 Genre is a free `List[str]` on `Work.content_genres`. Adding new
 constants is non-breaking. Renaming an existing constant value is a
 breaking change.
+
+---
+[← Quickstart](quickstart.md) · [Home](README.md) · [Models reference →](models.md)

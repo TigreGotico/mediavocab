@@ -1,4 +1,11 @@
 # Migrating to 1.0
+<!-- agent-hint
+covers: the removals and renames of 1.0
+source: mediavocab/__init__.py
+generated: no
+verify: python -m pytest -q tests/test_public_api.py
+see: patterns/adult-media.md
+-->
 
 The 1.0 line is the breaking cut. After it, removals/renames require a major
 bump and a deprecation cycle (see [`stability.md`](stability.md)). This guide
@@ -35,3 +42,6 @@ lists every break a consumer must handle to move onto 1.0.
   silently, not rejected. Verify your objects carry what you set (`work.country`,
   field values) rather than assuming a wrong kwarg raised.
 - `OrganisationKind` is British-spelled.
+
+---
+[← Stability policy](stability.md) · [Home](README.md) · [Adult media →](patterns/adult-media.md)

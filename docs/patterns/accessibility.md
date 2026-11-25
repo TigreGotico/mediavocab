@@ -1,4 +1,11 @@
 # Accessibility tracks and localisation
+<!-- agent-hint
+covers: accessibility tracks and localised titles
+source: mediavocab/taxonomy/accessibility.py
+generated: no
+verify: python scripts/check_doc_examples.py docs/patterns/accessibility.md
+see: box-sets.md
+-->
 
 Subtitles, captions, audio description, sign-language inserts, lyric files,
 and transcripts are **per-Release** assets: the underlying Work is unchanged.
@@ -149,3 +156,6 @@ def pick_subtitle(release, lang_pref="en", *, sdh=False, forced=False):
 Order in the list is preserved. The first match wins. Producers
 populating the list should put the most user-visible track first
 (e.g. unflagged English before SDH English).
+
+---
+[← Reader-paced and user-paced content](reader-paced-content.md) · [Home](../README.md) · [Box sets and composite Releases →](box-sets.md)

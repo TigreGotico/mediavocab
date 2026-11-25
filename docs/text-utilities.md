@@ -1,4 +1,11 @@
 # Text utilities
+<!-- agent-hint
+covers: normalisation, comparison, hashing and the ISO helpers
+source: mediavocab/text/
+generated: no
+verify: python -m pytest -q tests/text
+see: stability.md
+-->
 
 `mediavocab.text` is stdlib-only: no external dependencies. Six
 modules covering normalisation, comparison, parsing, classification,
@@ -161,3 +168,6 @@ these helpers explicitly at consumer boundaries.
 
 The embedded ISO data was generated from `pycountry` once at build
 time. `pycountry` is **not** a runtime dependency.
+
+---
+[← Models reference](models.md) · [Home](README.md) · [Stability policy →](stability.md)

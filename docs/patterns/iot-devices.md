@@ -1,4 +1,11 @@
 # IoT and device-mediated playback
+<!-- agent-hint
+covers: devices as entities and receiver-class Works
+source: mediavocab/models/entity.py
+generated: no
+verify: python scripts/check_doc_examples.py docs/patterns/iot-devices.md
+see: radio.md
+-->
 
 Smart speakers, smart plugs, cast targets, and consoles are *routing
 destinations*, not creative works. A1 fails for a "device" MediaType:
@@ -81,3 +88,6 @@ one matches, invokes its current Release.
 
 The vocabulary is enough. Routing logic (choosing which device gets
 which Release) is a consumer responsibility.
+
+---
+[← Playlists, anthologies, and live-streamer channels](playlists-and-channels.md) · [Home](../README.md) · [Radio station identity →](radio.md)

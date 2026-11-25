@@ -1,4 +1,11 @@
 # Playlists, anthologies, and live-streamer channels
+<!-- agent-hint
+covers: user playlists and live-streamer channels
+source: mediavocab/models/work.py
+generated: no
+verify: python -m pytest -q tests/models/test_work.py
+see: iot-devices.md
+-->
 
 Three patterns that reuse `Work` + `Release` differently from a typical
 single-media-type catalogue entry.
@@ -115,3 +122,6 @@ vod  = Release(work=channel, uri="https://twitch.tv/videos/...",
 When a stream is a discrete catalogued piece (e.g. a one-off marathon)
 it becomes its own Work whose `series_title` is the channel name:
 exactly as a specific radio programme on a station is its own Work.
+
+---
+[← Quality and release ranking](quality-and-ranking.md) · [Home](../README.md) · [IoT and device-mediated playback →](iot-devices.md)

@@ -1,4 +1,11 @@
 # Playback type: the derived player-surface axis
+<!-- agent-hint
+covers: the derived playback type and resolver routing
+source: mediavocab/taxonomy/modality.py
+generated: no
+verify: python -m pytest -q tests/taxonomy/test_modality.py
+see: writing-a-provider.md
+-->
 
 mediavocab spec §3.8 / §4.11 defines `PlaybackType` (`AUDIO` / `VIDEO`
 / `PAGED` / `INTERACTIVE` / `UNKNOWN`) as a *derived* routing axis (A6)
@@ -130,3 +137,6 @@ playback_type (e.g. for unattended playback) would meet both bars. An
 "educational" playback_type would not (it's a content-genre concern).
 
 When in doubt, add a `content_genres` tag instead.
+
+---
+[← Radio station identity](radio.md) · [Home](../README.md) · [Writing a metadata provider →](writing-a-provider.md)

@@ -1,4 +1,11 @@
 # Classifying scraped content
+<!-- agent-hint
+covers: how to classify scraped content
+source: mediavocab/text/classify.py, mediavocab/helpers/classify.py
+generated: no
+verify: python scripts/check_doc_examples.py docs/patterns/classifying-scraped-content.md
+see: reader-paced-content.md
+-->
 
 This pattern shows how to turn raw scraped media (a filename, a feed entry,
 a video title) into structured mediavocab signals: and, when you have no
@@ -122,3 +129,6 @@ def sanitise_genres(raw_tags):
             result.append(normalised)
     return result
 ```
+
+---
+[← Independent creators, YouTube, AI-generated content](independent-creators.md) · [Home](../README.md) · [Reader-paced and user-paced content →](reader-paced-content.md)

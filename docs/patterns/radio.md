@@ -1,4 +1,11 @@
 # Radio station identity
+<!-- agent-hint
+covers: radio station identity
+source: mediavocab/models/work.py
+generated: no
+verify: python -m pytest -q tests/test_station_mirrors.py
+see: playback-type.md
+-->
 
 A radio station is a `Work` (T4: *a station is a Work*). Its stream URLs
 are `Release`s. This document covers when changes to a station produce a
@@ -41,3 +48,6 @@ NPR member stations carrying syndicated programming with local breaks) is:
   drive-time hosts, different music rotation, materially different
   schedules). Link via `WorkRelation(kind=PART_OF)` to a `SERIES` Entity
   representing the network.
+
+---
+[← IoT and device-mediated playback](iot-devices.md) · [Home](../README.md) · [Playback type: the derived player-surface axis →](playback-type.md)

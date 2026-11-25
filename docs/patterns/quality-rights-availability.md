@@ -1,4 +1,11 @@
 # Format, quality, rights and availability
+<!-- agent-hint
+covers: the format, quality, rights and availability fields of a Release
+source: mediavocab/models/work.py, mediavocab/models/license.py
+generated: no
+verify: python -m pytest -q tests/models/test_release_fields.py tests/models/test_license.py
+see: quality-and-ranking.md
+-->
 
 Release metadata is split into four orthogonal blocks instead of one
 overloaded `source_format` string.
@@ -48,3 +55,6 @@ into an enum. `mediavocab.models.license` helpers (`is_open(spdx)`,
 `allows_share_alike(spdx)`) parse the string at the call site. For
 unrecognised identifiers every helper returns the most-restrictive
 answer.
+
+---
+[← Box sets and composite Releases](box-sets.md) · [Home](../README.md) · [Quality and release ranking →](quality-and-ranking.md)

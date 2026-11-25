@@ -1,4 +1,11 @@
 # Models reference
+<!-- agent-hint
+covers: every model field and the decision guides
+source: mediavocab/models/
+generated: no
+verify: python -m pytest -q tests/models
+see: text-utilities.md
+-->
 
 All models are pydantic v2 with `ConfigDict(extra="ignore",
 populate_by_name=True)`. Unknown input fields are dropped silently:
@@ -367,3 +374,6 @@ Full walkthrough: [Writing a metadata provider](./patterns/writing-a-provider.md
 ## Decision guide: Work vs Release
 
 See spec §5.7: the canonical table is maintained there.
+
+---
+[← Taxonomy reference](taxonomy.md) · [Home](README.md) · [Text utilities →](text-utilities.md)
