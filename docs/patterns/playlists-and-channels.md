@@ -1,4 +1,11 @@
 # Playlists, anthologies, and live-streamer channels
+<!-- agent-hint
+covers: user playlists and live-streamer channels
+source: mediavocab/models/work.py
+generated: no
+verify: python -m pytest -q tests/models/test_work.py
+see: iot-devices.md
+-->
 
 Three patterns that reuse `Work` + `Release` differently from a typical
 single-media-type catalogue entry.
@@ -9,7 +16,7 @@ A user playlist (Spotify playlist, YouTube playlist, M3U file, OPML
 podcast bundle) is a `Work` with `media_type = MediaType.PLAYLIST` and
 a `tracklist` of `Appearance`s pointing to the constituent Works.
 
-The curator is credited via `RelationRole.CURATOR` — *not* `CREATOR`,
+The curator is credited via `RelationRole.CURATOR`: *not* `CREATOR`,
 because the playlist's value is in the *selection and ordering*, not
 in the underlying recordings (which have their own creator credits).
 
@@ -39,10 +46,10 @@ playlist = Work(
 ### Why a dedicated `MediaType.PLAYLIST`
 
 A YouTube playlist routinely mixes music videos with vlogs and feature
-films; a Spotify playlist mixes podcast episodes and music; an M3U
+films. A Spotify playlist mixes podcast episodes and music. An M3U
 file mixes radio streams and on-demand audio. None of these fit
 `MediaType.MUSIC` (or any other single type), and the cataloguing
-schema is genuinely different — the *order* and *curator* are the
+schema is genuinely different: the *order* and *curator* are the
 identity, the constituent Works are mutable, the database providers
 (Spotify Playlist API, YouTube Playlist API) are distinct from the
 Work-level providers underneath. Per spec A1 (§2.1), that earns its own
@@ -50,7 +57,7 @@ type.
 
 A single-media-type curated set that is itself a recognised release
 (a rapper's mixtape, an artist's compilation album) stays as
-`MediaType.MUSIC` with `variant_kind = COMPILATION` — the schema is
+`MediaType.MUSIC` with `variant_kind = COMPILATION`: the schema is
 the same as a regular album.
 
 ### Mutability
@@ -94,7 +101,7 @@ anthology = Work(
 ## Live-streamer channels
 
 A streamer's channel (Twitch, Kick, YouTube Live) is modelled exactly
-like a radio station — a `Work` with `media_type = MediaType.TV` (live
+like a radio station: a `Work` with `media_type = MediaType.TV` (live
 linear broadcast channel) whose stream URLs are `Release`s with
 `stream_mode = StreamMode.CONTINUOUS` while live, transitioning to
 `stream_mode = ON_DEMAND` once archived as a VOD.
@@ -113,5 +120,8 @@ vod  = Release(work=channel, uri="https://twitch.tv/videos/...",
 ```
 
 When a stream is a discrete catalogued piece (e.g. a one-off marathon)
-it becomes its own Work whose `series_title` is the channel name —
+it becomes its own Work whose `series_title` is the channel name:
 exactly as a specific radio programme on a station is its own Work.
+
+---
+[← Quality and release ranking](quality-and-ranking.md) · [Home](../README.md) · [IoT and device-mediated playback →](iot-devices.md)

@@ -1,4 +1,11 @@
-# Playback type — the derived player-surface axis
+# Playback type: the derived player-surface axis
+<!-- agent-hint
+covers: the derived playback type and resolver routing
+source: mediavocab/taxonomy/modality.py
+generated: no
+verify: python -m pytest -q tests/taxonomy/test_modality.py
+see: writing-a-provider.md
+-->
 
 mediavocab spec §3.8 / §4.11 defines `PlaybackType` (`AUDIO` / `VIDEO`
 / `PAGED` / `INTERACTIVE` / `UNKNOWN`) as a *derived* routing axis (A6)
@@ -9,10 +16,10 @@ gate to the right provider subset.
 ## When to populate
 
 Modality is a **query hint**, never an identity claim. Set it on a
-`Signals` query; never on a `Work` or `Release`. The model layer derives
+`Signals` query. Never on a `Work` or `Release`. The model layer derives
 the *default* playback_type from `MediaType` via
-`mediavocab.infer_playback_type(work.media_type)` — that's the canonical
-projection if you need one — but the value is not persisted on the
+`mediavocab.infer_playback_type(work.media_type)`: that's the canonical
+projection if you need one: but the value is not persisted on the
 canonical record.
 
 Two upstream populations matter:
@@ -29,7 +36,7 @@ Two upstream populations matter:
 
 Underspecified rows (`MediaType.GENERIC` / `PLAYLIST` / `NOT_MEDIA`)
 should leave `playback_type=None`. Gating on `PlaybackType.UNKNOWN` would
-exclude every provider; `None` is the gate's "no preference" sentinel
+exclude every provider. `None` is the gate's "no preference" sentinel
 and lets the resolver fan out fully.
 
 ## The three-axis gate
@@ -53,7 +60,7 @@ class TvmazeProvider(MetadataProvider):
 ```
 
 Empty set on any axis means "accept all" for that axis (the universal
-case — used by `wikidata` and `skyhook`).
+case: used by `wikidata` and `skyhook`).
 
 ## Worked example: voice agent
 
@@ -102,7 +109,7 @@ def signals_from_entry(entry):
 Bandcamp (`MUSIC`) and SoundCloud (`MUSIC`) rows ⇒ `AUDIO`. IPTV (`TV`)
 ⇒ `VIDEO`. Plain YouTube (`GENERIC`) ⇒ `None` until a content-type
 enrichment pass narrows it. Reference implementation:
-`media_archivist/canonicalize.py` — `signals_from_entry()`.
+`media_archivist/canonicalize.py`: `signals_from_entry()`.
 
 ## What playback_type is *not*
 
@@ -110,14 +117,14 @@ enrichment pass narrows it. Reference implementation:
   `MediaType` (A6). Persisting it would invite drift between two sources
   of truth (A7).
 - **Not in the identity hash.** `signal_hash`, `work_hash`, and
-  `release_hash` all exclude it — playback_type is a routing concern, not an
+  `release_hash` all exclude it: playback_type is a routing concern, not an
   identity one.
 - **Not a comparator.** `compare_signals()` and `merge_signals()` skip
   playback_type. Two providers observing the same work never disagree on
-  playback_type (they don't observe it at all); the consumer's hint is the
+  playback_type (they don't observe it at all). The consumer's hint is the
   only authoritative source.
 - **Not for device control.** Per A3, devices are
-  `Entity(EntityKind.DEVICE)`; *"turn on the kitchen light"* is
+  `Entity(EntityKind.DEVICE)`. *"turn on the kitchen light"* is
   `MediaType.NOT_MEDIA`. `PlaybackType` is for media-playback intent only.
 
 ## Adding a new playback_type value
@@ -126,7 +133,10 @@ The default mapping (`MEDIA_TYPE_TO_PLAYBACK_TYPE`) covers every `MediaType`.
 A new playback_type value would have to (a) capture a real consumer-side
 intent that's not expressible by the existing five, and (b) gate at
 least one provider distinctly from the others. A "background ambient"
-playback_type — e.g. for unattended playback — would meet both bars; an
+playback_type (e.g. for unattended playback) would meet both bars. An
 "educational" playback_type would not (it's a content-genre concern).
 
 When in doubt, add a `content_genres` tag instead.
+
+---
+[← Radio station identity](radio.md) · [Home](../README.md) · [Writing a metadata provider →](writing-a-provider.md)

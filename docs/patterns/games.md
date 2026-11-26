@@ -1,4 +1,11 @@
 # Games
+<!-- agent-hint
+covers: how to model games
+source: mediavocab/models/work.py
+generated: no
+verify: python scripts/check_doc_examples.py docs/patterns/games.md
+see: interactive-fiction.md
+-->
 
 User story for catalogueing a game library across native releases,
 console ports, romhacks, DLC, and standalone expansions.
@@ -6,7 +13,7 @@ console ports, romhacks, DLC, and standalone expansions.
 ## Canonical model
 
 - **Canonical game = `Work`**, ports / ROMs / platform variants = `Release`.
-  The Work is the abstract game; the Release encodes the runtime target
+  The Work is the abstract game. The Release encodes the runtime target
   via `Release.platform` (`"SNES"`, `"PC"`, `"PS4"`, `"Switch"`) and the
   distribution form via `Release.container` (`"ROM"`, `"Steam"`, `"PSN"`).
 - **Console ports** are different Releases of the same Work, optionally
@@ -16,7 +23,7 @@ console ports, romhacks, DLC, and standalone expansions.
 - **DLC** (non-standalone) is its own Work linked via
   `WorkRelation(kind=DLC_FOR)` to the base game.
 - **Standalone expansions** are separate Works linked via
-  `WorkRelation(kind=EXPANSION_OF)` — they ship independently but extend
+  `WorkRelation(kind=EXPANSION_OF)`: they ship independently but extend
   the base Work.
 - **The emulator / player** is the consumer's concern, not modelled.
 
@@ -78,3 +85,6 @@ A1 fails: SNES games and PS4 games share the same authoritative database
 (IGDB), the same mandatory schema (developer / publisher / platform), and
 the same comparison tolerances. The platform is a *Release* axis (T6);
 MediaType stays as `GAME` across every port.
+
+---
+[← Adult media](adult-media.md) · [Home](../README.md) · [Interactive fiction and voice games →](interactive-fiction.md)

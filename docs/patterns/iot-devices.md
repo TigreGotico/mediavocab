@@ -1,14 +1,21 @@
 # IoT and device-mediated playback
+<!-- agent-hint
+covers: devices as entities and receiver-class Works
+source: mediavocab/models/entity.py
+generated: no
+verify: python scripts/check_doc_examples.py docs/patterns/iot-devices.md
+see: radio.md
+-->
 
 Smart speakers, smart plugs, cast targets, and consoles are *routing
 destinations*, not creative works. A1 fails for a "device" MediaType:
 schema, databases, and tolerances are all consumer-side concerns. A3
 seals the case: delivery is not identity.
 
-mediavocab represents devices as `Entity(kind=EntityKind.DEVICE)` —
+mediavocab represents devices as `Entity(kind=EntityKind.DEVICE)`:
 addressed by `external_ids` (Home Assistant entity ID, Sonos UDN,
 Chromecast device ID, Alexa device ID). The Work is what the consumer
-plays; the device is where playback is routed.
+plays. The device is where playback is routed.
 
 A *receiver-class* device (radio, TV, console, sound-machine appliance)
 also has a `Work` counterpart for *"turn on the radio"* invocation
@@ -67,17 +74,20 @@ preset_4 = Release(work=kitchen_work,
 ```
 
 A consumer asked to handle *"turn on the kitchen radio"* looks up Works
-whose `external_ids` matches a known receiver-class device in scope; if
+whose `external_ids` matches a known receiver-class device in scope. If
 one matches, invokes its current Release.
 
 ## Why no `DEVICE` MediaType / PlaybackType?
 
 - A1 (schema-or-database): a device has no canonical schema diverging
-  from existing types; it is not a recording.
+  from existing types. It is not a recording.
 - A3 (delivery is not identity): a device is where content is delivered.
 - T6 (technical attributes are Release fields): codec, bitrate, audio
   channels are all on Release. Routing-target identity lives in
   `Entity(DEVICE)`.
 
-The vocabulary is enough; routing logic (choosing which device gets
+The vocabulary is enough. Routing logic (choosing which device gets
 which Release) is a consumer responsibility.
+
+---
+[← Playlists, anthologies, and live-streamer channels](playlists-and-channels.md) · [Home](../README.md) · [Radio station identity →](radio.md)

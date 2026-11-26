@@ -1,7 +1,14 @@
 # Motion comics
+<!-- agent-hint
+covers: how to model motion comics
+source: mediavocab/taxonomy/genre.py
+generated: no
+verify: python scripts/check_doc_examples.py docs/patterns/motion-comics.md
+see: independent-creators.md
+-->
 
 A motion comic is a video adaptation of comic panels with camera moves,
-voice acting, and music. Despite the name, **it is not a `COMIC`** — the
+voice acting, and music. Despite the name, **it is not a `COMIC`**: the
 playable artefact is video (T6: playback surface is `VIDEO`, not `PAGED`).
 
 - `media_type` = `MOVIE` (single-volume) or `EPISODIC_SERIES` (when it
@@ -11,7 +18,7 @@ playable artefact is video (T6: playback surface is `VIDEO`, not `PAGED`).
   via `WorkRelation(kind=ADAPTED_FROM)` when both records are catalogued.
 
 A "comic book" label in a voice-playback context therefore maps to
-`MOVIE` / `EPISODIC_SERIES` with `GENRE_MOTION_COMIC`, never to `COMIC` —
+`MOVIE` / `EPISODIC_SERIES` with `GENRE_MOTION_COMIC`, never to `COMIC`:
 a static comic is `PAGED`, not a playback target for *"play the
 Watchmen motion comic"*.
 
@@ -39,3 +46,6 @@ motion_comic = Work(
     )],
 )
 ```
+
+---
+[← Soundtracks](soundtracks.md) · [Home](../README.md) · [Independent creators, YouTube, AI-generated content →](independent-creators.md)
