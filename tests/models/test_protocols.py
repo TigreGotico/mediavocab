@@ -69,7 +69,7 @@ def test_provider_match_confidence_bounds():
 
 
 # ---------------------------------------------------------------------------
-# matches() — default four-axis routing
+# matches() — default three-axis routing
 # ---------------------------------------------------------------------------
 
 def test_universal_matches_anything():
@@ -106,8 +106,34 @@ def test_provider_matches_alias():
     assert provider_matches(p, sig) == p.matches(sig)
 
 
+def test_provider_matches_on_duck_typed_object():
+    """`provider_matches` gates any object that exposes the three ClassVars,
+    not only MetadataProvider subclasses. A missing axis imposes no constraint."""
+    class _Bare:
+        media = {MediaType.MUSIC}
+        # playback_type and genre_filter are absent
+
+    bare = _Bare()
+    assert provider_matches(bare, Signals(medium=MediaType.MUSIC)) is True
+    assert provider_matches(bare, Signals(medium=MediaType.MOVIE)) is False
+    # Absent axes impose no constraint.
+    assert provider_matches(bare, Signals(
+        medium=MediaType.MUSIC, playback_type=PlaybackType.VIDEO,
+        content_genres=["x"])) is True
+
+
+def test_provider_matches_on_object_with_no_axes_matches_all():
+    """An object that declares none of the three axes matches every query."""
+    class _Empty:
+        pass
+
+    e = _Empty()
+    assert provider_matches(e, Signals(medium=MediaType.MOVIE)) is True
+    assert provider_matches(e, Signals()) is True
+
+
 # ---------------------------------------------------------------------------
-# Four-axis gate — playback_type
+# Three-axis gate — playback_type
 # ---------------------------------------------------------------------------
 
 class _AudioOnlyProvider(MetadataProvider):
@@ -161,11 +187,6 @@ def test_playback_orthogonal_to_media_gate():
                                  playback_type=PlaybackType.AUDIO)) is False
     finally:
         p.media = set()              # type: ignore[misc]
-
-
-# ---------------------------------------------------------------------------
-# ContentForm gate
-# ---------------------------------------------------------------------------
 
 
 # ---------------------------------------------------------------------------
