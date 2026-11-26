@@ -2,7 +2,7 @@
 from typing import ClassVar, Optional, Set
 
 from mediavocab import (
-    ContentForm, MediaType, MetadataProvider, PlaybackType, ProviderMatch,
+    MediaType, MetadataProvider, PlaybackType, ProviderMatch,
     ResolutionConflict, Signals,
 )
 from mediavocab.models.protocols import provider_matches
@@ -69,7 +69,7 @@ def test_provider_match_confidence_bounds():
 
 
 # ---------------------------------------------------------------------------
-# matches() — default four-axis routing
+# matches() — default three-axis routing
 # ---------------------------------------------------------------------------
 
 def test_universal_matches_anything():
@@ -107,12 +107,11 @@ def test_provider_matches_alias():
 
 
 def test_provider_matches_on_duck_typed_object():
-    """`provider_matches` gates any object exposing the four ClassVars, not
-    just MetadataProvider subclasses — metadatarr relies on this. Missing
-    axes default to 'no constraint'."""
+    """`provider_matches` gates any object that exposes the three ClassVars,
+    not only MetadataProvider subclasses. A missing axis imposes no constraint."""
     class _Bare:
         media = {MediaType.MUSIC}
-        # playback_type / content_form / genre_filter intentionally absent
+        # playback_type and genre_filter are absent
 
     bare = _Bare()
     assert provider_matches(bare, Signals(medium=MediaType.MUSIC)) is True
@@ -120,11 +119,11 @@ def test_provider_matches_on_duck_typed_object():
     # Absent axes impose no constraint.
     assert provider_matches(bare, Signals(
         medium=MediaType.MUSIC, playback_type=PlaybackType.VIDEO,
-        content_form=ContentForm.TRAILER, content_genres=["x"])) is True
+        content_genres=["x"])) is True
 
 
 def test_provider_matches_on_object_with_no_axes_matches_all():
-    """An object declaring none of the four axes matches every query."""
+    """An object that declares none of the three axes matches every query."""
     class _Empty:
         pass
 
@@ -134,7 +133,7 @@ def test_provider_matches_on_object_with_no_axes_matches_all():
 
 
 # ---------------------------------------------------------------------------
-# Four-axis gate — playback_type
+# Three-axis gate — playback_type
 # ---------------------------------------------------------------------------
 
 class _AudioOnlyProvider(MetadataProvider):
@@ -188,11 +187,6 @@ def test_playback_orthogonal_to_media_gate():
                                  playback_type=PlaybackType.AUDIO)) is False
     finally:
         p.media = set()              # type: ignore[misc]
-
-
-# ---------------------------------------------------------------------------
-# ContentForm gate
-# ---------------------------------------------------------------------------
 
 
 # ---------------------------------------------------------------------------
