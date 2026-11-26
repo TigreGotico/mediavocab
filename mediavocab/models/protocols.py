@@ -1,7 +1,9 @@
-"""Cross-source resolver contract — abstract base, no runtime registry.
+"""Cross-source resolver contract — abstract base, no runtime registry
+(spec: §1.7 non-goals; three-axis gate A6, §6.5).
 
 Defines the typed interface a metadata provider implements when participating
-in a cross-source resolver pipeline. Spec §4.11 (PlaybackType routing rule).
+in a cross-source resolver pipeline. The resolver gate is three-axis and
+orthogonal — ``(media × playback_type × genre_filter)`` (A6, §3.8/§3.6).
 
 The actual registry, dispatcher, and consolidation logic live in downstream
 packages (e.g. `metadatarr.resolve`). This module is the shared contract.
@@ -22,7 +24,8 @@ _LOG = logging.getLogger(__name__)
 
 
 class ProviderMatch(BaseModel):
-    """One provider's response to a `Signals` query."""
+    """One provider's response to a `Signals` query (spec: §1.7 — resolver
+    contract, not a persisted model)."""
 
     model_config = ConfigDict(extra="forbid")
 
@@ -33,7 +36,8 @@ class ProviderMatch(BaseModel):
 
 
 class ResolutionConflict(BaseModel):
-    """One provider match dropped because it disagreed with the accepted result."""
+    """One provider match dropped because it disagreed with the accepted result
+    (spec: §6.5 — identity disagreement is a different record, A7)."""
 
     model_config = ConfigDict(extra="forbid")
 

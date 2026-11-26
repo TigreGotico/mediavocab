@@ -28,7 +28,8 @@ comparison needs identical comparable structure. The duplication is
 the reason the comparator can be written once. The orthogonality
 axiom (A6) keeps ``Signals``-only fields off ``Work``:
 ``include_variants``, ``fanedit_subtype``, ``playback_type``,
-``content_form`` are all routing hints, not identity claims.
+``content_form``, ``picture_format``, ``programme_format`` and
+``accessibility`` are all routing hints, not identity claims.
 
 Comparison rules (encoded in :func:`compare_signals`):
 
@@ -47,7 +48,10 @@ from typing import Any, Dict, List, Optional
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from mediavocab.taxonomy import MediaType, VariantKind, ContentForm
+from mediavocab.taxonomy import (
+    MediaType, VariantKind, ContentForm, PictureFormat,
+    ProgrammeFormat, AccessibilityKind,
+)
 from mediavocab.taxonomy.modality import PlaybackType
 from mediavocab.text.compare import (
     TITLE_MIN as _TITLE_MIN,
@@ -63,7 +67,8 @@ RUNTIME_TOLERANCE_S = 5.0
 
 
 class SignalsRole(str, Enum):
-    """Lifecycle role of a Signals bag in the resolver pipeline.
+    """Lifecycle role of a Signals bag in the resolver pipeline
+    (spec: §1.7 — resolver-only, not a persisted model).
 
     A single ``Signals`` type carries three roles distinguished by direction
     of flow (see module docstring §1–3). The ``role`` field makes the current
@@ -81,8 +86,14 @@ class SignalsRole(str, Enum):
 
 
 class Signals(BaseModel):
-    """Bag of signals extracted from one provider's response, normalised
-    for cross-provider comparison.
+    """Resolver-pipeline bag, normalised for cross-provider comparison
+    (spec: A6/§1.7 — resolver-only, not a persisted model).
+
+    Field overlap with Work is deliberate (one comparator); A6 keeps
+    Signals-only routing hints (``include_variants``, ``playback_type``,
+    ``content_form``, ``picture_format``, ``programme_format``,
+    ``accessibility``, ``fanedit_subtype``) off Work — they are routing claims,
+    not identity, so they never enter ``signal_hash`` or ``compare_signals``.
 
     Sub-classifications of ``VariantKind`` that the foundation
     deliberately omits (FANFIX, FANMIX, FANEDIT_SHORT, BONUS_TRACKS)
@@ -128,6 +139,23 @@ class Signals(BaseModel):
     # in :func:`compare_signals` — it is a query field, never observed.
     playback_type: Optional[PlaybackType] = None
 
+    # PictureFormat hint (§4.15) — presentation attribute (colour / dimension /
+    # resolution). Technical Release attribute (T6); routing-family (A6), so it
+    # never participates in identity (:func:`signal_hash`) or in
+    # :func:`compare_signals`. Distinct from the free-text ``source_format``.
+    picture_format: Optional[PictureFormat] = None
+
+    # ProgrammeFormat hint (§4.12) — documentary / news / concert / stand_up /
+    # talk_show / sports / reality / quiz. Routing-family (A6): orthogonal to
+    # ``medium`` (the carrier), never identity, never observed/compared.
+    programme_format: Optional[ProgrammeFormat] = None
+
+    # AccessibilityKind hints (§5.4) — subtitles / captions / audio_description /
+    # sign_language / transcript / lyrics / dubbed. A routing hint at the Signals
+    # layer (a Work acquires per-Release accessibility *tracks*); routing-family
+    # (A6), so it never participates in identity or :func:`compare_signals`.
+    accessibility: List[AccessibilityKind] = Field(default_factory=list)
+
     # Lifecycle role — which phase of the resolver pipeline this bag is in.
     # Excluded from compare_signals and merge_signals (it is metadata, not data).
     role: SignalsRole = SignalsRole.QUERY
@@ -152,7 +180,8 @@ class Signals(BaseModel):
 
 
 class SignalConflict(BaseModel):
-    """One signal field on which two ``Signals`` bags disagree."""
+    """One signal field on which two ``Signals`` bags disagree
+    (spec: §6.5 — the Signals-layer analogue of Conflict; absence is unknown, A2)."""
 
     model_config = ConfigDict(extra="forbid")
 

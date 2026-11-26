@@ -1,4 +1,11 @@
 # Quickstart
+<!-- agent-hint
+covers: a walk-through of Work, Release, Entity and the text helpers
+source: mediavocab/models/, mediavocab/text/
+generated: no
+verify: python scripts/check_doc_examples.py docs/quickstart.md
+see: taxonomy.md
+-->
 
 ```bash
 pip install mediavocab
@@ -19,7 +26,7 @@ w = Work(
 )
 ```
 
-`Work` is the *canonical* creative work — abstract, no playback URI. To
+`Work` is the *canonical* creative work: abstract, no playback URI. To
 represent a specific manifestation (a CD pressing, a remaster, a stream URL)
 wrap the Work in a `Release`:
 
@@ -77,13 +84,13 @@ r = parse_title("Blade Runner (1982) [Director's Cut] [4K UHD].mkv")
 ```
 
 Locale-aware via the optional `lang=` parameter (`"pt-pt"`, `"es"`,
-`"fr-fr"`, …) — the `.voc` keyword tree lives at
+`"fr-fr"`, …): the `.voc` keyword tree lives at
 `mediavocab/locale/<lang>/`.
 
 ## Resolve across providers
 
 `mediavocab.Signals` is the disambiguation bag every cross-source resolver
-shares. The `playback_type` field gates which providers are invoked — orthogonal to
+shares. The `playback_type` field gates which providers are invoked: orthogonal to
 `medium` (A6):
 
 ```python
@@ -115,17 +122,20 @@ print(ids.streams)                              # → typed list of playable URL
 print(release_hash(remaster))
 ```
 
-## Pick the best available release
+## Filter to available releases
 
-Each cut is its own Work (§3.4); `quality_score` reads
-`release.work.variant_kind` for the cut and `release.packaging` for the
-edition.
+Each cut is its own Work (§3.4). `release.work.variant_kind` carries the
+cut and `release.packaging` the edition. mediavocab ships the
+availability predicate. Ranking by preference (4K > 1080p, Atmos >
+stereo) is application logic: see
+[`patterns/quality-and-ranking.md`](./patterns/quality-and-ranking.md)
+for a reference scorer.
 
 ```python
 from mediavocab import (
     MediaType, Release, ReleasePackaging, VariantKind, Work,
 )
-from mediavocab.helpers.queries import best_release, quality_score
+from mediavocab.helpers import is_available
 
 theatrical_work = Work(title="Alien", media_type=MediaType.MOVIE,
                        year=1979, runtime=117 * 60.0,
@@ -145,56 +155,12 @@ directors  = Release(work=directors_work, container="UHD Blu-ray",
                      packaging=ReleasePackaging.DELUXE,
                      uri="file:///x/directors.mkv")
 
-winner = best_release(theatrical, directors)
-print(winner.work.variant_kind, winner.resolution)
+accessible = [r for r in (theatrical, directors)
+              if is_available(r, region="US")]
 ```
-
-`best_release` returns `None` when called with no arguments. List order
-breaks ties — pre-order by preference (local file before stream).
-
-## Model a broadcast schedule
-
-Per T4, a broadcast channel is itself a Work (`RADIO` / `TV`). A
-`Programme` slot points at two Works: the channel-Work and the
-content-Work being aired.
-
-```python
-from mediavocab import MediaType, Programme, Schedule, Work
-
-bbc_r4 = Work(title="BBC Radio 4", media_type=MediaType.RADIO,
-              broadcaster_country="GB",
-              external_ids={"tunein": "s17725"})
-
-did = Work(title="Desert Island Discs",
-           media_type=MediaType.PODCAST,
-           broadcaster_country="GB",
-           external_ids={"bbc_pid": "b006qnmr"})
-
-slot = Programme(
-    work=did,
-    channel=bbc_r4,
-    starts_at="2026-05-06T09:00:00Z",
-    ends_at="2026-05-06T09:45:00Z",
-)
-
-schedule = Schedule(
-    channel=bbc_r4,
-    programmes=[slot],
-    valid_from="2026-05-06T00:00:00Z",
-    valid_until="2026-05-07T00:00:00Z",
-    source="tvmaze",
-)
-
-# Find what's on at a given instant
-now = "2026-05-06T09:20:00Z"
-current = next(
-    (p for p in schedule.programmes
-     if p.starts_at <= now < (p.ends_at or "9999")),
-    None,
-)
-```
-
-See `docs/patterns/scheduling.md` for the full broadcast scheduling pattern.
 
 See `docs/text-utilities.md` for the full text / parsing / classifier
 surface and `docs/models.md` for the model catalogue.
+
+---
+[← mediavocab: Formal Specification](mediavocab_spec.md) · [Home](README.md) · [Taxonomy reference →](taxonomy.md)

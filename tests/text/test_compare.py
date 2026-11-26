@@ -265,16 +265,20 @@ def test_availability_window_end_before_start_raises():
         AvailabilityWindow(start="2025-01-01", end="2024-01-01")
 
 
-def test_release_license_coerces_string_to_license_object():
+def test_release_license_is_canonical_string():
+    # license is the canonical SPDX string (A7); the typed view is the
+    # read-only `.license_model` overlay (§7.2).
     from mediavocab import MediaType, Release, Work
     r = Release(work=Work(title="x", media_type=MediaType.MOVIE),
                 license="CC-BY-SA-4.0")
-    assert r.license is not None
-    assert r.license.share_alike is True
-    assert r.license.identifier == "CC-BY-SA-4.0"
+    assert r.license == "CC-BY-SA-4.0"
+    assert r.license_model is not None
+    assert r.license_model.share_alike is True
+    assert r.license_model.identifier == "CC-BY-SA-4.0"
 
 
-def test_release_license_none_when_empty():
+def test_release_license_empty_when_unset():
     from mediavocab import MediaType, Release, Work
     r = Release(work=Work(title="x", media_type=MediaType.MOVIE))
-    assert r.license is None
+    assert r.license == ""
+    assert r.license_model is None

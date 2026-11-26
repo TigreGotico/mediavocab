@@ -1,4 +1,11 @@
 # Box sets and composite Releases
+<!-- agent-hint
+covers: box sets and composite Releases
+source: mediavocab/models/work.py
+generated: no
+verify: python -m pytest -q tests/models/test_release.py
+see: quality-rights-availability.md
+-->
 
 A box set is a packaging decision (`ReleasePackaging.BOX_SET`), not a
 creative work. `Release.contents` aggregates several Works in one Release
@@ -19,10 +26,10 @@ box = Release(
 ```
 
 For a multi-cut single-Work box (theatrical + director's + extended on one
-disc), each cut is its own Work (§3.4); the box set lists each cut as an
+disc), each cut is its own Work (§3.4). The box set lists each cut as an
 Appearance in `contents`.
 
-When the box has no headline (a true anthology — three unrelated short films,
+When the box has no headline (a true anthology: three unrelated short films,
 a label sampler), create a single Work to act as the headline:
 
 ```python
@@ -40,3 +47,6 @@ sampler = Release(work=sampler_work, contents=[...])  # appearances
 | DJ mix with `offset`s (single continuous release) | `Work.tracklist` with `Appearance.offset` |
 | Box set aggregating *separate* Works | `Release.contents` |
 | Anthology Release with no canonical host Work | `Release.contents` + a synthetic anthology Work |
+
+---
+[← Accessibility tracks and localisation](accessibility.md) · [Home](../README.md) · [Format, quality, rights and availability →](quality-rights-availability.md)
