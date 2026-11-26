@@ -1,5 +1,13 @@
 # Changelog
 
+## [2.0.0a5](https://github.com/TigreGotico/mediavocab/tree/2.0.0a5) (2026-11-26)
+
+[Full Changelog](https://github.com/TigreGotico/mediavocab/compare/2.0.0a4...2.0.0a5)
+
+**Merged pull requests:**
+
+- test: cover provider\_matches on duck-typed objects [\#20](https://github.com/TigreGotico/mediavocab/pull/20) ([JarbasAl](https://github.com/JarbasAl))
+
 ## [2.0.0a4](https://github.com/TigreGotico/mediavocab/tree/2.0.0a4) (2026-11-25)
 
 [Full Changelog](https://github.com/TigreGotico/mediavocab/compare/2.0.0a3...2.0.0a4)
