@@ -1,5 +1,13 @@
 # Changelog
 
+## [2.0.0a6](https://github.com/TigreGotico/mediavocab/tree/2.0.0a6) (2026-11-26)
+
+[Full Changelog](https://github.com/TigreGotico/mediavocab/compare/2.0.0a5...2.0.0a6)
+
+**Merged pull requests:**
+
+- chore: packaging hygiene — py.typed marker, version classifiers, 3.10 floor [\#19](https://github.com/TigreGotico/mediavocab/pull/19) ([JarbasAl](https://github.com/JarbasAl))
+
 ## [2.0.0a5](https://github.com/TigreGotico/mediavocab/tree/2.0.0a5) (2026-11-26)
 
 [Full Changelog](https://github.com/TigreGotico/mediavocab/compare/2.0.0a4...2.0.0a5)
@@ -72,6 +80,35 @@
 **Merged pull requests:**
 
 - feat: add PictureFormat & Structure taxonomy axes + AccessibilityKind.dubbed [\#7](https://github.com/TigreGotico/mediavocab/pull/7) ([JarbasAl](https://github.com/JarbasAl))
+
+## [1.1.0](https://github.com/TigreGotico/mediavocab/tree/1.1.0) (2026-06-23)
+
+[Full Changelog](https://github.com/TigreGotico/mediavocab/compare/1.1.0a1...1.1.0)
+
+## [1.1.0a1](https://github.com/TigreGotico/mediavocab/tree/1.1.0a1) (2026-06-22)
+
+[Full Changelog](https://github.com/TigreGotico/mediavocab/compare/1.0.1a1...1.1.0a1)
+
+**Merged pull requests:**
+
+- feat: resolve 2026-05 taxonomy audit \(relations, genres, external-id reconciliation\) [\#5](https://github.com/TigreGotico/mediavocab/pull/5) ([JarbasAl](https://github.com/JarbasAl))
+
+## [1.0.1a1](https://github.com/TigreGotico/mediavocab/tree/1.0.1a1) (2026-05-11)
+
+[Full Changelog](https://github.com/TigreGotico/mediavocab/compare/0.1.1...1.0.1a1)
+
+**Merged pull requests:**
+
+- Release 1.0.1a1 [\#4](https://github.com/TigreGotico/mediavocab/pull/4) ([github-actions[bot]](https://github.com/apps/github-actions))
+- Ground-up spec rewrite — 1.0.0 first release [\#3](https://github.com/TigreGotico/mediavocab/pull/3) ([JarbasAl](https://github.com/JarbasAl))
+
+## [0.1.1](https://github.com/TigreGotico/mediavocab/tree/0.1.1) (2026-05-07)
+
+[Full Changelog](https://github.com/TigreGotico/mediavocab/compare/0.1.1a1...0.1.1)
+
+## [0.1.1a1](https://github.com/TigreGotico/mediavocab/tree/0.1.1a1) (2026-05-07)
+
+[Full Changelog](https://github.com/TigreGotico/mediavocab/compare/329b878ad12e01ff2413f17e9ba32e14c50816f4...0.1.1a1)
 
 
 
